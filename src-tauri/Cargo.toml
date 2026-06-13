@@ -1,0 +1,27 @@
+[package]
+name        = "election-sim"
+version     = "0.0.0"
+description = "270 — US Election Simulator"
+authors     = []
+edition     = "2021"
+
+# lib crate is required for the mobile entry-point macro
+[lib]
+name       = "election_sim_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri       = { version = "2", features = [] }
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+
+# ── Intentionally omitted plugins ─────────────────────────────────────────────
+# tauri-plugin-shell  — no need to spawn arbitrary OS processes
+# tauri-plugin-http   — game has no remote API calls; removing this closes the
+#                       fetch() → native HTTP bridge attack surface
+# tauri-plugin-fs     — save/load is planned via the store pattern, not raw FS
+#
+# Add plugins one-by-one as features are needed; keep the surface minimal.
