@@ -1,53 +1,34 @@
 /**
  * Core data structures for the US Election Simulator.
  *
- * Design notes:
- * - `readonly` marks fields that must never mutate after construction. The
- *   only legitimately mutable runtime field is `Candidate.cash`, and even that
- *   is mutated exclusively by the pure engine functions in `engine.ts`.
- * - No `any`. Ids are nominal-ish string aliases so call sites read clearly.
+ * Investment model (replaces the old vote-share/percentage model):
+ *   - Each candidate accumulates independent investment per state (dollars, not %)
+ *   - States start at 0 investment for everyone
+ *   - First to reach baseCampaignCost × 100 secures the state permanently
+ *   - At election: secured → guaranteed EVs; contested → highest investor wins; uncontested → 0 EVs
  */
 
-/**
- * Interest groups a candidate can have affinity with and a state can expose.
- *
- * Two dimensions:
- *   Geographic macro-regions — enable region-sweep strategies
- *   Economic interest groups  — enable sector-specific targeting
- *
- * Every string here must appear verbatim in statesData.ts and in any candidate
- * affinities map. TypeScript enforces this at compile time, so a typo anywhere
- * in the dataset produces a build error rather than a silent runtime miss.
- */
 export type InterestGroup =
-  // ── Geographic macro-regions ────────────────────────────────────────────────
-  | 'Rust Belt'   // OH, PA, MI, WI, IL, IN, MO, WV
-  | 'Sun Belt'    // FL, TX, AZ, GA, NV, CO, NM, NC (parts)
-  | 'Bible Belt'  // AL, AR, GA, KY, LA, MS, NC, SC, TN, OK, TX (parts)
-  | 'Farm Belt'   // IA, KS, MN, MO, NE, ND, SD, ID, UT, WY, MT, IN (parts)
-  | 'Pacific'     // CA, OR, WA, HI, AK
-  | 'New England' // CT, ME, MA, NH, RI, VT
-  // ── Economic interest groups ─────────────────────────────────────────────────
-  | 'Labor'        // heavy-union states: MI, OH, PA, WI, IN, MN
-  | 'Agribusiness' // commodity-crop states: IA, KS, NE, AR, LA, CA (Central Valley)
-  | 'High Tech'    // tech clusters: CA, WA, TX (Austin), MA, CO, AZ, OR, VA, NC
-  | 'Energy'       // fossil-fuel states: TX, OK, LA, WV, WY, AK, ND, KS, CO
-  | 'Manufacturing'// industrial states: MI, OH, PA, IL, TN, SC, AL, GA, IN, NY
-  | 'Wall Street'; // finance hubs: NY, CT, NJ, IL (Chicago), MA, MD, DE, DC
+  | 'Rust Belt'
+  | 'Sun Belt'
+  | 'Bible Belt'
+  | 'Farm Belt'
+  | 'Pacific'
+  | 'New England'
+  | 'Labor'
+  | 'Agribusiness'
+  | 'High Tech'
+  | 'Energy'
+  | 'Manufacturing'
+  | 'Wall Street';
 
-/** USPS-style identifiers, kept as string aliases for readability at call sites. */
 export type CandidateId = string;
-export type StateId = string; // e.g. "PA"
+export type StateId = string;
 
 export interface Candidate {
   readonly id: CandidateId;
   readonly name: string;
-  /** Spendable balance. Mutated ONLY through the engine's spendFunds. */
   cash: number;
-  /**
-   * Efficiency multipliers per interest group, expressed as a fraction.
-   * e.g. { Labor: 0.10 } means +10% support-per-dollar when targeting Labor.
-   */
   readonly affinities: Partial<Record<InterestGroup, number>>;
 }
 
@@ -56,45 +37,51 @@ export interface US_State {
   readonly name: string;
   readonly electoralVotes: number;
   /**
-   * Dollars per "unit" of campaign action. Higher = harder to move support,
-   * acting as the divisor in the support-gain formula.
+   * Scales the base cost of a single rung.
+   * Higher = more expensive to campaign in this state.
    */
   readonly baseCampaignCost: number;
-  /** Interest groups that can be targeted for an affinity bonus in this state. */
   readonly interestGroups: readonly InterestGroup[];
+  readonly maxRungs: 5 | 10 | 15;
 }
 
 /**
- * support[stateId][candidateId] = percentage in [0, 100].
- * Per state, every candidate's percentage sums to ~100 (normalized share).
+ * investment[stateId][candidateId] = current number of rungs secured.
+ * Each candidate's total is independent — spending does NOT reduce rivals.
  */
-export type SupportMap = Record<StateId, Record<CandidateId, number>>;
+export type InvestmentMap = Record<StateId, Record<CandidateId, number>>;
 
 export interface GameState {
   turn: number;
   candidates: Candidate[];
   states: US_State[];
-  support: SupportMap;
+  investment: InvestmentMap;
+  /** null = contested/unsecured; candidateId = permanently secured by that player. */
+  securedBy: Record<StateId, CandidateId | null>;
+  /**
+   * Order in which candidates FIRST invested in each state.
+   * investmentOrder[stateId][0] = the candidate who invested first → wins ties at election.
+   */
+  investmentOrder: Record<StateId, CandidateId[]>;
 }
 
-/** Result of a single electoral-vote tally pass. */
 export interface ElectoralResult {
-  /** Total electoral votes currently projected to each candidate. */
+  /** EVs each candidate is currently projected to win. */
   readonly evByCandidate: Record<CandidateId, number>;
-  /** The candidate leading each state (the one who would win its EVs today). */
-  readonly stateLeaders: Record<StateId, CandidateId>;
-  /** Non-null only when a candidate has reached the win threshold (>= 270). */
+  /**
+   * The candidate who wins each state under current rules.
+   * null for uncontested states (0 or 1 investors, not secured).
+   */
+  readonly stateLeaders: Record<StateId, CandidateId | null>;
+  /** Non-null when a candidate reaches WIN_THRESHOLD (≥ 270). */
   readonly winner: CandidateId | null;
 }
 
-/**
- * Outcome of an attempted spend. `ok: false` means validation failed and the
- * returned candidates/support are unchanged copies of the inputs.
- */
-export interface SpendResult {
+export interface InvestmentResult {
   readonly ok: boolean;
-  /** Human-readable reason when ok === false (e.g. "insufficient funds"). */
   readonly reason?: string;
   readonly candidates: Candidate[];
-  readonly support: SupportMap;
+  readonly investment: InvestmentMap;
+  readonly securedBy: Record<StateId, CandidateId | null>;
+  readonly investmentOrder: Record<StateId, CandidateId[]>;
 }

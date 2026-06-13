@@ -1,183 +1,206 @@
 /**
- * Pure game-engine math.
+ * Pure game-engine math — no React, no side effects, no I/O.
  *
- * Every function here is pure: it takes state in and returns new values with no
- * side effects, no React, no DOM, no I/O. This is what lets the heavy game loop
- * (mutating support across many states) run independently of rendering, and it
- * is the ONLY place balances and percentages are allowed to change.
+ * Investment model:
+ *   Each candidate's spend is independent and cumulative (not zero-sum).
+ *   Affinity bonuses multiply the effective investment: effective = amount × (1 + bonus)
+ *   First candidate to reach (baseCampaignCost × 100) secures the state permanently.
  *
- * Inputs are validated and outputs are clamped so a tampered call from the
- * console cannot push the game into an impossible state through this path.
+ * Election resolution (called only when election is triggered, not during normal play):
+ *   - Secured states  → that candidate's guaranteed EVs
+ *   - Contested       → highest investor wins; equal investment → whoever invested first
+ *   - Uncontested     → 0 EVs (state not worth fighting over without a rival)
  */
 
 import type {
-  Candidate,
   CandidateId,
   ElectoralResult,
   GameState,
+  InvestmentMap,
+  InvestmentResult,
   InterestGroup,
-  SpendResult,
   StateId,
-  SupportMap,
-  US_State,
 } from './types';
 
-/** Total electoral votes in the (real) college; states should sum to this. */
 export const TOTAL_ELECTORAL_VOTES = 538;
-/** Electoral votes required to win. */
 export const WIN_THRESHOLD = 270;
-/** Maximum support-percentage swing a single spend action may produce. */
-export const SUPPORT_CAP = 5;
 
-/** Clamp a number into [min, max]. */
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
+// ── Clone helpers (exported so store can build WIP state immutably) ───────────
 
-/**
- * Deep-copy the per-state support record. We only ever copy the maps we touch,
- * but copying the whole structure keeps the function referentially honest
- * (callers get a fresh object they can commit immutably).
- */
-function cloneSupport(support: SupportMap): SupportMap {
-  const next: SupportMap = {};
-  for (const stateId of Object.keys(support)) {
-    next[stateId] = { ...support[stateId] };
+export function cloneInvestment(inv: InvestmentMap): InvestmentMap {
+  const next: InvestmentMap = {};
+  for (const stateId of Object.keys(inv)) {
+    next[stateId] = { ...inv[stateId] };
   }
   return next;
 }
 
-/**
- * Attempt to spend `amount` on `candidateId` in `stateId`, optionally targeting
- * an interest `group` for an affinity bonus.
- *
- * Support-gain formula (the requested model):
- *   affinityBonus  = group ? (candidate.affinities[group] ?? 0) : 0   // e.g. 0.10
- *   effectiveSpend = amount * (1 + affinityBonus)
- *   rawGain        = effectiveSpend / state.baseCampaignCost          // cost as divisor
- *   gain           = min(rawGain, SUPPORT_CAP)                        // clamp the swing
- *
- * The gain is added to the candidate's share in that state, then the other
- * candidates are scaled down proportionally so the state still sums to 100.
- *
- * Returns ok:false (with unchanged copies) on any validation failure rather
- * than throwing, so the UI never has to wrap calls in try/catch.
- */
-export function spendFunds(
-  state: GameState,
-  candidateId: CandidateId,
-  stateId: StateId,
-  amount: number,
-  group?: InterestGroup,
-): SpendResult {
-  const candidates = state.candidates;
-  const candidate = candidates.find((c) => c.id === candidateId);
-  const usState = state.states.find((s) => s.id === stateId);
-
-  // --- Validation (centralized; the console cannot bypass these checks) ---
-  if (!candidate) {
-    return { ok: false, reason: 'unknown candidate', candidates, support: state.support };
+export function cloneOrderMap(
+  orderMap: Record<StateId, CandidateId[]>,
+): Record<StateId, CandidateId[]> {
+  const next: Record<StateId, CandidateId[]> = {};
+  for (const stateId of Object.keys(orderMap)) {
+    next[stateId] = [...orderMap[stateId]];
   }
-  if (!usState) {
-    return { ok: false, reason: 'unknown state', candidates, support: state.support };
-  }
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return { ok: false, reason: 'amount must be positive', candidates, support: state.support };
-  }
-  if (candidate.cash < amount) {
-    return { ok: false, reason: 'insufficient funds', candidates, support: state.support };
-  }
-  // Only allow an affinity bonus for a group the state actually exposes.
-  const groupIsTargetable = group !== undefined && usState.interestGroups.includes(group);
-
-  // --- Effectiveness formula ---
-  const affinityBonus = groupIsTargetable ? candidate.affinities[group] ?? 0 : 0;
-  const effectiveSpend = amount * (1 + affinityBonus);
-  const rawGain = effectiveSpend / usState.baseCampaignCost;
-  const gain = Math.min(rawGain, SUPPORT_CAP);
-
-  // --- Apply as a normalized share within the state ---
-  const stateSupport = { ...state.support[stateId] };
-  const current = stateSupport[candidateId] ?? 0;
-  const desired = clamp(current + gain, 0, 100);
-  const actualGain = desired - current; // may be < gain if we hit the 100 ceiling
-
-  // Pull the gained share proportionally from the rivals' existing support.
-  const rivals = candidates.filter((c) => c.id !== candidateId);
-  const rivalTotal = rivals.reduce((sum, r) => sum + (stateSupport[r.id] ?? 0), 0);
-
-  if (rivalTotal > 0 && actualGain > 0) {
-    for (const rival of rivals) {
-      const rivalShare = stateSupport[rival.id] ?? 0;
-      const reduction = actualGain * (rivalShare / rivalTotal);
-      stateSupport[rival.id] = clamp(rivalShare - reduction, 0, 100);
-    }
-  }
-  stateSupport[candidateId] = desired;
-
-  // --- Commit: fresh copies so the store can replace state immutably ---
-  const nextSupport = cloneSupport(state.support);
-  nextSupport[stateId] = stateSupport;
-
-  const nextCandidates: Candidate[] = candidates.map((c) =>
-    c.id === candidateId ? { ...c, cash: c.cash - amount } : c,
-  );
-
-  return { ok: true, candidates: nextCandidates, support: nextSupport };
+  return next;
 }
 
-/**
- * Evaluate every state, award its electoral votes to the current leader, and
- * report whether anyone has reached the win threshold. Pure read — used both
- * for the live EV projection and the win check.
- *
- * Ties (equal top support) are awarded deterministically to the first
- * candidate in declaration order, so the projection never flickers.
- */
-export function tallyElectoralVotes(state: GameState): ElectoralResult {
-  const evByCandidate: Record<CandidateId, number> = {};
-  const stateLeaders: Record<StateId, CandidateId> = {};
+// ── Core investment action ────────────────────────────────────────────────────
 
-  for (const candidate of state.candidates) {
-    evByCandidate[candidate.id] = 0;
+export function calculateRungCost(
+  baseCost: number,
+  maxRungs: number,
+  startRung: number,
+  rungsToBuy: number,
+  affinityBonus: number
+): number {
+  let cost = 0;
+  for (let i = 1; i <= rungsToBuy; i++) {
+    const rungIndex = startRung + i;
+    const multiplier = (maxRungs === 15 && rungIndex === 15) ? 4.0 : 1.0;
+    const rungCost = baseCost * multiplier;
+    cost += rungCost / (1 + affinityBonus);
+  }
+  return cost;
+}
+
+export interface PlayerTurnSpends {
+  candidateId: string;
+  spends: Array<{
+    stateId: string;
+    rungs: number;
+    cost: number;
+  }>;
+}
+
+export function resolveTurn(
+  state: import('./types').GameState,
+  p1Spends: PlayerTurnSpends,
+  p2Spends: PlayerTurnSpends
+): import('./types').GameState {
+  const nextInv = cloneInvestment(state.investment);
+  const nextSecured = { ...state.securedBy };
+  const nextOrder = cloneOrderMap(state.investmentOrder);
+  const nextCandidates = state.candidates.map(c => ({ ...c }));
+
+  const p1 = nextCandidates.find(c => c.id === p1Spends.candidateId);
+  const p2 = nextCandidates.find(c => c.id === p2Spends.candidateId);
+  if (!p1 || !p2) return state;
+
+  p1.cash -= p1Spends.spends.reduce((sum, s) => sum + s.cost, 0);
+  p2.cash -= p2Spends.spends.reduce((sum, s) => sum + s.cost, 0);
+
+  const statesToProcess = new Set<string>();
+  p1Spends.spends.forEach(s => statesToProcess.add(s.stateId));
+  p2Spends.spends.forEach(s => statesToProcess.add(s.stateId));
+
+  for (const stateId of statesToProcess) {
+    const usState = state.states.find(s => s.id === stateId);
+    if (!usState) continue;
+
+    const p1Rungs = p1Spends.spends.filter(s => s.stateId === stateId).reduce((sum, s) => sum + s.rungs, 0);
+    const p2Rungs = p2Spends.spends.filter(s => s.stateId === stateId).reduce((sum, s) => sum + s.rungs, 0);
+
+    if (p1Rungs > 0 && !nextOrder[stateId]?.includes(p1.id)) {
+      nextOrder[stateId] = [...(nextOrder[stateId] || []), p1.id];
+    }
+    if (p2Rungs > 0 && !nextOrder[stateId]?.includes(p2.id)) {
+      nextOrder[stateId] = [...(nextOrder[stateId] || []), p2.id];
+    }
+
+    const p1Start = nextInv[stateId]?.[p1.id] ?? 0;
+    const p2Start = nextInv[stateId]?.[p2.id] ?? 0;
+
+    let p1End = p1Start + p1Rungs;
+    let p2End = p2Start + p2Rungs;
+
+    if (p1End >= usState.maxRungs && p2End >= usState.maxRungs) {
+      p1End = p1Start;
+      p2End = p2Start;
+      nextSecured[stateId] = null;
+    } else {
+      if (p1End >= usState.maxRungs) nextSecured[stateId] = p1.id;
+      if (p2End >= usState.maxRungs) nextSecured[stateId] = p2.id;
+    }
+
+    if (!nextInv[stateId]) nextInv[stateId] = {};
+    nextInv[stateId][p1.id] = p1End;
+    nextInv[stateId][p2.id] = p2End;
   }
 
-  for (const usState of state.states) {
-    const leaderId = findStateLeader(usState, state.candidates, state.support);
-    if (leaderId === null) continue; // no support data for this state yet
-    stateLeaders[usState.id] = leaderId;
-    evByCandidate[leaderId] += usState.electoralVotes;
+  return {
+    ...state,
+    investment: nextInv,
+    securedBy: nextSecured,
+    investmentOrder: nextOrder,
+    candidates: nextCandidates,
+  };
+}
+
+// ── Electoral tally ───────────────────────────────────────────────────────────
+
+/**
+ * Evaluate every state under the election model and report EVs per candidate.
+ *
+ * This function is pure and used for both:
+ *   - Live EV projection during normal play (caller ignores `.winner`)
+ *   - Final election resolution (caller acts on `.winner`)
+ */
+export function tallyElectoralVotes(state: GameState): ElectoralResult {
+  const { candidates, states, investment, securedBy, investmentOrder } = state;
+
+  const evByCandidate: Record<CandidateId, number> = {};
+  const stateLeaders: Record<StateId, CandidateId | null> = {};
+
+  for (const c of candidates) evByCandidate[c.id] = 0;
+
+  for (const usState of states) {
+    const sid = usState.id;
+    const locked = securedBy[sid];
+
+    if (locked != null) {
+      // Secured: candidate guaranteed these EVs
+      stateLeaders[sid] = locked;
+      evByCandidate[locked] = (evByCandidate[locked] ?? 0) + usState.electoralVotes;
+      continue;
+    }
+
+    const stateInv = investment[sid] ?? {};
+    const investors = candidates.filter((c) => (stateInv[c.id] ?? 0) > 0);
+
+    if (investors.length < 2) {
+      // Uncontested (0 or 1 investors) → 0 EVs
+      stateLeaders[sid] = null;
+      continue;
+    }
+
+    // Find the highest investor(s)
+    let maxInv = 0;
+    for (const c of investors) maxInv = Math.max(maxInv, stateInv[c.id] ?? 0);
+
+    const tied = investors.filter((c) => (stateInv[c.id] ?? 0) === maxInv);
+
+    let leaderId: CandidateId;
+    if (tied.length === 1) {
+      leaderId = tied[0].id;
+    } else {
+      // Tie-break: whoever invested in this state first
+      const order = investmentOrder[sid] ?? [];
+      const first = order.find((id) => tied.some((c) => c.id === id));
+      leaderId = first ?? tied[0].id;
+    }
+
+    stateLeaders[sid] = leaderId;
+    evByCandidate[leaderId] = (evByCandidate[leaderId] ?? 0) + usState.electoralVotes;
   }
 
   let winner: CandidateId | null = null;
-  for (const candidate of state.candidates) {
-    if (evByCandidate[candidate.id] >= WIN_THRESHOLD) {
-      winner = candidate.id;
+  for (const c of candidates) {
+    if ((evByCandidate[c.id] ?? 0) >= WIN_THRESHOLD) {
+      winner = c.id;
       break;
     }
   }
 
   return { evByCandidate, stateLeaders, winner };
-}
-
-/** Returns the leading candidate's id in a state, or null if no data exists. */
-function findStateLeader(
-  usState: US_State,
-  candidates: Candidate[],
-  support: SupportMap,
-): CandidateId | null {
-  const stateSupport = support[usState.id];
-  if (!stateSupport) return null;
-
-  let leaderId: CandidateId | null = null;
-  let best = -Infinity;
-  // Iterate candidates (not support keys) for deterministic tie-breaking.
-  for (const candidate of candidates) {
-    const value = stateSupport[candidate.id] ?? 0;
-    if (value > best) {
-      best = value;
-      leaderId = candidate.id;
-    }
-  }
-  return leaderId;
 }

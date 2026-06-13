@@ -8,7 +8,10 @@ export default defineConfig({
   // 'browser' ensures Vite resolves the "browser" field in package.json,
   // which is the correct target for webview environments.
   resolve: {
-    conditions: ['browser'],
+    // Prefer the ESM "module" field before "main" (CJS/UMD) for packages that
+    // publish both. Vite 8 / rolldown does not honor "module" automatically.
+    mainFields: ['module', 'browser', 'main'],
+    conditions: ['module', 'browser', 'import'],
   },
 
   server: {

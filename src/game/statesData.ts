@@ -39,7 +39,7 @@
  *   AR, FL, IA, ID, KS, LA, ME, MS, MT, NE, NM, ND, NV, OK, SD, VT, WY
  */
 
-import type { Candidate, GameState, SupportMap, US_State } from './types';
+import type { Candidate, GameState, InvestmentMap, US_State } from './types';
 
 // ─── 51 State definitions ─────────────────────────────────────────────────────
 
@@ -51,6 +51,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 9,
     baseCampaignCost: 8,
     interestGroups: ['Bible Belt', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── Alaska ────────────────────────────────────────────────────────────────
   {
@@ -59,6 +60,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['Pacific', 'Energy'],
+    maxRungs: 5,
   },
   // ── Arizona ───────────────────────────────────────────────────────────────
   {
@@ -67,6 +69,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 11,
     baseCampaignCost: 9,
     interestGroups: ['Sun Belt', 'High Tech'],
+    maxRungs: 10,
   },
   // ── Arkansas ──────────────────────────────────────────────────────────────
   {
@@ -75,6 +78,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 6,
     baseCampaignCost: 5,
     interestGroups: ['Bible Belt', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── California ────────────────────────────────────────────────────────────
   // Most expensive state — 54 EVs, sprawling media market.
@@ -85,6 +89,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 54,
     baseCampaignCost: 46,
     interestGroups: ['Pacific', 'High Tech', 'Agribusiness'],
+    maxRungs: 15,
   },
   // ── Colorado ──────────────────────────────────────────────────────────────
   {
@@ -93,6 +98,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 10,
     baseCampaignCost: 9,
     interestGroups: ['Sun Belt', 'Energy', 'High Tech'],
+    maxRungs: 10,
   },
   // ── Connecticut ───────────────────────────────────────────────────────────
   // Hartford is the US insurance/financial-services capital outside New York.
@@ -102,6 +108,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 7,
     baseCampaignCost: 6,
     interestGroups: ['New England', 'Wall Street', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── Delaware ──────────────────────────────────────────────────────────────
   // More US corporations are incorporated here than any other state.
@@ -111,6 +118,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['Wall Street'],
+    maxRungs: 5,
   },
   // ── Washington D.C. ───────────────────────────────────────────────────────
   // Government/finance/policy nexus; Wall Street represents the establishment.
@@ -120,6 +128,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['Wall Street'],
+    maxRungs: 5,
   },
   // ── Florida ───────────────────────────────────────────────────────────────
   // Second-most expensive Sun Belt prize; no native advantage for either candidate.
@@ -129,6 +138,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 30,
     baseCampaignCost: 26,
     interestGroups: ['Sun Belt', 'Agribusiness'],
+    maxRungs: 10,
   },
   // ── Georgia ───────────────────────────────────────────────────────────────
   // Fast-growing Sun Belt + deep religious tradition + expanding manufacturing.
@@ -138,6 +148,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 16,
     baseCampaignCost: 14,
     interestGroups: ['Sun Belt', 'Bible Belt', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── Hawaii ────────────────────────────────────────────────────────────────
   {
@@ -146,6 +157,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['Pacific', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Idaho ─────────────────────────────────────────────────────────────────
   {
@@ -154,6 +166,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['Farm Belt', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Illinois ──────────────────────────────────────────────────────────────
   // Chicago Board of Trade = Wall Street tier; also heavy industrial base.
@@ -164,6 +177,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 19,
     baseCampaignCost: 16,
     interestGroups: ['Rust Belt', 'Manufacturing', 'Wall Street'],
+    maxRungs: 10,
   },
   // ── Indiana ───────────────────────────────────────────────────────────────
   // Steel, auto parts, Subaru; historically strong steelworker unions.
@@ -173,6 +187,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 11,
     baseCampaignCost: 9,
     interestGroups: ['Rust Belt', 'Manufacturing', 'Labor'],
+    maxRungs: 10,
   },
   // ── Iowa ──────────────────────────────────────────────────────────────────
   // Corn/soy heartland; no affinity bonus for either candidate — pure cash.
@@ -182,6 +197,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 6,
     baseCampaignCost: 5,
     interestGroups: ['Farm Belt', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Kansas ────────────────────────────────────────────────────────────────
   // "Breadbasket" wheat state; crude oil production in the south.
@@ -191,6 +207,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 6,
     baseCampaignCost: 5,
     interestGroups: ['Farm Belt', 'Agribusiness', 'Energy'],
+    maxRungs: 5,
   },
   // ── Kentucky ──────────────────────────────────────────────────────────────
   // Coal country + Toyota manufacturing (Georgetown); A gets Manufacturing.
@@ -200,6 +217,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 8,
     baseCampaignCost: 7,
     interestGroups: ['Bible Belt', 'Energy', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── Louisiana ─────────────────────────────────────────────────────────────
   // Offshore Gulf oil/gas, major petrochem corridor; neither candidate has tags.
@@ -209,6 +227,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 8,
     baseCampaignCost: 7,
     interestGroups: ['Bible Belt', 'Energy', 'Agribusiness'],
+    maxRungs: 10,
   },
   // ── Maine ─────────────────────────────────────────────────────────────────
   {
@@ -217,6 +236,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['New England', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Maryland ──────────────────────────────────────────────────────────────
   // NSA / defense contractors + biotech; B gets High Tech (25%).
@@ -226,6 +246,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 10,
     baseCampaignCost: 9,
     interestGroups: ['Wall Street', 'High Tech'],
+    maxRungs: 10,
   },
   // ── Massachusetts ─────────────────────────────────────────────────────────
   // Route 128 / MIT biotech corridor + Fidelity / State Street finance.
@@ -235,6 +256,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 11,
     baseCampaignCost: 9,
     interestGroups: ['New England', 'High Tech', 'Wall Street'],
+    maxRungs: 10,
   },
   // ── Michigan ──────────────────────────────────────────────────────────────
   // GM, Ford, Stellantis HQs; UAW birthplace — A's three tags all apply.
@@ -245,6 +267,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 15,
     baseCampaignCost: 13,
     interestGroups: ['Rust Belt', 'Manufacturing', 'Labor'],
+    maxRungs: 10,
   },
   // ── Minnesota ─────────────────────────────────────────────────────────────
   // Medical devices, Cargill/General Mills + Iron Range union tradition.
@@ -254,6 +277,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 10,
     baseCampaignCost: 9,
     interestGroups: ['Farm Belt', 'Manufacturing', 'Labor'],
+    maxRungs: 10,
   },
   // ── Mississippi ───────────────────────────────────────────────────────────
   {
@@ -262,6 +286,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 6,
     baseCampaignCost: 5,
     interestGroups: ['Bible Belt', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Missouri ──────────────────────────────────────────────────────────────
   // St. Louis + Kansas City industrial mix; A gets Rust Belt (20%).
@@ -271,6 +296,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 10,
     baseCampaignCost: 9,
     interestGroups: ['Rust Belt', 'Farm Belt', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── Montana ───────────────────────────────────────────────────────────────
   {
@@ -279,6 +305,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['Farm Belt', 'Energy'],
+    maxRungs: 5,
   },
   // ── Nebraska ──────────────────────────────────────────────────────────────
   // Top cattle + corn state; no candidate bonus — pure spend competition.
@@ -288,6 +315,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 5,
     baseCampaignCost: 4,
     interestGroups: ['Farm Belt', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Nevada ────────────────────────────────────────────────────────────────
   // Mining (gold, silver, lithium) + geothermal; no candidate tag overlap.
@@ -297,6 +325,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 6,
     baseCampaignCost: 5,
     interestGroups: ['Sun Belt', 'Energy'],
+    maxRungs: 5,
   },
   // ── New Hampshire ─────────────────────────────────────────────────────────
   {
@@ -305,6 +334,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['New England', 'High Tech'],
+    maxRungs: 5,
   },
   // ── New Jersey ────────────────────────────────────────────────────────────
   // NYC orbit finance + pharma (J&J, Merck, Pfizer NJ presence).
@@ -315,6 +345,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 14,
     baseCampaignCost: 12,
     interestGroups: ['Wall Street', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── New Mexico ────────────────────────────────────────────────────────────
   {
@@ -323,6 +354,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 5,
     baseCampaignCost: 4,
     interestGroups: ['Sun Belt', 'Energy'],
+    maxRungs: 5,
   },
   // ── New York ──────────────────────────────────────────────────────────────
   // Global finance capital. B gets High Tech (25%) > Wall Street (15%).
@@ -333,6 +365,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 28,
     baseCampaignCost: 24,
     interestGroups: ['Wall Street', 'High Tech', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── North Carolina ────────────────────────────────────────────────────────
   // Research Triangle Park (biotech/pharma) + BMW / Toyota plant growth.
@@ -342,6 +375,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 16,
     baseCampaignCost: 14,
     interestGroups: ['Bible Belt', 'Manufacturing', 'High Tech'],
+    maxRungs: 10,
   },
   // ── North Dakota ──────────────────────────────────────────────────────────
   // Bakken Formation oil + wheat/sunflower; no candidate affinity overlap.
@@ -351,6 +385,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['Farm Belt', 'Energy', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Ohio ──────────────────────────────────────────────────────────────────
   // Steel + auto + chemicals; A picks Labor (25%) — one of A's top targets.
@@ -360,6 +395,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 17,
     baseCampaignCost: 15,
     interestGroups: ['Rust Belt', 'Manufacturing', 'Labor'],
+    maxRungs: 10,
   },
   // ── Oklahoma ──────────────────────────────────────────────────────────────
   // Tulsa "Oil Capital of the World"; neither candidate has tags here.
@@ -369,6 +405,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 7,
     baseCampaignCost: 6,
     interestGroups: ['Bible Belt', 'Energy'],
+    maxRungs: 10,
   },
   // ── Oregon ────────────────────────────────────────────────────────────────
   // Intel Hillsboro fab + Nike HQ; B gets High Tech (25%) over Pacific (20%).
@@ -378,6 +415,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 8,
     baseCampaignCost: 7,
     interestGroups: ['Pacific', 'High Tech', 'Agribusiness'],
+    maxRungs: 10,
   },
   // ── Pennsylvania ──────────────────────────────────────────────────────────
   // Classic Rust Belt swing state — A's highest-EV native stronghold.
@@ -387,6 +425,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 19,
     baseCampaignCost: 16,
     interestGroups: ['Rust Belt', 'Manufacturing', 'Labor'],
+    maxRungs: 10,
   },
   // ── Rhode Island ──────────────────────────────────────────────────────────
   {
@@ -395,6 +434,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['New England', 'Manufacturing'],
+    maxRungs: 5,
   },
   // ── South Carolina ────────────────────────────────────────────────────────
   // BMW Spartanburg, Boeing North Charleston, Volvo, Michelin US HQ.
@@ -404,6 +444,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 9,
     baseCampaignCost: 8,
     interestGroups: ['Bible Belt', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── South Dakota ──────────────────────────────────────────────────────────
   {
@@ -412,6 +453,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['Farm Belt', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Tennessee ─────────────────────────────────────────────────────────────
   // VW Chattanooga, Nissan Smyrna, GM Spring Hill; TVA nuclear.
@@ -421,6 +463,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 11,
     baseCampaignCost: 9,
     interestGroups: ['Bible Belt', 'Manufacturing', 'Energy'],
+    maxRungs: 10,
   },
   // ── Texas ─────────────────────────────────────────────────────────────────
   // Permian Basin oil + Austin/Dallas tech scene = both candidates compete.
@@ -431,6 +474,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 40,
     baseCampaignCost: 34,
     interestGroups: ['Sun Belt', 'Energy', 'High Tech'],
+    maxRungs: 15,
   },
   // ── Utah ──────────────────────────────────────────────────────────────────
   // "Silicon Slopes" (Adobe, Qualtrics, Domo, Overstock) = B bonus.
@@ -440,6 +484,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 6,
     baseCampaignCost: 5,
     interestGroups: ['Farm Belt', 'High Tech'],
+    maxRungs: 5,
   },
   // ── Vermont ───────────────────────────────────────────────────────────────
   {
@@ -448,6 +493,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['New England', 'Agribusiness'],
+    maxRungs: 5,
   },
   // ── Virginia ──────────────────────────────────────────────────────────────
   // Northern Virginia = world's largest data-center cluster (Amazon HQ2).
@@ -458,6 +504,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 13,
     baseCampaignCost: 11,
     interestGroups: ['Wall Street', 'High Tech'],
+    maxRungs: 10,
   },
   // ── Washington ────────────────────────────────────────────────────────────
   // Microsoft + Amazon HQs; B picks High Tech (25%) > Pacific (20%).
@@ -467,6 +514,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 12,
     baseCampaignCost: 10,
     interestGroups: ['Pacific', 'High Tech', 'Agribusiness'],
+    maxRungs: 10,
   },
   // ── West Virginia ─────────────────────────────────────────────────────────
   // Coal heartland; A gets Rust Belt (20%).
@@ -476,6 +524,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 4,
     baseCampaignCost: 4,
     interestGroups: ['Rust Belt', 'Energy'],
+    maxRungs: 5,
   },
   // ── Wisconsin ─────────────────────────────────────────────────────────────
   // America's Dairyland + Milwaukee industrial base; A gets Rust Belt (20%).
@@ -485,6 +534,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 10,
     baseCampaignCost: 9,
     interestGroups: ['Rust Belt', 'Agribusiness', 'Manufacturing'],
+    maxRungs: 10,
   },
   // ── Wyoming ───────────────────────────────────────────────────────────────
   // Cheapest state in the union — 3 EVs, easy to move, low strategic value.
@@ -494,6 +544,7 @@ export const ALL_STATES: readonly US_State[] = [
     electoralVotes: 3,
     baseCampaignCost: 3,
     interestGroups: ['Farm Belt', 'Energy'],
+    maxRungs: 5,
   },
 ] as const satisfies US_State[];
 
@@ -590,29 +641,43 @@ export const ALL_CANDIDATES: Candidate[] = [
 
 // ─── Game-state factory ───────────────────────────────────────────────────────
 
-function buildInitialSupport(
+function buildInitialInvestment(
   candidates: Candidate[],
   states: readonly US_State[],
-): SupportMap {
-  const support: SupportMap = {};
-  const evenShare = 100 / candidates.length;
+): {
+  investment: InvestmentMap;
+  securedBy: GameState['securedBy'];
+  investmentOrder: GameState['investmentOrder'];
+} {
+  const investment: InvestmentMap = {};
+  const securedBy: GameState['securedBy'] = {};
+  const investmentOrder: GameState['investmentOrder'] = {};
+
   for (const state of states) {
-    support[state.id] = {};
+    investment[state.id] = {};
+    securedBy[state.id] = null;
+    investmentOrder[state.id] = [];
     for (const candidate of candidates) {
-      support[state.id][candidate.id] = evenShare;
+      investment[state.id][candidate.id] = 0;
     }
   }
-  return support;
+
+  return { investment, securedBy, investmentOrder };
 }
 
 /** Returns a fresh game state with all 51 territories and both candidates. */
 export function createInitialGameState(): GameState {
-  // Defensive copy of candidates so mutations (cash) don't touch the constants.
   const candidates = ALL_CANDIDATES.map((c) => ({ ...c }));
+  const { investment, securedBy, investmentOrder } = buildInitialInvestment(
+    candidates,
+    ALL_STATES,
+  );
   return {
     turn: 1,
     candidates,
-    states: ALL_STATES as unknown as US_State[], // readonly → mutable widening is safe here
-    support: buildInitialSupport(candidates, ALL_STATES),
+    states: ALL_STATES as unknown as US_State[],
+    investment,
+    securedBy,
+    investmentOrder,
   };
 }
