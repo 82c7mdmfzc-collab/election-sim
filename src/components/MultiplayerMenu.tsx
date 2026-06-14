@@ -80,7 +80,7 @@ function WaitingRoomPlayerList({
       })}
       {Array.from({ length: Math.max(0, playerCount - waitingPlayers.length) }).map((_, i) => (
         <div key={`empty-${i}`} className="mp-player-row mp-player-row--empty">
-          Waiting for player…
+          Open seat
         </div>
       ))}
     </div>
@@ -347,14 +347,14 @@ export function MultiplayerMenu({ onBack }: Props) {
     return (
       <div className="setup">
         <div className="setup__header">
-          <h1 className="setup__title">270 — Online Multiplayer</h1>
+          <h1 className="setup__title">Play Online</h1>
         </div>
         <div
           className="setup__foot"
           style={{ gap: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
         >
           <button type="button" className="setup__start" onClick={() => setScreen('creating')}>
-            Create Room →
+            Host a Game
           </button>
           <button
             type="button"
@@ -362,7 +362,7 @@ export function MultiplayerMenu({ onBack }: Props) {
             style={{ opacity: 0.85 }}
             onClick={() => setScreen('joining')}
           >
-            Join Room →
+            Join a Game
           </button>
           <button type="button" className="mp-back" onClick={onBack}>← Back</button>
         </div>
@@ -374,9 +374,9 @@ export function MultiplayerMenu({ onBack }: Props) {
     return (
       <div className="setup">
         <div className="setup__header">
-          <h1 className="setup__title">Create a Room</h1>
+          <h1 className="setup__title">Host a Game</h1>
           <div className="setup__count">
-            <span>Players:</span>
+            <span>How many players?</span>
             {[2, 3, 4].map((n) => (
               <button
                 key={n}
@@ -390,7 +390,7 @@ export function MultiplayerMenu({ onBack }: Props) {
           </div>
         </div>
 
-        <p className="mp-hint">Pick your candidate:</p>
+        <p className="mp-hint">Choose your candidate</p>
 
         <div className="setup__roster">
           {availableCandidates.map((c) => {
@@ -421,13 +421,13 @@ export function MultiplayerMenu({ onBack }: Props) {
         </div>
 
         <div className="mp-name-row">
-          <label htmlFor="mp-host-name" className="mp-name-label">Your display name:</label>
+          <label htmlFor="mp-host-name" className="mp-name-label">What should we call you?</label>
           <input
             id="mp-host-name"
             className="mp-join__input"
             value={myName}
             onChange={(e) => setMyName(e.target.value.slice(0, 20))}
-            placeholder="Enter your name"
+            placeholder="Your name"
             maxLength={20}
           />
         </div>
@@ -441,7 +441,7 @@ export function MultiplayerMenu({ onBack }: Props) {
             disabled={!myCandidate || !myName.trim() || loading}
             onClick={() => createRoom(false)}
           >
-            {loading ? 'Creating…' : 'Create Private Room →'}
+            {loading ? 'Creating…' : 'Create Private Game'}
           </button>
           <button
             type="button"
@@ -450,7 +450,7 @@ export function MultiplayerMenu({ onBack }: Props) {
             disabled={!myCandidate || !myName.trim() || loading}
             onClick={() => createRoom(true)}
           >
-            Create Public Room →
+            Create Public Game
           </button>
           <button type="button" className="mp-back" onClick={() => setScreen('main')}>← Back</button>
         </div>
@@ -465,12 +465,12 @@ export function MultiplayerMenu({ onBack }: Props) {
     return (
       <div className="setup">
         <div className="setup__header">
-          <h1 className="setup__title">Waiting for Players</h1>
+          <h1 className="setup__title">Waiting for players to join…</h1>
         </div>
         <div className="mp-wait">
-          <div className="mp-wait__code-label">Room Code</div>
+          <div className="mp-wait__code-label">Your room code</div>
           <div className="mp-wait__code">{lobby.room_code}</div>
-          <p className="mp-wait__hint">Share this code. Each player joins on their own device.</p>
+          <p className="mp-wait__hint">Share this code with friends — they each join on their own device.</p>
           <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
           {errorMsg && <p className="mp-error">{errorMsg}</p>}
           <button
@@ -483,10 +483,10 @@ export function MultiplayerMenu({ onBack }: Props) {
             {loading
               ? 'Starting…'
               : canStart
-              ? 'Start Game →'
-              : `Waiting for ${playerCount - waitingPlayers.length} more…`}
+              ? 'Start the Game'
+              : `Waiting for ${playerCount - waitingPlayers.length} more player(s)…`}
           </button>
-          <button type="button" className="mp-back" onClick={onBack}>← Abandon Room</button>
+          <button type="button" className="mp-back" onClick={onBack}>← Leave</button>
         </div>
       </div>
     );
@@ -496,10 +496,10 @@ export function MultiplayerMenu({ onBack }: Props) {
     return (
       <div className="setup">
         <div className="setup__header">
-          <h1 className="setup__title">Join a Room</h1>
+          <h1 className="setup__title">Join a Game</h1>
         </div>
         <div className="mp-join">
-          <p className="mp-join__hint">Enter the 4-digit room code:</p>
+          <p className="mp-join__hint">Got a code? Enter it below</p>
           <div className="mp-join__row">
             <input
               className="mp-join__input"
@@ -516,7 +516,7 @@ export function MultiplayerMenu({ onBack }: Props) {
               disabled={codeInput.length !== 4 || loading}
               onClick={() => void findRoom()}
             >
-              {loading ? 'Searching…' : 'Find Room →'}
+              {loading ? 'Looking…' : 'Join Game'}
             </button>
           </div>
           {errorMsg && <p className="mp-error">{errorMsg}</p>}
@@ -537,7 +537,7 @@ export function MultiplayerMenu({ onBack }: Props) {
         </div>
         {existingPlayers.length > 0 && (
           <div className="mp-wait" style={{ marginBottom: '1rem' }}>
-            <p className="mp-wait__hint" style={{ marginBottom: '0.5rem' }}>Already joined:</p>
+            <p className="mp-wait__hint" style={{ marginBottom: '0.5rem' }}>Already here:</p>
             {existingPlayers.map((p) => {
               const c = CANDIDATE_MAP[p.candidateId];
               return (
@@ -554,7 +554,7 @@ export function MultiplayerMenu({ onBack }: Props) {
           </div>
         )}
 
-        <p className="mp-hint">Pick your candidate:</p>
+        <p className="mp-hint">Choose your candidate</p>
         <div className="setup__roster">
           {availableCandidates.map((c) => {
             const taken  = claimedCandidateIds.has(c.id);
@@ -586,13 +586,13 @@ export function MultiplayerMenu({ onBack }: Props) {
         </div>
 
         <div className="mp-name-row">
-          <label htmlFor="mp-guest-name" className="mp-name-label">Your display name:</label>
+          <label htmlFor="mp-guest-name" className="mp-name-label">What should we call you?</label>
           <input
             id="mp-guest-name"
             className="mp-join__input"
             value={guestName}
             onChange={(e) => setGuestName(e.target.value.slice(0, 20))}
-            placeholder="Enter your name"
+            placeholder="Your name"
             maxLength={20}
           />
         </div>
@@ -606,7 +606,7 @@ export function MultiplayerMenu({ onBack }: Props) {
             disabled={!guestCandidate || !guestName.trim() || loading}
             onClick={() => void joinRoom()}
           >
-            {loading ? 'Joining…' : 'Join Room →'}
+            {loading ? 'Joining…' : 'Join Game'}
           </button>
           <button
             type="button"
@@ -617,7 +617,7 @@ export function MultiplayerMenu({ onBack }: Props) {
               setGuestCandidate(null);
             }}
           >
-            ← Different Room
+            ← Use a different code
           </button>
         </div>
       </div>
@@ -629,15 +629,15 @@ export function MultiplayerMenu({ onBack }: Props) {
     return (
       <div className="setup">
         <div className="setup__header">
-          <h1 className="setup__title">Waiting for Host</h1>
+          <h1 className="setup__title">Waiting for the host…</h1>
         </div>
         <div className="mp-wait">
-          <div className="mp-wait__code-label">Room Code</div>
+          <div className="mp-wait__code-label">Your room code</div>
           <div className="mp-wait__code">{lobby.room_code}</div>
-          <p className="mp-wait__hint">The game will start when the host clicks Start.</p>
+          <p className="mp-wait__hint">Sit tight — the game starts when the host is ready.</p>
           <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
           <button type="button" className="mp-back" style={{ marginTop: '1.5rem' }} onClick={onBack}>
-            ← Leave Room
+            ← Leave
           </button>
         </div>
       </div>

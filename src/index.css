@@ -1,6 +1,6 @@
 /* Minimal global reset. All component styling lives in App.css. */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
