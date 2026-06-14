@@ -1,18 +1,17 @@
 import { useGameStore } from '../game/store';
+import { ALL_STATES } from '../game/statesData';
 
 export function GameOver() {
   const electionResult = useGameStore((s) => s.electionResult);
-  const candidates = useGameStore((s) => s.candidates);
+  const players = useGameStore((s) => s.players);
   const turn = useGameStore((s) => s.turn);
   const securedBy = useGameStore((s) => s.securedBy);
-  const states = useGameStore((s) => s.states);
-  const eliminatedCandidates = useGameStore((s) => s.eliminatedCandidates);
   const reset = useGameStore((s) => s.reset);
 
   const winner = electionResult?.winner
-    ? candidates.find((c) => c.id === electionResult.winner)
+    ? players.find((p) => p.id === electionResult.winner)
     : null;
-  const winnerEVs = winner ? (electionResult?.evByCandidate[winner.id] ?? 0) : 0;
+  const winnerEVs = winner ? (electionResult?.evByPlayer[winner.id] ?? 0) : 0;
 
   return (
     <div className="game-over">
@@ -31,22 +30,19 @@ export function GameOver() {
         <div className="game-over__turn">Decided in {turn} turns</div>
 
         <div className="game-over__breakdown">
-          {candidates.map((c) => {
-            const evs = electionResult?.evByCandidate[c.id] ?? 0;
-            const isEliminated = eliminatedCandidates.includes(c.id);
-            const secured = states.filter((st) => securedBy[st.id] === c.id);
+          {players.map((p) => {
+            const evs = electionResult?.evByPlayer[p.id] ?? 0;
+            const secured = ALL_STATES.filter((st) => securedBy[st.id] === p.id);
             const securedEVs = secured.reduce((s, st) => s + st.electoralVotes, 0);
 
             return (
               <div
-                key={c.id}
-                className={`game-over__candidate${isEliminated ? ' game-over__candidate--eliminated' : c.id === winner?.id ? ' game-over__candidate--winner' : ''}`}
+                key={p.id}
+                className={`game-over__candidate${p.eliminated ? ' game-over__candidate--eliminated' : p.id === winner?.id ? ' game-over__candidate--winner' : ''}`}
               >
                 <div className="game-over__cname">
-                  {c.name}
-                  {isEliminated && (
-                    <span className="game-over__elim-badge"> (eliminated)</span>
-                  )}
+                  {p.name}
+                  {p.eliminated && <span className="game-over__elim-badge"> (eliminated)</span>}
                 </div>
                 <div className="game-over__cevs">{evs} EV total</div>
                 <div className="game-over__csecured">

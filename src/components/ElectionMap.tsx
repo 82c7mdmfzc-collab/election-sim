@@ -1,43 +1,37 @@
 /**
- * Interactive SVG US map — pass-and-play multiplayer mode.
+ * Interactive SVG US map — pass-and-play hot-seat mode (2–4 players).
  *
  * Architecture:
- *   ElectionMap   → subscribes to phase; renders map + PhasePanel
- *   StateGeo      → memo'd; subscribes ONLY to investment[stateId] + securedBy[stateId] + pending
- *   StatePopover  → full action panel (click a state during active turn)
- *   PhasePanel    → subscribes to pending spends + budget for its own renders
+ *   ElectionMap     → renders the SVG map + hover/pinned StateHoverCard
+ *   StateGeo        → memo'd; subscribes ONLY to rungs[stateId] + securedBy[stateId] + pending
+ *   StateHoverCard  → contextual overlay: name, base cost, EV, size-tier RungTrack, click-to-buy
  *   ElectionOverlay → shown when phase === 'ELECTION'
  *
- * Investment color model:
- *   Secured by P1 → solid blue
- *   Secured by P2 → solid red
- *   Contested      → gradient toward the leader's color, intensity ∝ margin / secureAt
+ * Color model (N players):
+ *   Secured        → solid owner color
+ *   Contested      → neutral lerped toward the leader's color ∝ rung margin
  *   Empty          → slate gray
- *   Pending alloc  → gold border
+ *   Active pending → handled inside RungTrack (dashed/pulsing active color)
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import usAtlas from 'us-atlas/states-10m.json';
-import { WIN_THRESHOLD } from '../game/engine';
-import { ALL_CANDIDATES, ALL_STATES } from '../game/statesData';
+import { WIN_THRESHOLD, calcStateCost, bestAffinityForState } from '../game/engine';
+import { ALL_STATES } from '../game/statesData';
+import { STATE_GROUPS_BY_STATE, minRungsForDominance } from '../game/config';
+import { NEUTRAL_RGB, lerp, rgbStr, type ResolvedColor } from '../game/colors';
 import {
-  ELECTION_CHANCE,
-  ELECTION_START_TURN,
-  useActivePendingSpends,
-  useAvailableBudget,
-  useElectoralResult,
   useGameStore,
-  useStatePendingAmount,
+  usePendingRungs,
+  useActivePlayer,
+  usePlayerColors,
 } from '../game/store';
-import type { CandidateId, InterestGroup, StateId, US_State } from '../game/types';
+import type { StateId, US_State } from '../game/types';
+import { AudioManager } from '../utils/audioManager';
+import { RungTrack } from './RungTrack';
 
 // ── Module-level stable lookups ───────────────────────────────────────────────
-
-const P1_ID = ALL_CANDIDATES[0].id;
-const P2_ID = ALL_CANDIDATES[1].id;
-const P1_NAME = ALL_CANDIDATES[0].name;
-const P2_NAME = ALL_CANDIDATES[1].name;
 
 const STATES_BY_ID = new Map<StateId, US_State>(ALL_STATES.map((s) => [s.id, s]));
 
@@ -57,33 +51,31 @@ const FIPS_TO_STATE: Record<string, StateId> = {
 
 // ── Color shading ─────────────────────────────────────────────────────────────
 
-const NEUTRAL: [number, number, number] = [100, 116, 139]; // slate-500
-const P1_COLOR: [number, number, number] = [37, 99, 235];  // blue-600
-const P2_COLOR: [number, number, number] = [220, 38, 38];  // red-600
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
 function stateColor(
-  inv: Record<CandidateId, number>,
-  securedById: CandidateId | null | undefined,
-  secureAt: number,
+  rungs: Record<string, number>,
+  securedById: string | null | undefined,
+  maxRungs: number,
+  colors: Record<string, ResolvedColor>,
 ): string {
-  if (securedById === P1_ID) return `rgb(${P1_COLOR.join(',')})`;
-  if (securedById === P2_ID) return `rgb(${P2_COLOR.join(',')})`;
+  if (securedById && colors[securedById]) return colors[securedById].hex;
 
-  const inv1 = inv[P1_ID] ?? 0;
-  const inv2 = inv[P2_ID] ?? 0;
+  let leader: string | null = null;
+  let lead = 0;
+  let second = 0;
+  for (const [pid, r] of Object.entries(rungs)) {
+    if (r > lead) { second = lead; lead = r; leader = pid; }
+    else if (r > second) second = r;
+  }
+  if (!leader || lead === 0) return rgbStr(NEUTRAL_RGB);
 
-  if (inv1 === 0 && inv2 === 0) return `rgb(${NEUTRAL.join(',')})`;
-
-  const prog1 = Math.min(inv1 / secureAt, 1);
-  const prog2 = Math.min(inv2 / secureAt, 1);
-  const margin = prog1 - prog2; // positive = P1 leading
-  const intensity = Math.min(Math.abs(margin) * 2, 1);
-  const [cr, cg, cb] = margin >= 0 ? P1_COLOR : P2_COLOR;
-  return `rgb(${Math.round(lerp(NEUTRAL[0], cr, intensity))},${Math.round(lerp(NEUTRAL[1], cg, intensity))},${Math.round(lerp(NEUTRAL[2], cb, intensity))})`;
+  const margin = (lead - second) / maxRungs;
+  const intensity = Math.min(0.25 + margin * 1.75, 1);
+  const c = colors[leader]?.rgb ?? NEUTRAL_RGB;
+  return rgbStr([
+    lerp(NEUTRAL_RGB[0], c[0], intensity),
+    lerp(NEUTRAL_RGB[1], c[1], intensity),
+    lerp(NEUTRAL_RGB[2], c[2], intensity),
+  ]);
 }
 
 // ── Per-state path ────────────────────────────────────────────────────────────
@@ -93,392 +85,224 @@ interface StateGeoProps {
   geo: any;
   stateId: StateId;
   isInteractive: boolean;
+  colors: Record<string, ResolvedColor>;
+  activePlayerHex: string;
   onHover: (id: StateId, x: number, y: number) => void;
   onLeave: () => void;
   onSelect: (id: StateId, x: number, y: number) => void;
+  tallyActiveStateId?: string | null;
+  tallyRevealedIds?: Set<string>;
+  isGroupHighlighted?: boolean;
+  isGroupDimmed?: boolean;
 }
 
 const StateGeo = memo(function StateGeo({
-  geo,
-  stateId,
-  isInteractive,
-  onHover,
-  onLeave,
-  onSelect,
+  geo, stateId, isInteractive, colors, activePlayerHex, onHover, onLeave, onSelect,
+  tallyActiveStateId, tallyRevealedIds, isGroupHighlighted, isGroupDimmed,
 }: StateGeoProps) {
-  const inv = useGameStore((s) => s.investment[stateId] ?? {});
+  const rungs = useGameStore((s) => s.rungs[stateId] ?? {});
   const securedById = useGameStore((s) => s.securedBy[stateId]);
-  const pendingAmount = useStatePendingAmount(stateId);
+  const pendingRungs = usePendingRungs('state', stateId);
+  const clashing = useGameStore(
+    (s) => s.phase === 'RESOLUTION' && (s.lastTurnReport?.clashedStates.includes(stateId) ?? false),
+  );
 
   const usState = STATES_BY_ID.get(stateId);
-  const secureAt = (usState?.baseCampaignCost ?? 1) * 100;
+  const maxRungs = usState?.maxRungs ?? 8;
+  const fill = stateColor(rungs, securedById, maxRungs, colors);
+  const hasPending = pendingRungs > 0;
 
-  const fill = stateColor(inv, securedById, secureAt);
-  const hasPending = pendingAmount > 0;
+  const isTallyActive = tallyActiveStateId === stateId;
+  const isTallyRevealed = !isTallyActive && (tallyRevealedIds?.has(stateId) ?? false);
+  const className = [
+    clashing ? 'state-geo--clash' : '',
+    isTallyActive ? 'state-geo--tally-active' : '',
+    isTallyRevealed ? 'state-geo--tally-revealed' : '',
+    isGroupHighlighted ? 'state-geo--group-highlight' : '',
+    isGroupDimmed ? 'state-geo--group-dim' : '',
+  ].filter(Boolean).join(' ') || undefined;
+
+  const stroke = isGroupHighlighted
+    ? '#facc15'
+    : hasPending
+      ? activePlayerHex
+      : '#0f172a';
+  const strokeWidth = isGroupHighlighted ? 2.5 : hasPending ? 1.6 : 0.5;
+  const opacity = isGroupDimmed ? 0.3 : 1;
 
   return (
     <Geography
       geography={geo}
-      onClick={
-        isInteractive
-          ? (e: React.MouseEvent) => onSelect(stateId, e.clientX, e.clientY)
-          : undefined
-      }
+      className={className}
+      onClick={isInteractive ? (e: React.MouseEvent) => onSelect(stateId, e.clientX, e.clientY) : undefined}
       onMouseEnter={(e: React.MouseEvent) => onHover(stateId, e.clientX, e.clientY)}
       onMouseLeave={onLeave}
       style={{
         default: {
           fill,
-          stroke: hasPending ? '#facc15' : '#1e293b',
-          strokeWidth: hasPending ? 1.5 : 0.5,
+          stroke,
+          strokeWidth,
+          opacity,
           outline: 'none',
           cursor: isInteractive ? 'pointer' : 'default',
         },
         hover: {
           fill,
-          stroke: '#ffffff',
-          strokeWidth: 1.5,
+          stroke: isGroupHighlighted ? '#facc15' : '#ffffff',
+          strokeWidth: isGroupHighlighted ? 2.5 : 1.5,
           outline: 'none',
-          opacity: 0.85,
+          opacity: isGroupDimmed ? 0.5 : 0.85,
           cursor: isInteractive ? 'pointer' : 'default',
         },
-        pressed: {
-          fill,
-          stroke: '#ffffff',
-          strokeWidth: 2,
-          outline: 'none',
-          opacity: 0.9,
-        },
+        pressed: { fill, stroke: '#ffffff', strokeWidth: 2, outline: 'none', opacity: 0.9 },
       }}
     />
   );
 });
 
-// ── Hover tooltip ─────────────────────────────────────────────────────────────
+// ── State hover / action card ─────────────────────────────────────────────────
 
-function TooltipPanel({ stateId }: { stateId: StateId }) {
-  const usState = STATES_BY_ID.get(stateId);
-  const inv = useGameStore((s) => s.investment[stateId] ?? {});
-  const securedById = useGameStore((s) => s.securedBy[stateId]);
-  const candidates = useGameStore((s) => s.candidates);
-
-  if (!usState) return null;
-
-  const secureAt = usState.baseCampaignCost * 100;
-  const securedName = securedById
-    ? (candidates.find((c) => c.id === securedById)?.name ?? securedById)
-    : null;
-
-  return (
-    <div className="state-tooltip">
-      <div className="state-tooltip__name">
-        {usState.name}
-        <span className="state-tooltip__ev">{usState.electoralVotes} EV</span>
-      </div>
-
-      {securedName && (
-        <div className="state-tooltip__locked">🔒 Secured by {securedName}</div>
-      )}
-
-      <div className="state-tooltip__threshold">
-        Secure at: ${secureAt.toLocaleString()}
-      </div>
-
-      <div className="state-tooltip__bars">
-        {candidates.map((c) => {
-          const amount = inv[c.id] ?? 0;
-          const pct = Math.min((amount / secureAt) * 100, 100);
-          const isP1 = c.id === P1_ID;
-          return (
-            <div key={c.id} className="state-tooltip__bar-row">
-              <span className="state-tooltip__bar-name">{c.name}</span>
-              <div className="state-tooltip__bar-track">
-                <div
-                  className={`state-tooltip__bar-fill${isP1 ? ' state-tooltip__bar-fill--p1' : ' state-tooltip__bar-fill--p2'}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className="state-tooltip__bar-amount">
-                ${amount.toFixed(0)} / ${secureAt.toLocaleString()}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="state-tooltip__groups">
-        {usState.interestGroups.map((g) => (
-          <span key={g} className="state-tooltip__tag">{g}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── State action popover ──────────────────────────────────────────────────────
-
-const SPEND_PRESETS = [50, 100, 250, 500] as const;
-
-interface StatePopoverProps {
+interface StateHoverCardProps {
   stateId: StateId;
   x: number;
   y: number;
+  interactive: boolean;
   onClose: () => void;
 }
 
-function StatePopover({ stateId, x, y, onClose }: StatePopoverProps) {
+function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardProps) {
   const usState = STATES_BY_ID.get(stateId);
-  const inv = useGameStore((s) => s.investment[stateId] ?? {});
+  const rungs = useGameStore((s) => s.rungs[stateId] ?? {});
   const securedById = useGameStore((s) => s.securedBy[stateId]);
-  const candidates = useGameStore((s) => s.candidates);
-  const activeId = useGameStore((s) => s.activePlayerId);
-  const allocateSpend = useGameStore((s) => s.allocateSpend);
+  const players = useGameStore((s) => s.players);
+  const allocate = useGameStore((s) => s.allocate);
   const phase = useGameStore((s) => s.phase);
-
-  const [selectedGroup, setSelectedGroup] = useState<InterestGroup | undefined>(undefined);
-  const [selectedAmount, setSelectedAmount] = useState<number>(100);
+  const activePlayer = useActivePlayer();
+  const colors = usePlayerColors();
+  const pendingRungs = usePendingRungs('state', stateId);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
+    if (!interactive) return;
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [interactive, onClose]);
 
   if (!usState) return null;
 
-  const secureAt = usState.baseCampaignCost * 100;
-  const activeCandidate = candidates.find((c) => c.id === activeId);
-  const isActivePhase = phase === 'P1_TURN' || phase === 'P2_TURN';
+  const maxRungs = usState.maxRungs;
+  const tier = maxRungs === 16 ? 'Megastate' : maxRungs === 8 ? 'Small' : 'Mid-Tier';
+  const canBuy = interactive && phase === 'PLANNING' && !!activePlayer && !securedById;
 
-  const affinityBonus =
-    activeCandidate && selectedGroup ? (activeCandidate.affinities[selectedGroup] ?? 0) : 0;
-  const effectiveAmount = selectedAmount * (1 + affinityBonus);
+  const discount = activePlayer ? bestAffinityForState(activePlayer, stateId) : 0;
+  const settled = activePlayer ? (rungs[activePlayer.id] ?? 0) : 0;
+  const nextRungCost = activePlayer
+    ? calcStateCost(stateId, usState.baseCampaignCost, settled + pendingRungs, 1, discount)
+    : usState.baseCampaignCost;
 
-  const handleAllocate = () => {
-    allocateSpend(stateId, selectedAmount, selectedGroup);
-    onClose();
-  };
+  const securedName = securedById
+    ? players.find((p) => p.id === securedById)?.name ?? securedById
+    : null;
 
-  // Position relative to viewport, clamped inside window
-  const popX = Math.min(x + 16, window.innerWidth - 320);
-  const popY = Math.max(y - 20, 8);
+  const cardX = Math.max(8, Math.min(x + 16, window.innerWidth - 300));
+  const cardY = Math.max(y - 20, 8);
 
   return (
     <>
-      {/* Click-outside backdrop */}
-      <div className="popover-backdrop" onClick={onClose} />
-
-      <div className="state-popover" style={{ left: popX, top: popY }}>
-        <div className="state-popover__header">
-          <span className="state-popover__name">{usState.name}</span>
-          <span className="state-popover__ev">{usState.electoralVotes} EV</span>
-          <button type="button" className="state-popover__close" onClick={onClose}>
-            ×
-          </button>
+      {interactive && <div className="popover-backdrop" onClick={onClose} />}
+      <div
+        className={`state-card${interactive ? ' state-card--pinned' : ''}`}
+        style={{ left: cardX, top: cardY }}
+      >
+        <div className="state-card__header">
+          <span className="state-card__name">{usState.name}</span>
+          <span className="state-card__ev">{usState.electoralVotes} EV</span>
+          {interactive && (
+            <button type="button" className="state-card__close" onClick={onClose}>×</button>
+          )}
         </div>
 
-        <div className="state-popover__threshold">
-          Secure threshold: <strong>${secureAt.toLocaleString()}</strong>
+        <div className="state-card__meta">
+          <span className="state-card__tier">{tier} · {maxRungs} rungs</span>
+          <span className="state-card__cost">Base ${usState.baseCampaignCost}k/rung</span>
         </div>
 
-        {securedById && (
-          <div className={`state-popover__locked${securedById === activeId ? ' state-popover__locked--own' : ''}`}>
-            {securedById === activeId
-              ? '🔒 You secured this state'
-              : `🔒 Secured by ${candidates.find((c) => c.id === securedById)?.name ?? securedById}`}
-          </div>
+        {securedName && (
+          <div className="state-card__locked">🔒 Secured by {securedName}</div>
         )}
 
-        <div className="state-popover__bars">
-          {candidates.map((c) => {
-            const amount = inv[c.id] ?? 0;
-            const pct = Math.min((amount / secureAt) * 100, 100);
-            const isP1 = c.id === P1_ID;
+        <RungTrack
+          maxRungs={maxRungs}
+          settledByPlayer={rungs}
+          pendingRungs={activePlayer ? pendingRungs : 0}
+          activePlayerId={activePlayer?.id ?? null}
+          colors={colors}
+          securedBy={securedById}
+          onBuyNext={canBuy ? () => allocate('state', stateId, 1) : undefined}
+        />
+
+        <div className="state-card__standings">
+          {players.filter((p) => !p.eliminated).map((p) => {
+            const isActive = p.id === activePlayer?.id;
+            const r = rungs[p.id] ?? 0;
+            const pen = isActive ? pendingRungs : 0;
+            const pct = Math.min((r / maxRungs) * 100, 100);
+            const pendPct = Math.min(((r + pen) / maxRungs) * 100, 100);
             return (
-              <div key={c.id} className="state-popover__bar-row">
-                <span className={`state-popover__bar-name${isP1 ? ' state-popover__bar-name--p1' : ' state-popover__bar-name--p2'}`}>
-                  {c.name}
+              <div key={p.id} className={`sc-standing${isActive ? ' sc-standing--you' : ''}`}>
+                <span className="sc-standing__name" style={{ color: colors[p.id]?.hex }}>
+                  {isActive ? 'You' : p.name}
                 </span>
-                <div className="state-popover__bar-track">
+                <div className="sc-standing__bar-wrap">
+                  {pen > 0 && (
+                    <div
+                      className="sc-standing__bar sc-standing__bar--pending"
+                      style={{ width: `${pendPct}%`, background: colors[p.id]?.hex }}
+                    />
+                  )}
                   <div
-                    className={`state-popover__bar-fill${isP1 ? ' state-popover__bar-fill--p1' : ' state-popover__bar-fill--p2'}`}
-                    style={{ width: `${pct}%` }}
+                    className="sc-standing__bar"
+                    style={{ width: `${pct}%`, background: colors[p.id]?.hex }}
                   />
                 </div>
-                <span className="state-popover__bar-amount">
-                  ${amount.toFixed(0)} / ${secureAt.toLocaleString()}
-                </span>
+                <span className="sc-standing__count">{r}{pen > 0 ? `+${pen}` : ''}/{maxRungs}</span>
               </div>
             );
           })}
         </div>
 
-        {isActivePhase && (
-          <div className="state-popover__actions">
-            {usState.interestGroups.length > 0 && (
-              <div className="state-popover__section-label">Interest group (affinity bonus):</div>
-            )}
-            <div className="state-popover__groups">
-              <button
-                type="button"
-                className={`state-popover__group-btn${!selectedGroup ? ' state-popover__group-btn--active' : ''}`}
-                onClick={() => setSelectedGroup(undefined)}
-              >
-                No group
-              </button>
-              {usState.interestGroups.map((g) => {
-                const bonus = activeCandidate?.affinities[g] ?? 0;
-                return (
-                  <button
-                    key={g}
-                    type="button"
-                    className={`state-popover__group-btn${selectedGroup === g ? ' state-popover__group-btn--active' : ''}`}
-                    onClick={() => setSelectedGroup(g)}
-                  >
-                    {g}
-                    {bonus > 0 && (
-                      <span className="state-popover__bonus"> +{Math.round(bonus * 100)}%</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="state-popover__section-label">Amount:</div>
-            <div className="state-popover__amounts">
-              {SPEND_PRESETS.map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  className={`state-popover__amount-btn${selectedAmount === amt ? ' state-popover__amount-btn--active' : ''}`}
-                  onClick={() => setSelectedAmount(amt)}
-                >
-                  ${amt}
-                </button>
-              ))}
-            </div>
-
-            {affinityBonus > 0 && (
-              <div className="state-popover__effective">
-                Effective investment: ${effectiveAmount.toFixed(0)}{' '}
-                <span className="state-popover__multiplier">
-                  ×{(1 + affinityBonus).toFixed(2)} bonus
-                </span>
-              </div>
-            )}
-
-            <button type="button" className="state-popover__allocate-btn" onClick={handleAllocate}>
-              Allocate ${selectedAmount}
-              {affinityBonus > 0 ? ` (eff. $${effectiveAmount.toFixed(0)})` : ''}
+        {canBuy && (
+          <div className="state-card__buy">
+            <span>
+              Next rung: <strong>${nextRungCost.toFixed(0)}k</strong>
+              {discount > 0 && <span className="state-card__disc"> (−{Math.round(discount * 100)}%)</span>}
+              {discount < 0 && <span className="state-card__pen"> (+{Math.round(-discount * 100)}% penalty)</span>}
+            </span>
+            <button
+              type="button"
+              className="state-card__buy-btn"
+              onClick={() => { AudioManager.play('buy'); allocate('state', stateId, 1); }}
+            >
+              Buy rung →
             </button>
           </div>
         )}
-      </div>
-    </>
-  );
-}
 
-// ── Phase panel ───────────────────────────────────────────────────────────────
-
-function PhasePanel() {
-  const phase = useGameStore((s) => s.phase);
-  const activeId = useGameStore((s) => s.activePlayerId);
-  const turn = useGameStore((s) => s.turn);
-  const candidates = useGameStore((s) => s.candidates);
-  const lastIncome = useGameStore((s) => s.lastIncome);
-  const pendingSpends = useActivePendingSpends();
-  const budget = useAvailableBudget();
-  const result = useElectoralResult();
-
-  const submitTurn = useGameStore((s) => s.submitTurn);
-  const confirmResolution = useGameStore((s) => s.confirmResolution);
-  const cancelAllocation = useGameStore((s) => s.cancelAllocation);
-
-  const activeName = activeId === P1_ID ? P1_NAME : P2_NAME;
-  const playerNum = activeId === P1_ID ? 1 : 2;
-
-  if (phase === 'RESOLUTION') {
-    const electionPossible = turn >= ELECTION_START_TURN;
-    return (
-      <div className="phase-panel phase-panel--resolution">
-        <div className="phase-panel__title">Resolution — Turn {turn}</div>
-        <div className="phase-panel__income-row">
-          {candidates.map((c) => {
-            const evs = result.evByCandidate[c.id] ?? 0;
-            const is270 = evs >= WIN_THRESHOLD;
+        <div className="state-card__groups">
+          {(STATE_GROUPS_BY_STATE[stateId] ?? []).map((g) => {
+            const minR = minRungsForDominance(stateId, usState.electoralVotes);
+            const myR = activePlayer ? ((rungs[activePlayer.id] ?? 0) + pendingRungs) : 0;
+            const qualifies = myR >= minR;
             return (
-              <div key={c.id} className="phase-panel__income-card">
-                <div className="phase-panel__income-name">{c.name}</div>
-                <div className="phase-panel__income-ev">
-                  {evs} EV
-                  {is270 && <span className="phase-panel__270-badge"> 270+</span>}
-                </div>
-                <div className="phase-panel__income-amount">
-                  +${lastIncome[c.id] ?? 0} income
-                </div>
-                <div className="phase-panel__income-cash">${c.cash.toFixed(0)}</div>
-              </div>
+              <span key={g} className={`state-card__tag${qualifies ? ' state-card__tag--ok' : ''}`}>
+                {g}
+                <span className="state-card__tag-min"> {qualifies ? '✓' : `${myR}/${minR}r`}</span>
+              </span>
             );
           })}
         </div>
-        <div className="phase-panel__election-info">
-          {electionPossible
-            ? `${Math.round(ELECTION_CHANCE * 100)}% chance an election is called this turn`
-            : `Election can be called from turn ${ELECTION_START_TURN}`}
-        </div>
-        <button type="button" className="phase-panel__btn" onClick={confirmResolution}>
-          Start Turn {turn + 1} →
-        </button>
       </div>
-    );
-  }
-
-  return (
-    <div className={`phase-panel phase-panel--p${playerNum}`}>
-      <div className="phase-panel__header">
-        <div className="phase-panel__title">
-          Player {playerNum}: {activeName}
-        </div>
-        <div className="phase-panel__budget">
-          Budget remaining: <strong>${budget.toFixed(0)}</strong>
-          <span className="phase-panel__hint"> (click a state to invest)</span>
-        </div>
-      </div>
-
-      {pendingSpends.length > 0 ? (
-        <div className="phase-panel__allocations">
-          <div className="phase-panel__alloc-label">This turn&apos;s allocations:</div>
-          <div className="phase-panel__alloc-list">
-            {Object.entries(
-              pendingSpends.reduce<Record<StateId, number>>((acc, p) => {
-                acc[p.stateId] = (acc[p.stateId] ?? 0) + p.amount;
-                return acc;
-              }, {}),
-            ).map(([sid, total]) => (
-              <span key={sid} className="phase-panel__alloc-chip">
-                {sid} ${total}
-                <button
-                  type="button"
-                  className="phase-panel__cancel"
-                  onClick={() => cancelAllocation(sid)}
-                  title={`Cancel ${sid} allocation`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="phase-panel__empty">No allocations yet — click states on the map.</div>
-      )}
-
-      <button type="button" className="phase-panel__btn" onClick={submitTurn}>
-        {phase === 'P1_TURN' ? `Hand to ${P2_NAME} →` : 'Resolve Turn →'}
-      </button>
-    </div>
+    </>
   );
 }
 
@@ -486,32 +310,28 @@ function PhasePanel() {
 
 export function ElectionOverlay() {
   const electionResult = useGameStore((s) => s.electionResult);
-  const candidates = useGameStore((s) => s.candidates);
-  const eliminatedCandidates = useGameStore((s) => s.eliminatedCandidates);
+  const players = useGameStore((s) => s.players);
   const turn = useGameStore((s) => s.turn);
   const resolveElection = useGameStore((s) => s.resolveElection);
+  const colors = usePlayerColors();
 
   if (!electionResult) return null;
 
-  const active = candidates.filter((c) => !eliminatedCandidates.includes(c.id));
+  const active = players.filter((p) => !p.eliminated);
   const ranked = [...active].sort(
-    (a, b) => (electionResult.evByCandidate[b.id] ?? 0) - (electionResult.evByCandidate[a.id] ?? 0),
+    (a, b) => (electionResult.evByPlayer[b.id] ?? 0) - (electionResult.evByPlayer[a.id] ?? 0),
   );
 
   const winner = electionResult.winner
-    ? candidates.find((c) => c.id === electionResult.winner)
+    ? players.find((p) => p.id === electionResult.winner)
     : null;
 
-  // Find lowest-EV candidate (who will be eliminated)
-  let lowestId: CandidateId | null = null;
-  if (!winner && active.length > 1) {
+  let eliminatedId: string | null = null;
+  if (!winner && active.length > 2) {
     let lowestEV = Infinity;
-    for (const c of active) {
-      const ev = electionResult.evByCandidate[c.id] ?? 0;
-      if (ev < lowestEV) {
-        lowestEV = ev;
-        lowestId = c.id;
-      }
+    for (const p of active) {
+      const ev = electionResult.evByPlayer[p.id] ?? 0;
+      if (ev < lowestEV) { lowestEV = ev; eliminatedId = p.id; }
     }
   }
 
@@ -522,22 +342,21 @@ export function ElectionOverlay() {
         <h2 className="election-overlay__title">Turn {turn} Results</h2>
 
         <div className="election-overlay__results">
-          {ranked.map((c) => {
-            const evs = electionResult.evByCandidate[c.id] ?? 0;
-            const isWinner = c.id === electionResult.winner;
-            const isEliminated = c.id === lowestId;
+          {ranked.map((p) => {
+            const evs = electionResult.evByPlayer[p.id] ?? 0;
+            const isWinner = p.id === electionResult.winner;
+            const isEliminated = p.id === eliminatedId;
             return (
               <div
-                key={c.id}
+                key={p.id}
                 className={[
                   'election-overlay__candidate',
                   isWinner ? 'election-overlay__candidate--winner' : '',
                   isEliminated ? 'election-overlay__candidate--eliminated' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
+                ].filter(Boolean).join(' ')}
+                style={{ ['--p-color' as string]: colors[p.id]?.hex }}
               >
-                <span className="election-overlay__cname">{c.name}</span>
+                <span className="election-overlay__cname">{p.name}</span>
                 <span className="election-overlay__ev">{evs} EV</span>
                 {isWinner && <span className="election-overlay__badge election-overlay__badge--win">WINNER</span>}
                 {isEliminated && <span className="election-overlay__badge election-overlay__badge--out">ELIMINATED</span>}
@@ -548,21 +367,25 @@ export function ElectionOverlay() {
 
         {winner ? (
           <div className="election-overlay__outcome election-overlay__outcome--win">
-            {winner.name} reaches {electionResult.evByCandidate[winner.id]} electoral votes!
+            {winner.name} reaches {electionResult.evByPlayer[winner.id]} electoral votes!
           </div>
         ) : (
           <div className="election-overlay__outcome">
             <p>No candidate reached {WIN_THRESHOLD} electoral votes.</p>
-            {lowestId && (
+            {eliminatedId && (
               <p>
-                <strong>{candidates.find((c) => c.id === lowestId)?.name}</strong> is eliminated.
-                Their secured states return to contest, but investment is preserved.
+                <strong>{players.find((p) => p.id === eliminatedId)?.name}</strong> is eliminated.
+                Their rungs are wiped and states revert to contest.
               </p>
             )}
           </div>
         )}
 
-        <button type="button" className="election-overlay__btn" onClick={resolveElection}>
+        <button
+          type="button"
+          className="election-overlay__btn"
+          onClick={() => { AudioManager.play(winner ? 'victory' : 'confirm'); resolveElection(); }}
+        >
           {winner ? 'View Final Results →' : 'Continue Campaign →'}
         </button>
       </div>
@@ -572,42 +395,36 @@ export function ElectionOverlay() {
 
 // ── Main map ──────────────────────────────────────────────────────────────────
 
-interface TooltipState {
-  stateId: StateId;
-  x: number;
-  y: number;
+interface CardState { stateId: StateId; x: number; y: number; }
+
+interface ElectionMapProps {
+  tallyActiveStateId?: string | null;
+  tallyRevealedIds?: Set<string>;
+  highlightedStateIds?: Set<string> | null;
 }
 
-interface PopoverState {
-  stateId: StateId;
-  x: number;
-  y: number;
-}
-
-export function ElectionMap() {
+export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedStateIds }: ElectionMapProps = {}) {
   const phase = useGameStore((s) => s.phase);
+  const activePlayer = useActivePlayer();
+  const colors = usePlayerColors();
+  const [hover, setHover] = useState<CardState | null>(null);
+  const [pinned, setPinned] = useState<CardState | null>(null);
 
-  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [popover, setPopover] = useState<PopoverState | null>(null);
-
-  const isInteractive = phase === 'P1_TURN' || phase === 'P2_TURN';
+  const isInteractive = phase === 'PLANNING';
+  const activeHex = activePlayer ? (colors[activePlayer.id]?.hex ?? '#facc15') : '#facc15';
 
   const handleHover = useCallback((id: StateId, x: number, y: number) => {
-    if (!popover) setTooltip({ stateId: id, x, y });
-  }, [popover]);
+    if (!pinned) setHover({ stateId: id, x, y });
+  }, [pinned]);
 
-  const handleLeave = useCallback(() => {
-    setTooltip(null);
-  }, []);
+  const handleLeave = useCallback(() => { setHover(null); }, []);
 
   const handleSelect = useCallback((id: StateId, x: number, y: number) => {
-    setTooltip(null);
-    setPopover({ stateId: id, x, y });
+    setHover(null);
+    setPinned({ stateId: id, x, y });
   }, []);
 
-  const closePopover = useCallback(() => {
-    setPopover(null);
-  }, []);
+  const closePinned = useCallback(() => { setPinned(null); }, []);
 
   return (
     <div className="election-map-wrap">
@@ -630,9 +447,15 @@ export function ElectionMap() {
                     geo={geo}
                     stateId={stateId}
                     isInteractive={isInteractive}
+                    colors={colors}
+                    activePlayerHex={activeHex}
                     onHover={handleHover}
                     onLeave={handleLeave}
                     onSelect={handleSelect}
+                    tallyActiveStateId={tallyActiveStateId}
+                    tallyRevealedIds={tallyRevealedIds}
+                    isGroupHighlighted={!!highlightedStateIds?.has(stateId)}
+                    isGroupDimmed={!!highlightedStateIds && !highlightedStateIds.has(stateId)}
                   />
                 );
               })
@@ -640,29 +463,26 @@ export function ElectionMap() {
           </Geographies>
         </ComposableMap>
 
-        {tooltip && !popover && (
-          <div
-            className="state-tooltip-wrap"
-            style={{
-              left: Math.min(tooltip.x + 14, window.innerWidth - 260),
-              top: Math.max(tooltip.y - 160, 8),
-            }}
-          >
-            <TooltipPanel stateId={tooltip.stateId} />
-          </div>
+        {hover && !pinned && (
+          <StateHoverCard
+            stateId={hover.stateId}
+            x={hover.x}
+            y={hover.y}
+            interactive={false}
+            onClose={() => setHover(null)}
+          />
         )}
       </div>
 
-      {popover && (
-        <StatePopover
-          stateId={popover.stateId}
-          x={popover.x}
-          y={popover.y}
-          onClose={closePopover}
+      {pinned && (
+        <StateHoverCard
+          stateId={pinned.stateId}
+          x={pinned.x}
+          y={pinned.y}
+          interactive
+          onClose={closePinned}
         />
       )}
-
-      {phase !== 'ELECTION' && <PhasePanel />}
     </div>
   );
 }

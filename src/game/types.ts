@@ -1,87 +1,192 @@
-/**
- * Core data structures for the US Election Simulator.
- *
- * Investment model (replaces the old vote-share/percentage model):
- *   - Each candidate accumulates independent investment per state (dollars, not %)
- *   - States start at 0 investment for everyone
- *   - First to reach baseCampaignCost × 100 secures the state permanently
- *   - At election: secured → guaranteed EVs; contested → highest investor wins; uncontested → 0 EVs
- */
-
-export type InterestGroup =
-  | 'Rust Belt'
-  | 'Sun Belt'
-  | 'Bible Belt'
-  | 'Farm Belt'
-  | 'Pacific'
-  | 'New England'
-  | 'Labor'
-  | 'Agribusiness'
-  | 'High Tech'
-  | 'Energy'
-  | 'Manufacturing'
-  | 'Wall Street';
-
-export type CandidateId = string;
+export type PlayerId = string;
 export type StateId = string;
+export type StateGroupId = string;
+export type NationalGroupId = string;
 
-export interface Candidate {
-  readonly id: CandidateId;
-  readonly name: string;
-  cash: number;
-  readonly affinities: Partial<Record<InterestGroup, number>>;
-}
-
+// ── Static map entity ─────────────────────────────────────────────────────────
 export interface US_State {
   readonly id: StateId;
   readonly name: string;
   readonly electoralVotes: number;
-  /**
-   * Scales the base cost of a single rung.
-   * Higher = more expensive to campaign in this state.
-   */
   readonly baseCampaignCost: number;
-  readonly interestGroups: readonly InterestGroup[];
-  readonly maxRungs: 5 | 10 | 15;
+  /** Derived at runtime via maxRungsFor(); not stored on the literal. */
+  readonly maxRungs: 8 | 12 | 16;
 }
 
-/**
- * investment[stateId][candidateId] = current number of rungs secured.
- * Each candidate's total is independent — spending does NOT reduce rivals.
- */
-export type InvestmentMap = Record<StateId, Record<CandidateId, number>>;
+// ── Economy entities ──────────────────────────────────────────────────────────
+export interface StateGroup {
+  readonly id: StateGroupId;
+  readonly members: readonly StateId[];
+  readonly totalEV: number;
+  /** Cash deposited to dominant player's group wallet each turn ($1k units). */
+  readonly bonusPayout: number;
+}
 
+export interface NationalGroup {
+  readonly id: NationalGroupId;
+  readonly maxRungs: 10;
+  /** Cash to nationalCash for rung≥5 leader each turn. */
+  readonly turnBonus: number;
+  /** == turnBonus * 0.5 */
+  readonly rungCost: number;
+}
+
+// ── Player runtime state ──────────────────────────────────────────────────────
+export interface PlayerState {
+  readonly id: PlayerId;
+  readonly candidateId: string;
+  readonly name: string;
+  /**
+   * Cost modifiers: keyed by StateGroupId or NationalGroupId.
+   * Reduces (or, when negative, raises) effective rung cost:
+   * effectiveCost = baseCost * (1 - affinity). A negative value is a cost
+   * penalty (e.g. -0.20 → 1.20× cost).
+   */
+  readonly affinities: Record<string, number>;
+  /**
+   * Profit modifiers: keyed by StateGroupId or NationalGroupId.
+   * Scales the per-turn payout for that group: payout * (1 + modifier).
+   * Positive = extra profit, negative = profit reduction.
+   */
+  readonly payoutModifiers: Record<string, number>;
+  nationalCash: number;
+  groupWallets: Record<StateGroupId, number>;
+  eliminated: boolean;
+  /** AI-controlled seat (single-player "vs Bot" mode). Absent/false = human. */
+  isBot?: boolean;
+  /** Bot strength when isBot is true. */
+  botDifficulty?: BotDifficulty;
+}
+
+export type BotDifficulty = 'easy' | 'medium' | 'hard';
+
+// ── Progress tracking ─────────────────────────────────────────────────────────
+/** Current rung count per state per player. */
+export type RungMap = Record<StateId, Record<PlayerId, number>>;
+/** Current rung count per national group per player. */
+export type NatRungMap = Record<NationalGroupId, Record<PlayerId, number>>;
+/**
+ * Monotonic sequence number at which a player last incremented their rung
+ * in a state. Lower = reached that count first → wins ties.
+ */
+export type ReachSeq = Record<StateId, Record<PlayerId, number>>;
+export type NatReachSeq = Record<NationalGroupId, Record<PlayerId, number>>;
+
+// ── Core authoritative game state (fully JSON-serializable) ──────────────────
 export interface GameState {
   turn: number;
-  candidates: Candidate[];
-  states: US_State[];
-  investment: InvestmentMap;
-  /** null = contested/unsecured; candidateId = permanently secured by that player. */
-  securedBy: Record<StateId, CandidateId | null>;
-  /**
-   * Order in which candidates FIRST invested in each state.
-   * investmentOrder[stateId][0] = the candidate who invested first → wins ties at election.
-   */
-  investmentOrder: Record<StateId, CandidateId[]>;
+  /** Monotonic counter; stamps every rung increment for "reached-first" ties. */
+  seqCounter: number;
+  players: PlayerState[];
+  rungs: RungMap;
+  natRungs: NatRungMap;
+  reachSeq: ReachSeq;
+  natReachSeq: NatReachSeq;
+  /** Permanently locked states (max rung, no clash). null = still contested. */
+  securedBy: Record<StateId, PlayerId | null>;
+  natSecuredBy: Record<NationalGroupId, PlayerId | null>;
+  /** Which player currently dominates each State Group. null = no one. */
+  stateGroupDominance: Record<StateGroupId, PlayerId | null>;
+  /** Number of elections that ended without a 270+ winner (escalator). */
+  hungColleges: number;
 }
 
+// ── Pending allocation (per player, hidden until resolution) ──────────────────
+export interface WalletDraw {
+  wallet: StateGroupId | 'NATIONAL';
+  amount: number;
+}
+
+export interface PendingPurchase {
+  kind: 'state' | 'national';
+  targetId: StateId | NationalGroupId;
+  /** Rungs being added this turn. */
+  rungs: number;
+  /** Total effective cost after affinity discount. */
+  cost: number;
+  /** Ordered breakdown of which wallets were debited. */
+  walletDraw: WalletDraw[];
+}
+
+// ── Per-round purchase log (drives the Resolution ticker overlay) ─────────────
+export interface RoundPurchase {
+  playerId: PlayerId;
+  candidateId: string;
+  kind: 'state' | 'national';
+  /** stateId (e.g. 'GA') or nationalGroupId (e.g. 'Gun Lobby') */
+  targetId: string;
+  rungsBought: number;
+  /** $k units, same scale as PendingPurchase.cost */
+  cost: number;
+}
+
+// ── Election results ──────────────────────────────────────────────────────────
 export interface ElectoralResult {
-  /** EVs each candidate is currently projected to win. */
-  readonly evByCandidate: Record<CandidateId, number>;
-  /**
-   * The candidate who wins each state under current rules.
-   * null for uncontested states (0 or 1 investors, not secured).
-   */
-  readonly stateLeaders: Record<StateId, CandidateId | null>;
-  /** Non-null when a candidate reaches WIN_THRESHOLD (≥ 270). */
-  readonly winner: CandidateId | null;
+  readonly evByPlayer: Record<PlayerId, number>;
+  readonly stateLeaders: Record<StateId, PlayerId | null>;
+  readonly winner: PlayerId | null;
 }
 
-export interface InvestmentResult {
-  readonly ok: boolean;
-  readonly reason?: string;
-  readonly candidates: Candidate[];
-  readonly investment: InvestmentMap;
-  readonly securedBy: Record<StateId, CandidateId | null>;
-  readonly investmentOrder: Record<StateId, CandidateId[]>;
+// ── Turn resolution report (drives the RESOLUTION-phase UI / clash animation) ──
+export interface SecuredEvent {
+  kind: 'state' | 'national';
+  targetId: StateId | NationalGroupId;
+  playerId: PlayerId;
+}
+
+export interface TurnReport {
+  /** State IDs where ≥2 players clashed (reverted + forfeited cash) this turn. */
+  clashedStates: StateId[];
+  /** National group IDs where a clash occurred this turn. */
+  clashedNational: NationalGroupId[];
+  /** Targets newly locked (max rung, solo) this turn. */
+  newlySecured: SecuredEvent[];
+  /** Net national-cash delta per player across the turn (purchases + income). */
+  incomeByPlayer: Record<PlayerId, number>;
+}
+
+// ── Multiplayer / Supabase types ──────────────────────────────────────────────
+
+export type GamePhase =
+  | 'SETUP' | 'MENU' | 'PLANNING' | 'RESOLUTION'
+  | 'ELECTION' | 'ELECTION_TALLY' | 'GAME_OVER';
+
+/**
+ * Shape stored in the `game_state` JSONB column of the `lobbies` table.
+ * Extends GameState with the Zustand phase fields needed for full UI reconstruction
+ * and the multiplayer coordination fields managed by the host.
+ */
+export interface LobbyGameState extends GameState {
+  phase: GamePhase;
+  activePlayerIndex: number;
+  electionResult: ElectoralResult | null;
+  lastIncome: Record<PlayerId, number>;
+  lastTurnReport: TurnReport | null;
+  prevDominance: Record<string, PlayerId | null>;
+  electionTallyProgress: number;
+  /** Player ID of the client that runs resolveTurn and drives phase transitions. */
+  hostPlayerId: PlayerId;
+  /** Player IDs that have clicked End Turn for the current round. */
+  submittedPlayers: PlayerId[];
+  /** Accumulated pending purchases per player; merged atomically via RPC. */
+  pendingSubmissions: Record<PlayerId, PendingPurchase[]>;
+  /** Flat log of all purchases this round; drives the Resolution ticker overlay. Optional for backward-compat with old Supabase rows. */
+  lastRoundPurchases?: RoundPurchase[];
+  /** UTC epoch ms when the current planning turn expires; synced to all clients. Optional for backward-compat. */
+  turnDeadlineUtc?: number | null;
+}
+
+// ── Waiting-room types (before game starts) ───────────────────────────────────
+
+export interface WaitingPlayer {
+  id: string;           // UUID assigned at join time
+  candidateId: string;  // e.g., 'harris', 'trump'
+  name: string;         // custom display name entered by the player
+  isHost: boolean;
+}
+
+export interface WaitingLobbyState {
+  playerCount: number;
+  hostPlayerId: string;
+  players: WaitingPlayer[];
 }

@@ -1,0 +1,652 @@
+/**
+ * MultiplayerMenu — online lobby: create or join a game.
+ *
+ * Screens:
+ *   main         → two big buttons: Create / Join
+ *   creating     → host picks ONE candidate + display name + player count
+ *   waiting-host → host sees room code + live player list + Start Game button
+ *   joining      → guest enters 4-digit room code
+ *   picking      → guest picks an available candidate + display name
+ *   waiting-guest → guest sees live player list; auto-routes when host starts
+ *
+ * The Zustand store is NOT touched until the host clicks "Start Game".
+ * Until then, all state lives in local React state inside this component.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  CANDIDATE_MAP,
+  CANDIDATES,
+  PLAYER_COLORS,
+  isCandidateAvailable,
+  type CandidateDef,
+} from '../game/candidates';
+import { playerFromCandidate } from '../game/statesData';
+import { useGameStore } from '../game/store';
+import { useProfile } from '../hooks/useProfile';
+import { AudioManager } from '../utils/audioManager';
+import { sanitizeName } from '../utils/sanitize';
+import { Portrait } from './Portrait';
+import {
+  supabase,
+  rpcJoinLobbyPlayer,
+  type LobbyRow,
+} from '../utils/supabaseClient';
+import { ModifierSheet } from './ModifierSheet';
+import type { LobbyGameState, WaitingLobbyState, WaitingPlayer } from '../game/types';
+
+type Screen =
+  | 'main'
+  | 'creating'
+  | 'waiting-host'
+  | 'joining'
+  | 'picking'
+  | 'waiting-guest';
+
+function generateRoomCode(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+// ── Waiting-room player list (host + guest share this) ───────────────────
+function WaitingRoomPlayerList({
+  hostId,
+  waitingPlayers,
+  playerCount,
+}: {
+  hostId: string;
+  waitingPlayers: WaitingPlayer[];
+  playerCount: number;
+}) {
+  return (
+    <div className="mp-players">
+      {waitingPlayers.map((p) => {
+        const cand = CANDIDATE_MAP[p.candidateId];
+        return (
+          <div key={p.id} className="mp-player-row">
+            {cand?.tokenUrl && (
+              <img
+                src={cand.tokenUrl}
+                className="cand-token mp-player-token"
+                alt={cand.name}
+              />
+            )}
+            <span className="mp-player-name">{p.name}</span>
+            <span className="mp-player-cand">{cand?.name ?? p.candidateId}</span>
+            {p.id === hostId && <span className="mp-player-badge">Host</span>}
+          </div>
+        );
+      })}
+      {Array.from({ length: Math.max(0, playerCount - waitingPlayers.length) }).map((_, i) => (
+        <div key={`empty-${i}`} className="mp-player-row mp-player-row--empty">
+          Waiting for player…
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface Props {
+  onBack: () => void;
+}
+
+export function MultiplayerMenu({ onBack }: Props) {
+  const setMultiplayerMeta = useGameStore((s) => s.setMultiplayerMeta);
+  const syncFromPayload    = useGameStore((s) => s.syncFromPayload);
+  const initOnlineGame     = useGameStore((s) => s.initOnlineGame);
+
+  // This device can only field candidates it owns (founding roster + unlocks).
+  const unlocked = useProfile((s) => s.profile.unlockedCharacters);
+  const availableCandidates = useMemo(
+    () => CANDIDATES.filter((c) => isCandidateAvailable(c, unlocked)),
+    [unlocked],
+  );
+
+  const [screen, setScreen]                 = useState<Screen>('main');
+  const [errorMsg, setErrorMsg]             = useState<string | null>(null);
+  const [loading, setLoading]               = useState(false);
+
+  // ── Create-flow state ──────────────────────────────────────────────────────
+  const [playerCount, setPlayerCount]       = useState(2);
+  const [myCandidate, setMyCandidate]       = useState<CandidateDef | null>(null);
+  const [myName, setMyName]                 = useState('');
+
+  // ── Shared lobby state (set after create or join) ─────────────────────────
+  const [lobby, setLobby]                   = useState<LobbyRow | null>(null);
+  const [myPlayerId, setMyPlayerId]         = useState<string | null>(null);
+  const [waitingPlayers, setWaitingPlayers] = useState<WaitingPlayer[]>([]);
+
+  // ── Join-flow state ────────────────────────────────────────────────────────
+  const [codeInput, setCodeInput]           = useState('');
+  const [foundLobby, setFoundLobby]         = useState<LobbyRow | null>(null);
+  const [guestCandidate, setGuestCandidate] = useState<CandidateDef | null>(null);
+  const [guestName, setGuestName]           = useState('');
+
+  // Stable ref to screen for use inside Realtime callbacks
+  const screenRef = useRef(screen);
+  useEffect(() => { screenRef.current = screen; }, [screen]);
+
+  // ── Realtime: shared for both waiting screens ─────────────────────────────
+  useEffect(() => {
+    if (!lobby || (screen !== 'waiting-host' && screen !== 'waiting-guest')) return;
+
+    const channel = supabase
+      .channel(`lobby-wait:${lobby.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'lobbies',
+          filter: `id=eq.${lobby.id}`,
+        },
+        (payload) => {
+          const row = payload.new as LobbyRow;
+
+          // Update the live player list for both host and guest
+          const gs = row.game_state as WaitingLobbyState | null;
+          if (gs?.players) setWaitingPlayers(gs.players);
+
+          // Guest: when game starts, sync payload → App.tsx routes to GameShell
+          if (
+            row.status === 'in_progress' &&
+            row.game_state &&
+            screenRef.current === 'waiting-guest' &&
+            myPlayerId
+          ) {
+            const fullGs = row.game_state as LobbyGameState;
+            setMultiplayerMeta({
+              lobbyId: row.id,
+              localPlayerId: myPlayerId,
+              hostPlayerId: fullGs.hostPlayerId,
+            });
+            syncFromPayload(fullGs);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lobby?.id, screen]);
+
+  // ── CREATE: insert waiting lobby ──────────────────────────────────────────
+  async function createRoom(isPublic: boolean) {
+    if (!myCandidate || !myName.trim()) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    const hostId = crypto.randomUUID();
+    const hostPlayer: WaitingPlayer = {
+      id: hostId,
+      candidateId: myCandidate.id,
+      name: sanitizeName(myName),
+      isHost: true,
+    };
+    const waitingState: WaitingLobbyState = {
+      playerCount,
+      hostPlayerId: hostId,
+      players: [hostPlayer],
+    };
+
+    const { data, error } = await supabase
+      .from('lobbies')
+      .insert({
+        room_code: generateRoomCode(),
+        is_public: isPublic,
+        status: 'waiting',
+        player_count: playerCount,
+        game_state: waitingState,
+      })
+      .select()
+      .single();
+
+    setLoading(false);
+
+    if (error || !data) {
+      setErrorMsg(`Could not create room: ${error?.message ?? 'unknown error'}`);
+      return;
+    }
+
+    AudioManager.play('confirm');
+    setMyPlayerId(hostId);
+    setLobby(data as LobbyRow);
+    setWaitingPlayers([hostPlayer]);
+    setMultiplayerMeta({
+      lobbyId: data.id,
+      localPlayerId: hostId,
+      hostPlayerId: hostId,
+    });
+    setScreen('waiting-host');
+  }
+
+  // ── HOST: start the game ──────────────────────────────────────────────────
+  async function startGame() {
+    if (!lobby || !myPlayerId) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    // Build PlayerState[] from the confirmed waiting room player list
+    const players = waitingPlayers.map((wp) => {
+      const cand = CANDIDATE_MAP[wp.candidateId];
+      if (!cand) throw new Error(`Unknown candidateId: ${wp.candidateId}`);
+      return playerFromCandidate(cand, { id: wp.id, name: wp.name });
+    });
+
+    // Initialize game in the store — sets phase='PLANNING' which routes to GameShell
+    initOnlineGame(players);
+
+    // Snapshot the freshly-initialized state to push to Supabase
+    const snap = useGameStore.getState();
+    const gameState: LobbyGameState = {
+      turn: snap.turn,
+      seqCounter: snap.seqCounter,
+      players: snap.players,
+      rungs: snap.rungs,
+      natRungs: snap.natRungs,
+      reachSeq: snap.reachSeq,
+      natReachSeq: snap.natReachSeq,
+      securedBy: snap.securedBy,
+      natSecuredBy: snap.natSecuredBy,
+      stateGroupDominance: snap.stateGroupDominance,
+      hungColleges: snap.hungColleges,
+      phase: 'PLANNING',
+      activePlayerIndex: 0,
+      electionResult: null,
+      lastIncome: Object.fromEntries(snap.players.map((p) => [p.id, 0])),
+      lastTurnReport: null,
+      prevDominance: snap.stateGroupDominance,
+      electionTallyProgress: 0,
+      hostPlayerId: myPlayerId,
+      submittedPlayers: [],
+      pendingSubmissions: {},
+    };
+
+    const { error } = await supabase
+      .from('lobbies')
+      .update({ status: 'in_progress', game_state: gameState })
+      .eq('id', lobby.id);
+
+    setLoading(false);
+
+    if (error) {
+      setErrorMsg(`Could not start game: ${error.message}`);
+      return;
+    }
+
+    AudioManager.play('confirm');
+    // App.tsx detects phase='PLANNING' and routes to GameShell
+  }
+
+  // ── JOIN: look up lobby by room code ──────────────────────────────────────
+  async function findRoom() {
+    const code = codeInput.trim();
+    if (code.length !== 4) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    const { data, error } = await supabase
+      .from('lobbies')
+      .select('*')
+      .eq('room_code', code)
+      .eq('status', 'waiting')
+      .single();
+
+    setLoading(false);
+
+    if (error || !data) {
+      setErrorMsg('Room not found or game already started.');
+      return;
+    }
+
+    AudioManager.play('click');
+    setFoundLobby(data as LobbyRow);
+    setScreen('picking');
+  }
+
+  // ── JOIN: claim a slot and enter waiting room ─────────────────────────────
+  async function joinRoom() {
+    if (!foundLobby || !guestCandidate || !guestName.trim()) return;
+    setLoading(true);
+    setErrorMsg(null);
+
+    const guestId = crypto.randomUUID();
+    const hostPlayerId =
+      (foundLobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
+    const guestPlayer: WaitingPlayer = {
+      id: guestId,
+      candidateId: guestCandidate.id,
+      name: sanitizeName(guestName),
+      isHost: false,
+    };
+
+    try {
+      await rpcJoinLobbyPlayer(foundLobby.id, guestPlayer);
+    } catch (e) {
+      setLoading(false);
+      setErrorMsg(`Could not join: ${(e as Error).message}`);
+      return;
+    }
+
+    setLoading(false);
+    AudioManager.play('confirm');
+
+    setMyPlayerId(guestId);
+    setLobby(foundLobby);
+    const existing = (foundLobby.game_state as WaitingLobbyState)?.players ?? [];
+    setWaitingPlayers([...existing, guestPlayer]);
+    setMultiplayerMeta({ lobbyId: foundLobby.id, localPlayerId: guestId, hostPlayerId });
+    setScreen('waiting-guest');
+  }
+
+  // ── Candidate IDs already claimed in the found lobby ─────────────────────
+  const claimedCandidateIds = new Set(
+    (foundLobby?.game_state as WaitingLobbyState)?.players?.map((p) => p.candidateId) ?? [],
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────
+
+  if (screen === 'main') {
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">270 — Online Multiplayer</h1>
+        </div>
+        <div
+          className="setup__foot"
+          style={{ gap: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+        >
+          <button type="button" className="setup__start" onClick={() => setScreen('creating')}>
+            Create Room →
+          </button>
+          <button
+            type="button"
+            className="setup__start"
+            style={{ opacity: 0.85 }}
+            onClick={() => setScreen('joining')}
+          >
+            Join Room →
+          </button>
+          <button type="button" className="mp-back" onClick={onBack}>← Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'creating') {
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">Create a Room</h1>
+          <div className="setup__count">
+            <span>Players:</span>
+            {[2, 3, 4].map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={`setup__count-btn${playerCount === n ? ' is-active' : ''}`}
+                onClick={() => { AudioManager.play('click'); setPlayerCount(n); }}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p className="mp-hint">Pick your candidate:</p>
+
+        <div className="setup__roster">
+          {availableCandidates.map((c) => {
+            const chosen = myCandidate?.id === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`cand-card${chosen ? ' is-assigned' : ''}`}
+                style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                onClick={() => { AudioManager.play('click'); setMyCandidate(c); }}
+              >
+                <div className="cand-card__top">
+                  <div className="cand-portrait-wrap">
+                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  </div>
+                  <div className="cand-card__id">
+                    <span className="cand-card__name">{c.name}</span>
+                    <span className="cand-card__tag">{c.tagline}</span>
+                  </div>
+                  {chosen && <span className="cand-card__seat">You</span>}
+                </div>
+                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
+                <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mp-name-row">
+          <label htmlFor="mp-host-name" className="mp-name-label">Your display name:</label>
+          <input
+            id="mp-host-name"
+            className="mp-join__input"
+            value={myName}
+            onChange={(e) => setMyName(e.target.value.slice(0, 20))}
+            placeholder="Enter your name"
+            maxLength={20}
+          />
+        </div>
+
+        {errorMsg && <p className="mp-error">{errorMsg}</p>}
+
+        <div className="setup__foot">
+          <button
+            type="button"
+            className="setup__start"
+            disabled={!myCandidate || !myName.trim() || loading}
+            onClick={() => createRoom(false)}
+          >
+            {loading ? 'Creating…' : 'Create Private Room →'}
+          </button>
+          <button
+            type="button"
+            className="setup__start"
+            style={{ opacity: 0.8, marginTop: '0.5rem' }}
+            disabled={!myCandidate || !myName.trim() || loading}
+            onClick={() => createRoom(true)}
+          >
+            Create Public Room →
+          </button>
+          <button type="button" className="mp-back" onClick={() => setScreen('main')}>← Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'waiting-host' && lobby) {
+    const hostId   = (lobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
+    const canStart = waitingPlayers.length >= playerCount;
+
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">Waiting for Players</h1>
+        </div>
+        <div className="mp-wait">
+          <div className="mp-wait__code-label">Room Code</div>
+          <div className="mp-wait__code">{lobby.room_code}</div>
+          <p className="mp-wait__hint">Share this code. Each player joins on their own device.</p>
+          <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
+          {errorMsg && <p className="mp-error">{errorMsg}</p>}
+          <button
+            type="button"
+            className="setup__start"
+            style={{ marginTop: '1.5rem' }}
+            disabled={!canStart || loading}
+            onClick={startGame}
+          >
+            {loading
+              ? 'Starting…'
+              : canStart
+              ? 'Start Game →'
+              : `Waiting for ${playerCount - waitingPlayers.length} more…`}
+          </button>
+          <button type="button" className="mp-back" onClick={onBack}>← Abandon Room</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'joining') {
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">Join a Room</h1>
+        </div>
+        <div className="mp-join">
+          <p className="mp-join__hint">Enter the 4-digit room code:</p>
+          <div className="mp-join__row">
+            <input
+              className="mp-join__input"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              placeholder="1234"
+              maxLength={4}
+              inputMode="numeric"
+              onKeyDown={(e) => { if (e.key === 'Enter') void findRoom(); }}
+            />
+            <button
+              type="button"
+              className="setup__start"
+              disabled={codeInput.length !== 4 || loading}
+              onClick={() => void findRoom()}
+            >
+              {loading ? 'Searching…' : 'Find Room →'}
+            </button>
+          </div>
+          {errorMsg && <p className="mp-error">{errorMsg}</p>}
+          <button type="button" className="mp-back" onClick={() => setScreen('main')}>← Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'picking' && foundLobby) {
+    const existingPlayers =
+      (foundLobby.game_state as WaitingLobbyState)?.players ?? [];
+
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">Room {foundLobby.room_code}</h1>
+        </div>
+        {existingPlayers.length > 0 && (
+          <div className="mp-wait" style={{ marginBottom: '1rem' }}>
+            <p className="mp-wait__hint" style={{ marginBottom: '0.5rem' }}>Already joined:</p>
+            {existingPlayers.map((p) => {
+              const c = CANDIDATE_MAP[p.candidateId];
+              return (
+                <div key={p.id} className="mp-player-row">
+                  {c?.tokenUrl && (
+                    <img src={c.tokenUrl} className="cand-token mp-player-token" alt={c.name} />
+                  )}
+                  <span className="mp-player-name">{p.name}</span>
+                  <span className="mp-player-cand">{c?.name ?? p.candidateId}</span>
+                  {p.isHost && <span className="mp-player-badge">Host</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="mp-hint">Pick your candidate:</p>
+        <div className="setup__roster">
+          {availableCandidates.map((c) => {
+            const taken  = claimedCandidateIds.has(c.id);
+            const chosen = guestCandidate?.id === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`cand-card${chosen ? ' is-assigned' : ''}${taken ? ' is-disabled' : ''}`}
+                style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                disabled={taken}
+                onClick={() => { if (!taken) { AudioManager.play('click'); setGuestCandidate(c); } }}
+              >
+                <div className="cand-card__top">
+                  <div className="cand-portrait-wrap">
+                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  </div>
+                  <div className="cand-card__id">
+                    <span className="cand-card__name">{c.name}</span>
+                    <span className="cand-card__tag">{taken ? 'Taken' : c.tagline}</span>
+                  </div>
+                  {chosen && <span className="cand-card__seat">You</span>}
+                </div>
+                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
+                <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mp-name-row">
+          <label htmlFor="mp-guest-name" className="mp-name-label">Your display name:</label>
+          <input
+            id="mp-guest-name"
+            className="mp-join__input"
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value.slice(0, 20))}
+            placeholder="Enter your name"
+            maxLength={20}
+          />
+        </div>
+
+        {errorMsg && <p className="mp-error">{errorMsg}</p>}
+
+        <div className="setup__foot">
+          <button
+            type="button"
+            className="setup__start"
+            disabled={!guestCandidate || !guestName.trim() || loading}
+            onClick={() => void joinRoom()}
+          >
+            {loading ? 'Joining…' : 'Join Room →'}
+          </button>
+          <button
+            type="button"
+            className="mp-back"
+            onClick={() => {
+              setScreen('joining');
+              setFoundLobby(null);
+              setGuestCandidate(null);
+            }}
+          >
+            ← Different Room
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === 'waiting-guest' && lobby) {
+    const hostId = (lobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">Waiting for Host</h1>
+        </div>
+        <div className="mp-wait">
+          <div className="mp-wait__code-label">Room Code</div>
+          <div className="mp-wait__code">{lobby.room_code}</div>
+          <p className="mp-wait__hint">The game will start when the host clicks Start.</p>
+          <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
+          <button type="button" className="mp-back" style={{ marginTop: '1.5rem' }} onClick={onBack}>
+            ← Leave Room
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
