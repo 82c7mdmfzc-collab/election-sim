@@ -1,17 +1,16 @@
 /**
- * StateGroupDetailPanel — modal showing all states in a selected State Group
- * with per-player rung counts, EV leader, and group-contribution status.
+ * StateGroupDetailPanel — modal showing progress toward dominating a State Group.
+ *
+ * Each player gets a progress bar (EV they lead in the group) with a threshold
+ * marker at 50% of the group's total EV — i.e. "where you need to be" to dominate.
+ * A compact member-state list sits below for the underlying detail.
  */
 
 import { minRungsForDominance } from '../game/config';
+import { groupDominanceProgress } from '../game/engine';
 import { groupImageUrl } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
-import {
-  useGameStore,
-  useElectoralResult,
-  usePlayerColors,
-  useActivePlayer,
-} from '../game/store';
+import { useGameStore, usePlayerColors, useActivePlayer } from '../game/store';
 import type { StateGroup } from '../game/types';
 
 interface Props {
@@ -20,20 +19,31 @@ interface Props {
 }
 
 export function StateGroupDetailPanel({ group, onClose }: Props) {
-  const players = useGameStore((s) => s.players.filter((p) => !p.eliminated));
+  // NOTE: select raw store slices only — never return a freshly-built array/object
+  // from a selector (e.g. `.filter(...)`), or useSyncExternalStore loops forever.
+  const allPlayers = useGameStore((s) => s.players);
   const rungs = useGameStore((s) => s.rungs);
+  const reachSeq = useGameStore((s) => s.reachSeq);
   const dominance = useGameStore((s) => s.stateGroupDominance);
-  const result = useElectoralResult();
   const colors = usePlayerColors();
   const activePlayer = useActivePlayer();
 
+  const players = allPlayers.filter((p) => !p.eliminated);
   const dominantId = dominance[group.id] ?? null;
   const myBalance = activePlayer?.groupWallets[group.id] ?? 0;
 
+  const { evByPlayer, totalEV, threshold } = groupDominanceProgress(group, rungs, reachSeq, players);
+  const needToDominate = Math.floor(totalEV / 2) + 1; // strictly > half
+
+  // Highest current EV in this group → sort bars leader-first.
+  const ranked = [...players].sort(
+    (a, b) => (evByPlayer[b.id] ?? 0) - (evByPlayer[a.id] ?? 0),
+  );
+
   const memberStates = group.members
     .map((id) => ALL_STATES.find((s) => s.id === id))
-    .filter(Boolean)
-    .sort((a, b) => b!.electoralVotes - a!.electoralVotes) as typeof ALL_STATES;
+    .filter((s): s is (typeof ALL_STATES)[number] => Boolean(s))
+    .sort((a, b) => b.electoralVotes - a.electoralVotes);
 
   return (
     <div
@@ -53,7 +63,7 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
           <div className="sg-detail__title-block">
             <div className="sg-detail__title">{group.id}</div>
             <div className="sg-detail__meta">
-              {group.members.length} states · {group.totalEV} total EV · +${group.bonusPayout}k/turn bonus
+              {group.members.length} states · {totalEV} total EV · +${group.bonusPayout}k/turn bonus
             </div>
           </div>
           <button type="button" className="sg-detail__close" onClick={onClose} aria-label="Close">×</button>
@@ -77,64 +87,63 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
           )}
         </div>
 
-        <table className="sg-state-table">
-          <thead>
-            <tr>
-              <th>State</th>
-              <th className="sg-col-ev">EV</th>
-              {players.map((p) => (
-                <th key={p.id} style={{ color: colors[p.id]?.hex }}>
-                  {p.name.split(' ')[0]}
-                </th>
-              ))}
-              <th>EV Lead</th>
-            </tr>
-          </thead>
-          <tbody>
-            {memberStates.map((state) => {
-              const minR = minRungsForDominance(state.id, state.electoralVotes);
-              const evLeaderId = result.stateLeaders[state.id] ?? null;
-              return (
-                <tr key={state.id}>
-                  <td className="sg-state-name">
-                    <span className="sg-state-abbr">{state.id}</span>
-                    <span className="sg-state-full">{state.name}</span>
-                    <span className="sg-state-min" title={`≥${minR} rungs needed for group contribution`}>
-                      min {minR}r
-                    </span>
-                  </td>
-                  <td className="sg-col-ev sg-state-ev">{state.electoralVotes}</td>
-                  {players.map((p) => {
-                    const r = rungs[state.id]?.[p.id] ?? 0;
-                    const qualifies = r >= minR;
-                    return (
-                      <td
-                        key={p.id}
-                        className={qualifies ? 'sg-rung-cell sg-rung-cell--qualifies' : 'sg-rung-cell'}
-                        style={{ color: r > 0 ? colors[p.id]?.hex : undefined }}
-                      >
-                        {r > 0 ? r : <span className="sg-rung-empty">—</span>}
-                        {qualifies && <span className="sg-rung-star">✓</span>}
-                      </td>
-                    );
-                  })}
-                  <td className="sg-ev-lead">
-                    {evLeaderId ? (
-                      <span
-                        className="sg-ev-lead__name"
-                        style={{ color: colors[evLeaderId]?.hex }}
-                      >
-                        {players.find((p) => p.id === evLeaderId)?.name.split(' ')[0] ?? '?'}
-                      </span>
-                    ) : (
-                      <span className="sg-ev-lead__none">—</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {/* ── Dominance progress bars ─────────────────────────────────────── */}
+        <div className="sg-progress">
+          <div className="sg-progress__caption">
+            Lead a state (≥ min rungs) to bank its EV. Pass the line — <strong>{needToDominate} EV</strong> — to dominate.
+          </div>
+          {ranked.map((p) => {
+            const ev = evByPlayer[p.id] ?? 0;
+            const pct = totalEV > 0 ? Math.min(100, (ev / totalEV) * 100) : 0;
+            const hex = colors[p.id]?.hex ?? 'var(--muted)';
+            const isMe = !!activePlayer && p.id === activePlayer.id;
+            const isDom = ev > threshold;
+            return (
+              <div
+                key={p.id}
+                className={`sg-progress__row${isMe ? ' sg-progress__row--me' : ''}`}
+              >
+                <span className="sg-progress__name" style={{ color: hex }}>
+                  {p.name.split(' ')[0]}{isMe ? ' (you)' : ''}
+                </span>
+                <div className="sg-progress__track">
+                  <div
+                    className="sg-progress__fill"
+                    style={{ width: `${pct}%`, background: hex }}
+                  />
+                  {/* threshold marker — 50% of total EV */}
+                  <div className="sg-progress__threshold" style={{ left: '50%' }} />
+                  {isDom && <span className="sg-progress__crown" aria-label="dominant">👑</span>}
+                </div>
+                <span className="sg-progress__ev">{ev}<span className="sg-progress__ev-total">/{totalEV}</span></span>
+              </div>
+            );
+          })}
+          <div className="sg-progress__legend">
+            <span className="sg-progress__legend-line" /> Dominance line ({needToDominate} EV)
+          </div>
+        </div>
+
+        {/* ── Member states (compact) ─────────────────────────────────────── */}
+        <div className="sg-members">
+          {memberStates.map((state) => {
+            const minR = minRungsForDominance(state.id, state.electoralVotes);
+            const myR = activePlayer ? (rungs[state.id]?.[activePlayer.id] ?? 0) : 0;
+            const qualifies = myR >= minR;
+            return (
+              <div key={state.id} className={`sg-member${qualifies ? ' sg-member--ok' : ''}`}>
+                <span className="sg-member__abbr">{state.id}</span>
+                <span className="sg-member__name">{state.name}</span>
+                <span className="sg-member__ev">{state.electoralVotes} EV</span>
+                {activePlayer && (
+                  <span className="sg-member__rungs" title={`You: ${myR} of ${minR} rungs needed`}>
+                    {myR}/{minR}r{qualifies ? ' ✓' : ''}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

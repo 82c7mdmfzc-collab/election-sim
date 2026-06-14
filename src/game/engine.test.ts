@@ -5,6 +5,7 @@ import {
   maxBuyableThisTurn,
   computeWalletSplit,
   recomputeDominance,
+  groupDominanceProgress,
   resolveTurn,
   tallyElectoralVotes,
   rollElection,
@@ -675,5 +676,37 @@ describe('candidate roster — Trump override', () => {
     expect(CANDIDATE_MAP['trump'].startingCash).toBe(250);
     expect(CANDIDATE_MAP['harris'].startingCash).toBe(250);
     expect(CANDIDATE_MAP['lincoln'].startingCash).toBe(250);
+  });
+});
+
+describe('groupDominanceProgress', () => {
+  const group = STATE_GROUPS[0];
+
+  it('a player leading every member state gets the full group EV and clears the threshold', () => {
+    const players = [makePlayer('p1'), makePlayer('p2')];
+    const rungs: Record<string, Record<string, number>> = {};
+    const reachSeq: Record<string, Record<string, number>> = {};
+    for (const sid of group.members) {
+      rungs[sid] = { p1: 5, p2: 0 };   // 5 ≥ max minRungsForDominance, so p1 qualifies everywhere
+      reachSeq[sid] = { p1: 1, p2: 0 };
+    }
+    const { evByPlayer, totalEV, threshold } = groupDominanceProgress(group, rungs, reachSeq, players);
+    expect(totalEV).toBe(group.totalEV);
+    expect(threshold).toBe(group.totalEV * 0.5);
+    expect(evByPlayer.p1).toBe(group.totalEV);
+    expect(evByPlayer.p2).toBe(0);
+    expect(evByPlayer.p1).toBeGreaterThan(threshold);
+  });
+
+  it('a player below the min-rung requirement contributes no EV', () => {
+    const players = [makePlayer('p1')];
+    const rungs: Record<string, Record<string, number>> = {};
+    const reachSeq: Record<string, Record<string, number>> = {};
+    for (const sid of group.members) {
+      rungs[sid] = { p1: 1 };   // 1 rung < min (3+) → never qualifies
+      reachSeq[sid] = { p1: 1 };
+    }
+    const { evByPlayer } = groupDominanceProgress(group, rungs, reachSeq, players);
+    expect(evByPlayer.p1).toBe(0);
   });
 });

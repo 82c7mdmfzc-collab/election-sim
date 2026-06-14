@@ -37,6 +37,7 @@ import type {
   PlayerState,
   RungMap,
   ReachSeq,
+  StateGroup,
   TurnReport,
   WalletDraw,
 } from './types';
@@ -325,6 +326,34 @@ export function recomputeDominance(
   }
 
   return newDominance;
+}
+
+/**
+ * Per-player progress toward dominating a single State Group, for UI display.
+ * `evByPlayer[id]` = total EV of member states that player currently leads for
+ * dominance (≥ min rungs, highest count). A player dominates when their count is
+ * strictly greater than `threshold` (= half the group's total EV). Uses the same
+ * `stateLeaderForDominance` rule as `recomputeDominance`, so bars match the game.
+ */
+export function groupDominanceProgress(
+  group: StateGroup,
+  rungs: RungMap,
+  reachSeq: ReachSeq,
+  players: PlayerState[],
+): { evByPlayer: Record<string, number>; totalEV: number; threshold: number } {
+  const activePlayers = players.filter((p) => !p.eliminated);
+  const evByPlayer: Record<string, number> = {};
+  for (const p of activePlayers) evByPlayer[p.id] = 0;
+
+  for (const sid of group.members) {
+    const leader = stateLeaderForDominance(sid, rungs, reachSeq, activePlayers);
+    if (leader) {
+      const ev = ALL_STATES.find((s) => s.id === sid)?.electoralVotes ?? 0;
+      evByPlayer[leader] = (evByPlayer[leader] ?? 0) + ev;
+    }
+  }
+
+  return { evByPlayer, totalEV: group.totalEV, threshold: group.totalEV * 0.5 };
 }
 
 // ── Income ────────────────────────────────────────────────────────────────────
