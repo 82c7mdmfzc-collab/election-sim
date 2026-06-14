@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "build:edge": "node scripts/build-edge-function.mjs",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:android:init": "tauri android init",

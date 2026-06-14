@@ -30,6 +30,8 @@ import { Portrait } from './Portrait';
 import {
   supabase,
   rpcJoinLobbyPlayer,
+  rpcCreateLobby,
+  rpcStartGame,
   type LobbyRow,
 } from '../utils/supabaseClient';
 import { ModifierSheet } from './ModifierSheet';
@@ -188,28 +190,25 @@ export function MultiplayerMenu({ onBack }: Props) {
       players: [hostPlayer],
     };
 
-    const { data, error } = await supabase
-      .from('lobbies')
-      .insert({
-        room_code: generateRoomCode(),
-        is_public: isPublic,
-        status: 'waiting',
-        player_count: playerCount,
-        game_state: waitingState,
-      })
-      .select()
-      .single();
-
-    setLoading(false);
-
-    if (error || !data) {
-      setErrorMsg(`Could not create room: ${error?.message ?? 'unknown error'}`);
+    let data: LobbyRow;
+    try {
+      data = await rpcCreateLobby({
+        roomCode: generateRoomCode(),
+        isPublic,
+        playerCount,
+        gameState: waitingState,
+      });
+    } catch (e) {
+      setLoading(false);
+      setErrorMsg(`Could not create room: ${(e as Error)?.message ?? 'unknown error'}`);
       return;
     }
 
+    setLoading(false);
+
     AudioManager.play('confirm');
     setMyPlayerId(hostId);
-    setLobby(data as LobbyRow);
+    setLobby(data);
     setWaitingPlayers([hostPlayer]);
     setMultiplayerMeta({
       lobbyId: data.id,
@@ -261,18 +260,15 @@ export function MultiplayerMenu({ onBack }: Props) {
       pendingSubmissions: {},
     };
 
-    const { error } = await supabase
-      .from('lobbies')
-      .update({ status: 'in_progress', game_state: gameState })
-      .eq('id', lobby.id);
-
-    setLoading(false);
-
-    if (error) {
-      setErrorMsg(`Could not start game: ${error.message}`);
+    try {
+      await rpcStartGame(lobby.id, gameState);
+    } catch (e) {
+      setLoading(false);
+      setErrorMsg(`Could not start game: ${(e as Error).message}`);
       return;
     }
 
+    setLoading(false);
     AudioManager.play('confirm');
     // App.tsx detects phase='PLANNING' and routes to GameShell
   }
