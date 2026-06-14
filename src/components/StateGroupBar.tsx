@@ -55,6 +55,7 @@ function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps
           src={groupImageUrl('state', group.id)}
           alt={group.id}
           draggable={false}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
         <span className="sg-chip__name">{group.id}</span>
         <span className="sg-chip__bal">${balance.toFixed(0)}k</span>

@@ -122,6 +122,8 @@ export function MultiplayerMenu({ onBack }: Props) {
   const [foundLobby, setFoundLobby]         = useState<LobbyRow | null>(null);
   const [guestCandidate, setGuestCandidate] = useState<CandidateDef | null>(null);
   const [guestName, setGuestName]           = useState('');
+  const [publicLobbies, setPublicLobbies]   = useState<LobbyRow[]>([]);
+  const [loadingPublic, setLoadingPublic]   = useState(false);
 
   // Stable ref to screen for use inside Realtime callbacks
   const screenRef = useRef(screen);
@@ -296,6 +298,34 @@ export function MultiplayerMenu({ onBack }: Props) {
 
     AudioManager.play('click');
     setFoundLobby(data as LobbyRow);
+    setScreen('picking');
+  }
+
+  // ── JOIN: list open public games ──────────────────────────────────────────
+  async function loadPublicLobbies() {
+    setLoadingPublic(true);
+    const { data, error } = await supabase
+      .from('lobbies')
+      .select('*')
+      .eq('status', 'waiting')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setLoadingPublic(false);
+    if (!error && data) setPublicLobbies(data as LobbyRow[]);
+  }
+
+  // Auto-load the public list whenever the join screen opens.
+  useEffect(() => {
+    if (screen === 'joining') void loadPublicLobbies();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+
+  // ── JOIN: pick a public game from the list ────────────────────────────────
+  function openPublicLobby(row: LobbyRow) {
+    AudioManager.play('click');
+    setErrorMsg(null);
+    setFoundLobby(row);
     setScreen('picking');
   }
 
@@ -520,6 +550,50 @@ export function MultiplayerMenu({ onBack }: Props) {
             </button>
           </div>
           {errorMsg && <p className="mp-error">{errorMsg}</p>}
+
+          <div className="mp-public">
+            <div className="mp-public__head">
+              <span className="mp-public__title">Open public games</span>
+              <button
+                type="button"
+                className="mp-public__refresh"
+                onClick={() => { AudioManager.play('click'); void loadPublicLobbies(); }}
+                disabled={loadingPublic}
+              >
+                {loadingPublic ? 'Refreshing…' : '↻ Refresh'}
+              </button>
+            </div>
+
+            {publicLobbies.length === 0 ? (
+              <p className="mp-join__hint">
+                {loadingPublic ? 'Looking for games…' : 'No public games right now — host one or join with a code.'}
+              </p>
+            ) : (
+              <ul className="mp-public__list">
+                {publicLobbies.map((row) => {
+                  const gs = row.game_state as WaitingLobbyState | null;
+                  const here = gs?.players?.length ?? 0;
+                  const max  = gs?.playerCount ?? 0;
+                  const full = max > 0 && here >= max;
+                  return (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        className="mp-public__row"
+                        disabled={full}
+                        onClick={() => openPublicLobby(row)}
+                      >
+                        <span className="mp-public__code">Room {row.room_code}</span>
+                        <span className="mp-public__count">{here}/{max} players</span>
+                        <span className="mp-public__cta">{full ? 'Full' : 'Join →'}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
           <button type="button" className="mp-back" onClick={() => setScreen('main')}>← Back</button>
         </div>
       </div>

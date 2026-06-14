@@ -59,6 +59,7 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
             src={groupImageUrl('state', group.id)}
             alt={group.id}
             draggable={false}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
           <div className="sg-detail__title-block">
             <div className="sg-detail__title">{group.id}</div>

@@ -50,10 +50,11 @@ export interface CandidateDef {
  * the snake_case filename slug used under /assets/groups/.
  *
  * Verified mappings:
- *   'African American' → 'african_american'
- *   'Town & Gown'      → 'town_gown'
- *   "Women's Vote"     → 'women_vote'
- *   'Latino'           → 'latino'
+ *   'African American'   → 'african_american'
+ *   'Town and Gown'      → 'town_and_gown'
+ *   'Manufacturing Base' → 'manufacturing_base'
+ *   "Women's Vote"       → 'women_vote'
+ *   'Latino'             → 'latino'
  */
 export function slugifyGroupId(id: string): string {
   return id
@@ -96,15 +97,18 @@ export const CANDIDATES: readonly CandidateDef[] = [
     affinities: {
       // cost reductions (Gun Lobby overridden 0.20 → 0.15)
       'Gun Lobby': 0.15,
-      'Manufacturing': 0.15,
+      'Manufacturing Base': 0.15,
+      'Oil and Gas': 0.15,
+      'Agriculture': 0.10,
       'Swing States': 0.05, // override: new affinity
       // cost penalties
-      'Town & Gown': -0.20,
+      'Town and Gown': -0.20,
       'High Tech': -0.15,
     },
     payoutModifiers: {
       'Big Conservative': 0.25,
       'Gun Lobby': 0.15,
+      'Oil and Gas': 0.15,
       'Old South': 0.10,
       'Environmental': -0.20,
     },
@@ -124,11 +128,13 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'High Tech': 0.15,
       'Big Conservative': -0.25,
       'Old South': -0.15,
+      'Oil and Gas': -0.15,
     },
     payoutModifiers: {
       "Women's Vote": 0.25,
       'Environmental': 0.15,
-      'Town & Gown': 0.10,
+      'Town and Gown': 0.10,
+      'Oil and Gas': -0.15,
       'Gun Lobby': -0.20,
     },
   },
@@ -144,7 +150,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
     unlockCost: 0,
     affinities: {
       'African American': 0.15,
-      'Manufacturing': 0.10,
+      'Manufacturing Base': 0.10,
+      'Agriculture': 0.10,
       'Youth Vote': -0.20,
       'Big Conservative': -0.10,
       'Environmental': -0.10,
@@ -152,6 +159,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     payoutModifiers: {
       'Swing States': 0.20,
       'Export Driven': 0.15,
+      'Agriculture': 0.10,
       'High Tech': -0.15,
     },
   },
@@ -168,9 +176,10 @@ export const CANDIDATES: readonly CandidateDef[] = [
     unlockCost: 1500,
     affinities: {
       // cheaper buy-in
-      'Manufacturing': 0.15,
+      'Manufacturing Base': 0.15,
       'African American': 0.15,
-      'Town & Gown': 0.10,
+      'Town and Gown': 0.10,
+      'Agriculture': 0.10,
       // cost penalties
       'Gun Lobby': -0.20,
       'Old South': -0.10,
@@ -196,13 +205,15 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Swing States': 0.15,
       'Old South': 0.15,
       'Big Conservative': 0.10,
+      'Oil and Gas': 0.10,
       'High Tech': -0.10,
-      'Town & Gown': -0.15,
+      'Town and Gown': -0.15,
     },
     payoutModifiers: {
       'Big Conservative': 0.25,
       'Old South': 0.15,
       'Swing States': 0.10,
+      'Oil and Gas': 0.10,
       'Environmental': -0.20,
     },
   },

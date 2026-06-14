@@ -124,7 +124,7 @@ export function calcNationalCost(
   const g = NATIONAL_GROUP_MAP[groupId];
   if (!g) return Infinity;
   const discount = player.affinities[groupId] ?? 0;
-  return g.rungCost * rungsToBuy * (1 - discount);
+  return Math.round(g.rungCost * rungsToBuy * (1 - discount));
 }
 
 // ── Entry gatekeeper ──────────────────────────────────────────────────────────

@@ -134,6 +134,12 @@ interface GameStore extends GameState {
    * identity fields (localPlayerId, lobbyId, hostPlayerId, multiplayerMode).
    */
   syncFromPayload(payload: LobbyGameState): void;
+  /**
+   * Live-update the "who's ready" list during an in-progress PLANNING turn,
+   * without disturbing turn/phase/cash. Lets every client reflect opponents'
+   * submissions as they arrive (the waiting-room "Thinking…/Ready ✓" badges).
+   */
+  mergeSubmittedFromRemote(turn: number, submitted: string[]): void;
   /** Clear online session and return to single-player defaults. */
   clearMultiplayerMeta(): void;
 
@@ -483,7 +489,11 @@ export const useGameStore = create<GameStore>()(
               phase: 'PLANNING',
               turn: s.turn + 1,
               activePlayerIndex: 0,
+              pendingByPlayer: emptyPending(s.players),
               workingCash: buildWorkingCash(s.players),
+              submitted: emptySubmitted(s.players),
+              submittedPlayers: [],
+              hasSubmittedLocalTurn: false,
               handoffAckKey: `${s.turn + 1}:0`,
               turnDeadline: newDeadline,
             }));
@@ -515,7 +525,11 @@ export const useGameStore = create<GameStore>()(
               phase: 'PLANNING',
               turn: s.turn + 1,
               activePlayerIndex: 0,
+              pendingByPlayer: emptyPending(s.players),
               workingCash: buildWorkingCash(s.players),
+              submitted: emptySubmitted(s.players),
+              submittedPlayers: [],
+              hasSubmittedLocalTurn: false,
               handoffAckKey: `${s.turn + 1}:0`,
               turnDeadline: newDeadline,
             }));
@@ -717,6 +731,21 @@ export const useGameStore = create<GameStore>()(
             handoffAckKey: `${payload.turn}:0`,
             turnDeadline: payload.turnDeadlineUtc ?? null,
           }));
+        },
+
+        mergeSubmittedFromRemote(turn, submitted) {
+          const s = get();
+          // Only mirror submissions for the turn we're actively planning — never
+          // touch turn/phase/cash, and ignore stale events from older turns.
+          if (s.phase !== 'PLANNING' || s.turn !== turn) return;
+          const next = submitted ?? [];
+          if (
+            next.length === s.submittedPlayers.length &&
+            next.every((id) => s.submittedPlayers.includes(id))
+          ) {
+            return; // no change — avoid a needless re-render
+          }
+          set({ submittedPlayers: next });
         },
 
         clearMultiplayerMeta() {

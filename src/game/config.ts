@@ -31,42 +31,50 @@ export const BOSS_RUNG_MULTIPLIER = 4.0;
 const RAW_STATE_GROUPS: Array<Omit<StateGroup, 'totalEV' | 'bonusPayout'>> = [
   {
     id: 'African American',
-    members: ['AL','AR','DC','DE','FL','GA','IL','LA','MD','MI','MS','NC','NJ','NY','OH','PA','SC','TN','TX','VA'],
-  },
-  {
-    id: 'Export Driven',
-    members: ['CA','FL','GA','IL','LA','MI','NY','OH','PA','TX','WA'],
-  },
-  {
-    id: 'High Tech',
-    members: ['AZ','CA','CO','DC','GA','MA','MD','MI','NC','NJ','NY','TX','UT','VA','WA'],
+    members: ['AL','AZ','DE','DC','FL','GA','IL','LA','MD','MI','MS','NY','NC','SC','TN','VA'],
   },
   {
     id: 'Latino',
-    members: ['AZ','CA','CO','FL','IL','NJ','NM','NV','NY','TX'],
+    members: ['AZ','CA','CO','FL','IL','NV','NJ','NM','NY','TX'],
   },
   {
-    id: 'Manufacturing',
-    members: ['AL','AR','CT','IA','IL','IN','KY','MI','MN','MO','NC','OH','PA','SC','TN','UT','WA','WI'],
+    id: 'Oil and Gas',
+    members: ['AK','CA','CO','LA','NM','ND','OK','SD','TX','WV','WY'],
+  },
+  {
+    id: 'High Tech',
+    members: ['CA','CT','DE','MD','MA','MI','NH','NY','PA','UT','VA','WA'],
+  },
+  {
+    id: 'Agriculture',
+    members: ['CA','FL','HI','ID','IL','IA','KS','MN','NE','NC','TX','WI'],
+  },
+  {
+    id: 'Manufacturing Base',
+    members: ['IL','IN','KY','MI','NC','OH','PA','TX','WI'],
   },
   {
     id: 'Old South',
-    members: ['AL','AR','FL','GA','LA','MS','NC','SC','TN','TX','VA'],
+    members: ['AL','AR','GA','LA','MD','MS','NC','SC','VA'],
   },
   {
     id: 'Swing States',
-    members: ['AZ','CO','FL','GA','IA','MI','NC','NH','NV','OH','PA','VA','WI'],
+    members: ['AZ','CO','FL','IA','NH','NM','NC','OH','PA','VA','WI'],
   },
   {
-    id: 'Town & Gown',
-    members: ['CA','CT','MA','MD','MI','NC','NJ','NY','PA','VA'],
+    id: 'Town and Gown',
+    members: ['AZ','DC','IA','ME','MA','MN','MO','NE','NH','NY','ND','RI','UT','VT'],
+  },
+  {
+    id: 'Export Driven',
+    members: ['LA','CA','TX','FL','NY','WA'],
   },
 ];
 
 // EV values for states referenced in groups (must stay in sync with statesData.ts).
 // Keyed by state ID. Source: 2020-Census apportionment = identical to statesData.ts.
 const EV: Record<string, number> = {
-  AL:9, AR:6, AZ:11, CA:54, CO:10, CT:7, DC:3, DE:3,
+  AK:3, AL:9, AR:6, AZ:11, CA:54, CO:10, CT:7, DC:3, DE:3,
   FL:30, GA:16, HI:4, IA:6, ID:4, IL:19, IN:11, KS:6,
   KY:8, LA:8, MA:11, MD:10, ME:4, MI:15, MN:10, MO:10,
   MS:6, MT:4, NC:16, ND:3, NE:5, NH:4, NJ:14, NM:5,
@@ -138,7 +146,9 @@ export function rungCostFor(
 ): number {
   const isBoss = BOSS_RUNG_IDS.has(stateId) && rungIndex === maxRungsFor(stateId, 0);
   const multiplier = isBoss ? BOSS_RUNG_MULTIPLIER : 1.0;
-  return baseCampaignCost * multiplier * (1 - affinityDiscount);
+  // Round to whole $1k units so discounts (e.g. ×0.85) never leak floating-point
+  // dust into wallet/nationalCash balances (the 249999.999999997 bug).
+  return Math.round(baseCampaignCost * multiplier * (1 - affinityDiscount));
 }
 
 // ── Election probability ──────────────────────────────────────────────────────

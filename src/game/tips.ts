@@ -18,10 +18,10 @@ export interface Tip {
 
 export const TIPS: readonly Tip[] = [
   // ── Map hubs ──────────────────────────────────────────────────────────────
-  { category: 'map', text: 'North Carolina and Michigan each belong to 6 coalition groups — dominating either unlocks 6 income streams at once.' },
-  { category: 'map', text: 'Georgia sits where African American, Export Driven, High Tech, Old South, and Swing States all meet. A true 5-way hub.' },
-  { category: 'map', text: 'Pennsylvania anchors five groups: African American, Export Driven, Manufacturing, Swing States, and Town & Gown.' },
-  { category: 'map', text: 'Arizona packs High Tech, Latino, and Swing States into one cheap state — just 46k per rung early.' },
+  { category: 'map', text: 'California, Florida, New York, Texas, and North Carolina each anchor 5 coalition groups — dominating one unlocks five income streams at once.' },
+  { category: 'map', text: 'Florida sits where African American, Agriculture, Export Driven, Latino, and Swing States all meet. A true 5-way hub.' },
+  { category: 'map', text: 'Pennsylvania anchors three groups: High Tech, Manufacturing Base, and Swing States.' },
+  { category: 'map', text: 'Arizona packs African American, Latino, Swing States, and Town and Gown into one cheap state — just 46k per rung early.' },
   { category: 'map', text: 'A state pays its electoral votes to whoever holds the most rungs there. Secure it and the EV is locked for good.' },
   { category: 'map', text: 'Big prizes draw big fights. California is worth the most EV — and invites the most expensive clashes.' },
 

@@ -63,13 +63,22 @@ export function useMultiplayerSync() {
             if (allIn && resolvedForRef.current !== key) {
               resolvedForRef.current = key;
               void resolveHostTurn(lobbyId, (resolved) => syncFromPayload(resolved));
+            } else {
+              // Not everyone is in yet — mirror who's ready so the host's waiting
+              // list shows each guest flip to "Ready ✓" as their submission lands.
+              useGameStore.getState().mergeSubmittedFromRemote(remote.turn, remote.submittedPlayers);
             }
             return;
           }
 
           // ── All clients: apply phase transitions and new turns ─────────────
-          // Ignore stale PLANNING events from an already-seen turn.
-          if (remote.phase === 'PLANNING' && remote.turn <= currentTurn) return;
+          // Ignore stale PLANNING events from an already-seen turn, but still
+          // mirror the live "who's submitted" list so opponents flip from
+          // "Thinking…" to "Ready ✓" as their submissions land this turn.
+          if (remote.phase === 'PLANNING' && remote.turn <= currentTurn) {
+            useGameStore.getState().mergeSubmittedFromRemote(remote.turn, remote.submittedPlayers);
+            return;
+          }
 
           syncFromPayload(remote);
         },

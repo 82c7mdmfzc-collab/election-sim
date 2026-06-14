@@ -11,7 +11,9 @@
 
   /* Typography — warm, readable slate-blue */
   --text:  #1f3550;
-  --muted: #5f7e9e;
+  /* Darkened from #5f7e9e so hint/secondary text clears WCAG AA contrast on the
+     light-blue surfaces (the old value was too faint to read). */
+  --muted: #3f5d7e;
 
   /* Accent palette — friendly blue primary, game hues kept */
   --red:        #e23b3f;
@@ -1171,6 +1173,32 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 }
 .mp-join__input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.22); }
 .mp-join__hint { color: var(--muted); font-size: 0.78rem; margin-top: 0.35rem; }
+
+/* ── Public game browser ────────────────────────────────────────────────── */
+.mp-public { margin-top: 1.25rem; }
+.mp-public__head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.mp-public__title { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.mp-public__refresh {
+  background: none; border: none; cursor: pointer;
+  color: var(--blue); font-size: 0.78rem; font-weight: 600;
+}
+.mp-public__refresh:disabled { color: var(--muted); cursor: default; }
+.mp-public__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.mp-public__row {
+  width: 100%; display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.7rem; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--panel);
+  cursor: pointer; text-align: left;
+  transition: border-color 0.12s ease, filter 0.12s ease;
+}
+.mp-public__row:hover:not(:disabled) { border-color: var(--blue); filter: brightness(1.02); }
+.mp-public__row:disabled { opacity: 0.55; cursor: default; }
+.mp-public__code { font-weight: 700; color: var(--text); font-size: 0.82rem; }
+.mp-public__count { color: var(--muted); font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.mp-public__cta { margin-left: auto; color: var(--blue); font-weight: 600; font-size: 0.8rem; }
 
 .mp-wait { margin-bottom: 1.5rem; }
 .mp-wait__code-label {

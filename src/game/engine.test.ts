@@ -138,7 +138,7 @@ describe('maxBuyableThisTurn (entry gatekeeper)', () => {
 
 describe('computeWalletSplit', () => {
   it('drains group wallets before nationalCash', () => {
-    // CA is in: Export Driven, High Tech, Latino, Town & Gown (alphabetical)
+    // CA is in: Agriculture, Export Driven, High Tech, Latino, Oil and Gas (alphabetical)
     const player = makePlayer('p1', {
       nationalCash: 1000,
       groupWallets: {
@@ -638,8 +638,8 @@ describe('bestAffinityForState — penalties', () => {
   });
 
   it('a non-negative member group masks a penalty in another group', () => {
-    // MA ∈ {High Tech, Manufacturing, Town & Gown}. Penalise High Tech only;
-    // Manufacturing is neutral (0) → max is 0, no penalty applied.
+    // MA ∈ {High Tech, Town and Gown}. Penalise High Tech only;
+    // Town and Gown is neutral (0) → max is 0, no penalty applied.
     const p = makePlayer('p1', { affinities: { 'High Tech': -0.15 } });
     expect(bestAffinityForState(p, 'MA')).toBe(0);
   });
@@ -651,9 +651,9 @@ describe('bestAffinityForState — penalties', () => {
     const affinities = Object.fromEntries(groups.map((gid) => [gid, -0.20]));
     const p = makePlayer('p1', { affinities });
     expect(bestAffinityForState(p, sid)).toBeCloseTo(-0.20);
-    // cost = base * (1 - (-0.20)) = base * 1.20
+    // cost = round(base * (1 - (-0.20))) = round(base * 1.20)
     const base = ALL_STATES.find((s) => s.id === sid)!.baseCampaignCost;
-    expect(calcStateCost(sid, base, 0, 1, bestAffinityForState(p, sid))).toBeCloseTo(base * 1.20);
+    expect(calcStateCost(sid, base, 0, 1, bestAffinityForState(p, sid))).toBe(Math.round(base * 1.20));
   });
 });
 
@@ -669,7 +669,7 @@ describe('candidate roster — Trump override', () => {
   it('Trump national Gun Lobby rung cost reflects the 0.15 discount', () => {
     const trump = makePlayer('trump', { affinities: { 'Gun Lobby': 0.15 } });
     const g = NATIONAL_GROUP_MAP['Gun Lobby'];
-    expect(calcNationalCost('Gun Lobby', 0, 1, trump)).toBeCloseTo(g.rungCost * 0.85);
+    expect(calcNationalCost('Gun Lobby', 0, 1, trump)).toBe(Math.round(g.rungCost * 0.85));
   });
   it('starting cash: Tooley 300, others 250', () => {
     expect(CANDIDATE_MAP['tooley'].startingCash).toBe(300);
