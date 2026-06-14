@@ -5,6 +5,19 @@ client hygiene, and shipping to web (Vercel) + desktop/mobile (Tauri).
 
 ## 1. Supabase hardening
 
+> ⚠️ **SECURITY AUDIT (2026-06-14):** A live probe found that **`profiles.sql` was never
+> applied to production** (the table 404s) and the ad-hoc **`lobbies` table was world-readable
+> by anonymous users** with no RLS. Both SQL files below MUST be applied. Until then, the
+> Campaign Funds / unlock economy has **zero server-side enforcement** (pure client-trust) and
+> any anon user can read every in-progress game. See remediation history in git.
+
+### ⛔ Deploy ordering (important)
+The client now calls SECURITY DEFINER RPCs (`create_lobby`, `start_game`, `push_game_state`,
+`set_lobby_status`, hardened `join_lobby_player` / `submit_turn_pending`) instead of writing
+the `lobbies` table directly. **Apply both SQL files FIRST, then deploy the web build.**
+Deploying the client before the SQL is applied will break multiplayer (the RPCs won't exist).
+Test the full create → join → play → resolve flow in a staging project before promoting.
+
 ### Apply the profiles schema
 Run [`supabase/profiles.sql`](supabase/profiles.sql) in **Dashboard → SQL Editor**.
 It is idempotent. It creates:
@@ -15,17 +28,33 @@ It is idempotent. It creates:
   so a client can never spoof a cheap unlock. Keep its `CASE` price list in sync with
   `unlockCost` in `src/game/candidates.ts`.
 
+### Apply the lobbies schema
+Run [`supabase/lobbies.sql`](supabase/lobbies.sql) in **Dashboard → SQL Editor** (after profiles).
+Idempotent. It creates/hardens:
+- `public.lobbies` with **RLS enabled** + a `host_uid` column, and a `lobby_participants`
+  table binding each in-game player UUID to the `auth.uid()` that controls it.
+- **RLS**: a row is readable only by its participants, plus `waiting` lobbies (so a room code
+  can be looked up before joining). **No direct client INSERT/UPDATE/DELETE.**
+- Identity-bound RPCs: `create_lobby` (caller becomes host), `join_lobby_player`
+  (binds caller ↔ claimed player), `start_game` / `push_game_state` / `set_lobby_status`
+  (**host only**), `submit_turn_pending` (submit **only as the player you own**).
+- After applying, delete any leftover test rows (e.g. `room_code = 'TEST'`).
+
+> **Residual risk (follow-up):** turn resolution still runs in the host's browser and the host
+> pushes the result via `push_game_state`, so a *malicious host* can still doctor their own
+> lobby's state. Closing this requires a server-authoritative `resolve_turn` RPC / Edge Function.
+
 ### Enable anonymous sign-ins
 Dashboard → Authentication → Providers → **Anonymous** = ON. This lets guests play and
 earn progression immediately; `sendMagicLink` later links an email to the same uid so
-funds/unlocks carry over (`src/utils/authClient.ts`).
+funds/unlocks carry over (`src/utils/authClient.ts`). Note: the lobbies identity binding relies
+on each browser having a persistent anonymous auth session.
 
-### Audit the existing lobby RPCs
-Review `submit_turn_pending` and `join_lobby_player` (created during the multiplayer
-milestone) so that:
-- a player can only submit/join **as themselves** (validate `p_player_id` / player id), and
-- only into a lobby they belong to.
-Confirm `lobbies` has RLS appropriate to a public-room model (read for participants, writes via RPC).
+### Verify (re-run after applying both files)
+- `GET /rest/v1/profiles` with the anon key → **must NOT return rows** (owner-only RLS).
+- `GET /rest/v1/lobbies?select=game_state` with the anon key for an `in_progress` lobby you are
+  not in → **must return nothing** (participant-only read).
+- A direct `PATCH`/`POST` to `/rest/v1/lobbies` with the anon key → **must be rejected** (no write policy).
 
 ### Keys
 - Only the **publishable anon key** (`VITE_SUPABASE_ANON_KEY`) ships to the client — by design.

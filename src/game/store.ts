@@ -36,7 +36,7 @@ import {
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
-import { supabase } from '../utils/supabaseClient';
+import { rpcPushGameState, rpcSetLobbyStatus } from '../utils/supabaseClient';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
 import { saveSession, clearSession } from '../utils/sessionStore';
 import type { CandidateDef } from './candidates';
@@ -211,10 +211,8 @@ function buildLobbySnapshot(s: GameStore): LobbyGameState {
 /** Push the current store's phase state to Supabase after a phase transition. Host only. */
 function pushPhaseToSupabase(s: GameStore): void {
   if (s.multiplayerMode !== 'online' || !s.lobbyId) return;
-  void supabase
-    .from('lobbies')
-    .update({ game_state: buildLobbySnapshot(s) })
-    .eq('id', s.lobbyId);
+  // Host-only push via SECURITY DEFINER RPC (server verifies host_uid).
+  void rpcPushGameState(s.lobbyId, buildLobbySnapshot(s));
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -606,12 +604,9 @@ export const useGameStore = create<GameStore>()(
           AudioManager.stop('tick');
           clearSession();
           const snap = get();
-          // Mark the online lobby as finished before leaving
+          // Mark the online lobby as finished before leaving (host-only, server-enforced)
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
-            void supabase
-              .from('lobbies')
-              .update({ status: 'finished' })
-              .eq('id', snap.lobbyId);
+            void rpcSetLobbyStatus(snap.lobbyId, 'finished');
           }
           const fresh = createInitialGameState();
           set({
@@ -646,7 +641,7 @@ export const useGameStore = create<GameStore>()(
           AudioManager.stop('tick');
           const snap = get();
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
-            void supabase.from('lobbies').update({ status: 'finished' }).eq('id', snap.lobbyId);
+            void rpcSetLobbyStatus(snap.lobbyId, 'finished');
           }
           clearSession();
           const fresh = createInitialGameState();

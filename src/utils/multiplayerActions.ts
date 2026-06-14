@@ -5,7 +5,7 @@
  * Callers pass callbacks to apply results locally via syncFromPayload or set().
  */
 
-import { supabase } from './supabaseClient';
+import { supabase, rpcPushGameState } from './supabaseClient';
 import { resolveTurn } from '../game/engine';
 import type { LobbyGameState, RoundPurchase } from '../game/types';
 
@@ -101,8 +101,6 @@ export async function resolveHostTurn(
   // Apply locally first (host doesn't wait for its own Realtime event)
   onResolved(resolved);
 
-  void supabase
-    .from('lobbies')
-    .update({ game_state: resolved })
-    .eq('id', lobbyId);
+  // Host-only push via SECURITY DEFINER RPC (server verifies host_uid).
+  void rpcPushGameState(lobbyId, resolved);
 }

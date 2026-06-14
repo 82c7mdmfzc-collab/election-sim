@@ -37,3 +37,52 @@ export async function rpcJoinLobbyPlayer(
   });
   if (error) throw error;
 }
+
+/** Create a lobby as the host (server records host_uid = auth.uid()). */
+export async function rpcCreateLobby(args: {
+  roomCode: string;
+  isPublic: boolean;
+  playerCount: number;
+  gameState: WaitingLobbyState;
+}): Promise<LobbyRow> {
+  const { data, error } = await supabase
+    .rpc('create_lobby', {
+      p_room_code: args.roomCode,
+      p_is_public: args.isPublic,
+      p_player_count: args.playerCount,
+      p_game_state: args.gameState,
+    })
+    .single();
+  if (error || !data) throw error ?? new Error('create_lobby returned no row');
+  return data as LobbyRow;
+}
+
+/** Host-only: transition a waiting lobby to in_progress with the initial game state. */
+export async function rpcStartGame(lobbyId: string, gameState: LobbyGameState): Promise<void> {
+  const { error } = await supabase.rpc('start_game', {
+    p_lobby_id: lobbyId,
+    p_game_state: gameState,
+  });
+  if (error) throw error;
+}
+
+/** Host-only: push a resolved/phase-transitioned game state. Fire-and-forget. */
+export async function rpcPushGameState(lobbyId: string, gameState: LobbyGameState): Promise<void> {
+  const { error } = await supabase.rpc('push_game_state', {
+    p_lobby_id: lobbyId,
+    p_game_state: gameState,
+  });
+  if (error) console.error('[multiplayer] push_game_state failed:', error);
+}
+
+/** Host-only: update lobby lifecycle status (e.g. mark 'finished'). */
+export async function rpcSetLobbyStatus(
+  lobbyId: string,
+  status: LobbyRow['status'],
+): Promise<void> {
+  const { error } = await supabase.rpc('set_lobby_status', {
+    p_lobby_id: lobbyId,
+    p_status: status,
+  });
+  if (error) console.error('[multiplayer] set_lobby_status failed:', error);
+}
