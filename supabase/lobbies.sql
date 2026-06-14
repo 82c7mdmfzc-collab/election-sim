@@ -65,6 +65,21 @@ create index if not exists lobby_participants_uid_idx
 alter table public.lobbies            enable row level security;
 alter table public.lobby_participants enable row level security;
 
+-- ── Drop ALL pre-existing policies (the ad-hoc table shipped with a permissive
+--    "read/write for all" policy under an unknown name; `drop policy if exists`
+--    by our own name would miss it and it would OR with ours, leaving the table
+--    world-readable/writable). This wipes the slate before we recreate intent. ──
+do $$
+declare r record;
+begin
+  for r in
+    select policyname, tablename from pg_policies
+    where schemaname = 'public' and tablename in ('lobbies', 'lobby_participants')
+  loop
+    execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
+  end loop;
+end $$;
+
 -- ── Identity helpers (SECURITY DEFINER so they can read despite RLS) ──────────
 create or replace function public.is_lobby_participant(p_lobby_id uuid)
 returns boolean
