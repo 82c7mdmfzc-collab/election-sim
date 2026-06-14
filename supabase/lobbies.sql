@@ -25,13 +25,15 @@
 --       - push_game_state ..... host only (drives RESOLUTION / phase changes)
 --       - set_lobby_status .... host only (mark finished)
 --
--- RESIDUAL RISK (documented, not closed here)
---   Turn resolution still runs in the host's browser (resolveTurn) and the host
---   pushes the result via push_game_state. A *malicious host* can therefore
---   still push a doctored resolved state for their own lobby. Closing this
---   requires server-authoritative resolution (a resolve_turn RPC / Edge
---   Function) — tracked as a follow-up. This file removes the far larger risk
---   of *any anonymous third party* tampering with lobbies they are not in.
+-- RESIDUAL RISK (documented, not fully closed here)
+--   Turn RESOLUTION is now server-authoritative — it runs in the `resolve-turn`
+--   Edge Function with the service-role key, so the host can no longer doctor a
+--   resolved turn. What the host still pushes via push_game_state are the
+--   non-economic phase transitions (RESOLUTION→next PLANNING, election tally,
+--   completeTally). A malicious host could still tamper with those; moving the
+--   election/winner computation server-side is the remaining follow-up. This
+--   file removes the far larger risk of *any anonymous third party* tampering
+--   with lobbies they are not in.
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- ── Table (created if the ad-hoc one is missing; otherwise left intact) ───────
