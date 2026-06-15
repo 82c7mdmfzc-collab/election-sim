@@ -277,16 +277,12 @@ begin
   -- is frequently stale (it hasn't yet received the other players' Realtime
   -- submission events). Overwriting with it let a late/concurrent submit clobber
   -- earlier submitters, so resolve-turn would see "not all submitted" and the
-  -- turn never resolved — every player stuck on "Thinking…". Merging by player
+  -- turn never resolved — every player stuck on "Thinking…". Appending by player
   -- id makes concurrent submits commutative and idempotent.
-  v_submitted := (
-    select coalesce(jsonb_agg(distinct elem), '[]'::jsonb)
-    from (
-      select jsonb_array_elements_text(coalesce(v_state->'submittedPlayers', '[]'::jsonb)) as elem
-      union
-      select p_player_id
-    ) merged
-  );
+  v_submitted := coalesce(v_state -> 'submittedPlayers', '[]'::jsonb);
+  if not (v_submitted @> to_jsonb(p_player_id)) then
+    v_submitted := v_submitted || to_jsonb(p_player_id);
+  end if;
 
   update public.lobbies
      set game_state = jsonb_set(
