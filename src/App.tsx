@@ -9,6 +9,8 @@ import { Tutorial } from './components/Tutorial';
 import { AuthGate } from './components/AuthGate';
 import { Shop } from './components/Shop';
 import { BotSetup } from './components/BotSetup';
+import { Landing } from './components/Landing';
+import { BrandMark } from './components/BrandMark';
 import { useGameStore } from './game/store';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
@@ -18,26 +20,6 @@ import { BotIcon, GlobeIcon, CartIcon, UsersIcon } from './components/icons';
 import type { ComponentType } from 'react';
 
 type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot';
-
-/** Elector brand mark — logo image with a styled-text fallback if art is absent. */
-function BrandMark() {
-  const [imgFailed, setImgFailed] = useState(false);
-  return (
-    <div className="brand">
-      {!imgFailed ? (
-        <img
-          className="brand__logo"
-          src="/assets/brand/elector_logo.png"
-          alt="Elector"
-          onError={() => setImgFailed(true)}
-        />
-      ) : (
-        <div className="brand__wordmark">Elect<span className="brand__accent">o</span>r</div>
-      )}
-      <p className="brand__tagline">Win the Electoral College</p>
-    </div>
-  );
-}
 
 interface ModeDef {
   mode: AppMode;
@@ -119,8 +101,12 @@ function App() {
   useGameRewards();
   const phase = useGameStore((s) => s.phase);
   const initProfile = useProfile((s) => s.init);
+  const ready = useProfile((s) => s.ready);
   const signedIn = useProfile(selectIsSignedIn);
   const [showAccount, setShowAccount] = useState(false);
+  // Session-only: a signed-out visitor sees the landing on every fresh load, but
+  // can choose to continue as a guest for the rest of this session.
+  const [guestContinued, setGuestContinued] = useState(false);
   // First-ever launch auto-opens the tutorial; afterward start on the menu.
   const [appMode, setAppMode] = useState<AppMode>(() =>
     isTutorialSeen() ? 'mode-select' : 'tutorial',
@@ -132,6 +118,17 @@ function App() {
   if (phase === 'ELECTION_TALLY') return <ElectionTallyView />;
   if (phase === 'GAME_OVER') return <VictoryPodium />;
   if (phase !== 'SETUP' && phase !== 'MENU') return <GameShell />;
+
+  // Wait for the auth/profile check before deciding, so a signed-in user never
+  // flashes the landing page on load.
+  if (!ready) {
+    return <div className="landing landing--splash"><BrandMark /></div>;
+  }
+
+  // Signed-out front door — shown on every fresh load until "Continue as Guest".
+  if (!signedIn && !guestContinued) {
+    return <Landing onContinueAsGuest={() => setGuestContinued(true)} />;
+  }
 
   // Pre-game routing
   if (appMode === 'tutorial') {

@@ -2097,6 +2097,55 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   text-decoration: underline; text-underline-offset: 3px;
 }
 .home__link:hover { color: var(--text); }
+
+/* ── Landing (signed-out front door) ───────────────────────────────────────── */
+.landing {
+  min-height: 100dvh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1.4rem;
+  padding: 2rem 1rem 3rem; position: relative;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--brand-soft), transparent 60%),
+    var(--bg);
+}
+.landing--splash { gap: 0; }
+.landing__card {
+  width: min(420px, 92vw);
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-md);
+  padding: 1.4rem 1.3rem;
+}
+.landing__pitch {
+  margin: 0 0 1.1rem; text-align: center;
+  font-size: 0.9rem; line-height: 1.5; color: var(--muted);
+}
+.landing__guest {
+  background: none; border: none; cursor: pointer;
+  color: var(--text); font-family: var(--font-display); font-weight: 700;
+  font-size: 1rem; padding: 0.3rem 0.5rem;
+}
+.landing__guest:hover { color: var(--brand); }
+.landing__guest-note { margin: 0; font-size: 0.75rem; color: var(--muted); }
+
+/* ── Shared sign-in options (Landing + AuthGate) ───────────────────────────── */
+.signin { display: flex; flex-direction: column; gap: 0.6rem; }
+.signin__providers { display: flex; flex-direction: column; gap: 0.5rem; }
+.signin__provider {
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  width: 100%; padding: 0.7rem 1rem; cursor: pointer;
+  background: var(--text); color: var(--bg);
+  border: 1px solid var(--text); border-radius: var(--r-pill);
+  font-weight: 700; font-size: 0.92rem;
+  transition: filter 0.12s ease, transform 0.1s ease;
+}
+.signin__provider:hover { filter: brightness(1.1); }
+.signin__provider:active { transform: scale(0.98); }
+.signin__divider {
+  display: flex; align-items: center; gap: 0.6rem;
+  color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.signin__divider::before, .signin__divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
 /* ── Phone ergonomics: compact header, bigger touch targets, tidy footer ──── */
 @media (max-width: 768px), (max-height: 600px) {
   .header-hud { padding: 0.4rem 0.6rem; }

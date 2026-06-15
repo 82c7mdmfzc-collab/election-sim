@@ -1,22 +1,17 @@
 /**
  * AuthGate — the account panel.
  *
- * Signed out: sign in with Apple, Google, or an email magic link. An account is
+ * Signed out: the shared SignInButtons (Apple/Google/email). An account is
  * required to earn Campaign Funds, unlock characters, and play online.
  * Signed in without a username: claim the one-time permanent username.
  * Signed in with a username: show username, Campaign Funds, lifetime record, and
  * a sign-out button.
  */
 
-import { useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { UsernameClaim } from './UsernameClaim';
-
-// Flip to true once the Apple provider is configured in Supabase
-// (Authentication → Providers → Apple). Until then the button is hidden so
-// users don't hit an "provider not enabled" error. Google + email work today.
-const APPLE_SIGNIN_ENABLED = false;
+import { SignInButtons } from './SignInButtons';
 
 interface AuthGateProps {
   onClose: () => void;
@@ -26,32 +21,11 @@ export function AuthGate({ onClose }: AuthGateProps) {
   const profile = useProfile((s) => s.profile);
   const guest = useProfile((s) => s.guest);
   const displayName = useProfile((s) => s.displayName);
-  const signInWithEmail = useProfile((s) => s.signInWithEmail);
-  const signInWithGoogle = useProfile((s) => s.signInWithGoogle);
-  const signInWithApple = useProfile((s) => s.signInWithApple);
   const signOut = useProfile((s) => s.signOut);
-
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [error, setError] = useState('');
 
   function close() {
     AudioManager.play('quit');
     onClose();
-  }
-
-  async function sendEmail() {
-    if (!email.trim()) return;
-    setStatus('sending');
-    const { error: err } = await signInWithEmail(email.trim());
-    if (err) { setStatus('error'); setError(err); }
-    else setStatus('sent');
-  }
-
-  async function oauth(fn: () => Promise<{ error?: string }>) {
-    setError('');
-    const { error: err } = await fn();
-    if (err) { setStatus('error'); setError(err); }
   }
 
   const { stats } = profile;
@@ -70,36 +44,7 @@ export function AuthGate({ onClose }: AuthGateProps) {
               Sign in to earn Campaign Funds, unlock characters, and play online. Your progress
               syncs across every device.
             </p>
-
-            <div className="auth-gate__providers">
-              {APPLE_SIGNIN_ENABLED && (
-                <button type="button" className="tutorial__btn" onClick={() => void oauth(signInWithApple)}>
-                   Sign in with Apple
-                </button>
-              )}
-              <button type="button" className="tutorial__btn" onClick={() => void oauth(signInWithGoogle)}>
-                Sign in with Google
-              </button>
-            </div>
-
-            <p className="auth-gate__hint" style={{ marginTop: '0.75rem' }}>Or use an email link:</p>
-            {status === 'sent' ? (
-              <p className="auth-gate__ok">Check your email for a sign-in link.</p>
-            ) : (
-              <div className="auth-gate__row">
-                <input
-                  type="email"
-                  className="auth-gate__input"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <button type="button" className="tutorial__btn" onClick={sendEmail} disabled={status === 'sending'}>
-                  {status === 'sending' ? 'Sending…' : 'Email link'}
-                </button>
-              </div>
-            )}
-            {status === 'error' && <p className="auth-gate__err">{error}</p>}
+            <SignInButtons />
           </div>
         ) : !displayName ? (
           <UsernameClaim />

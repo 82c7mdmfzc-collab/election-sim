@@ -18,6 +18,12 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export type { Session, User };
 
+// Flip to true once the Apple provider is configured in Supabase
+// (Authentication → Providers → Apple). Until then the Apple button is shown but
+// responds with a friendly "coming soon" instead of an OAuth error. Google +
+// email work today.
+export const APPLE_SIGNIN_ENABLED = false;
+
 /** Where OAuth should send the user back. Web uses the current origin; native
  *  (Tauri) uses a registered deep-link scheme handled on app open. */
 function oauthRedirectTo(): string {
