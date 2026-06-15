@@ -153,6 +153,11 @@ button, a, [role="button"] {
 @media (max-width: 768px) {
   .shell__main { grid-template-columns: 1fr; }
 
+  /* The map fills the stage height (bigger default; pinch-zoom for detail). */
+  .shell__stage { overflow: hidden; display: flex; flex-direction: column; }
+  .election-map-wrap { flex: 1; min-height: 0; }
+  .election-map-container { aspect-ratio: auto; height: 100%; flex: 1; min-height: 0; }
+
   .shell__panel {
     position: fixed;
     left: 0; right: 0; bottom: 0;
@@ -556,17 +561,43 @@ button, a, [role="button"] {
 
 /* ══ Map stage ═════════════════════════════════════════════════════════════ */
 
-.election-map-wrap { display: flex; flex-direction: column; }
+.election-map-wrap { display: flex; flex-direction: column; min-height: 0; }
 .election-map-container {
   position: relative;
+  width: 100%;
+  aspect-ratio: 8 / 5;        /* definite height so the 100%-height SVG can fill it */
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 16px;
-  overflow: visible;
+  overflow: hidden;           /* clip panned geography to the map box */
   padding: 0.35rem;
   box-shadow: 0 4px 16px var(--shadow);
 }
-.election-map-container svg { display: block; border-radius: 12px; }
+.election-map-container svg { display: block; border-radius: 12px; touch-action: none; }
+
+/* Zoom controls overlaid on the map (touch + desktop). */
+.map-zoom-controls {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  z-index: 5;
+}
+.map-zoom-btn {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 1.2rem; line-height: 1; font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+.map-zoom-btn:hover { border-color: var(--muted); }
+.map-zoom-btn:active { transform: scale(0.94); }
 
 .state-geo--clash { animation: clash-stroke 0.45s steps(2) 4; }
 @keyframes clash-stroke {

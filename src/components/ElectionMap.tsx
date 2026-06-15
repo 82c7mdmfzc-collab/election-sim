@@ -15,7 +15,7 @@
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import usAtlas from 'us-atlas/states-10m.json';
 import { WIN_THRESHOLD, calcStateCost, bestAffinityForState } from '../game/engine';
 import { ALL_STATES } from '../game/statesData';
@@ -411,6 +411,12 @@ export function ElectionOverlay() {
 
 interface CardState { stateId: StateId; x: number; y: number; }
 
+interface MapPosition { coordinates: [number, number]; zoom: number; }
+
+// Contiguous-US centroid. Used as the zoom/pan center so the geoAlbersUsa
+// projection never inverts an out-of-bounds point (which returns null).
+const US_CENTER: [number, number] = [-97, 38];
+
 interface ElectionMapProps {
   tallyActiveStateId?: string | null;
   tallyRevealedIds?: Set<string>;
@@ -426,6 +432,16 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
 
   const isInteractive = phase === 'PLANNING';
   const activeHex = activePlayer ? (colors[activePlayer.id]?.hex ?? '#facc15') : '#facc15';
+
+  // Pinch-zoom / pan state.
+  const [position, setPosition] = useState<MapPosition>({ coordinates: US_CENTER, zoom: 1 });
+  const handleMoveEnd = useCallback((pos: MapPosition) => setPosition(pos), []);
+  const zoomIn = useCallback(() => setPosition((p) => ({ ...p, zoom: Math.min(p.zoom * 1.5, 8) })), []);
+  const zoomOut = useCallback(() => setPosition((p) => {
+    const zoom = Math.max(p.zoom / 1.5, 1);
+    return zoom <= 1 ? { coordinates: US_CENTER, zoom: 1 } : { ...p, zoom };
+  }), []);
+  const resetZoom = useCallback(() => setPosition({ coordinates: US_CENTER, zoom: 1 }), []);
 
   const handleHover = useCallback((id: StateId, x: number, y: number) => {
     if (!pinned) setHover({ stateId: id, x, y });
@@ -447,35 +463,50 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
           projection="geoAlbersUsa"
           width={800}
           height={500}
-          style={{ width: '100%', height: 'auto' }}
+          style={{ width: '100%', height: '100%' }}
         >
-          <Geographies geography={usAtlas as Record<string, unknown>}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const fips = String((geo as Record<string, unknown>).id ?? '').padStart(2, '0');
-                const stateId = FIPS_TO_STATE[fips];
-                if (!stateId) return null;
-                return (
-                  <StateGeo
-                    key={String((geo as Record<string, unknown>).rsmKey ?? fips)}
-                    geo={geo}
-                    stateId={stateId}
-                    isInteractive={isInteractive}
-                    colors={colors}
-                    activePlayerHex={activeHex}
-                    onHover={handleHover}
-                    onLeave={handleLeave}
-                    onSelect={handleSelect}
-                    tallyActiveStateId={tallyActiveStateId}
-                    tallyRevealedIds={tallyRevealedIds}
-                    isGroupHighlighted={!!highlightedStateIds?.has(stateId)}
-                    isGroupDimmed={!!highlightedStateIds && !highlightedStateIds.has(stateId)}
-                  />
-                );
-              })
-            }
-          </Geographies>
+          <ZoomableGroup
+            zoom={position.zoom}
+            center={position.coordinates}
+            minZoom={1}
+            maxZoom={8}
+            translateExtent={[[0, 0], [800, 500]]}
+            onMoveEnd={handleMoveEnd}
+          >
+            <Geographies geography={usAtlas as Record<string, unknown>}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const fips = String((geo as Record<string, unknown>).id ?? '').padStart(2, '0');
+                  const stateId = FIPS_TO_STATE[fips];
+                  if (!stateId) return null;
+                  return (
+                    <StateGeo
+                      key={String((geo as Record<string, unknown>).rsmKey ?? fips)}
+                      geo={geo}
+                      stateId={stateId}
+                      isInteractive={isInteractive}
+                      colors={colors}
+                      activePlayerHex={activeHex}
+                      onHover={handleHover}
+                      onLeave={handleLeave}
+                      onSelect={handleSelect}
+                      tallyActiveStateId={tallyActiveStateId}
+                      tallyRevealedIds={tallyRevealedIds}
+                      isGroupHighlighted={!!highlightedStateIds?.has(stateId)}
+                      isGroupDimmed={!!highlightedStateIds && !highlightedStateIds.has(stateId)}
+                    />
+                  );
+                })
+              }
+            </Geographies>
+          </ZoomableGroup>
         </ComposableMap>
+
+        <div className="map-zoom-controls">
+          <button type="button" className="map-zoom-btn" onClick={zoomIn} aria-label="Zoom in" title="Zoom in">＋</button>
+          <button type="button" className="map-zoom-btn" onClick={zoomOut} aria-label="Zoom out" title="Zoom out">－</button>
+          <button type="button" className="map-zoom-btn" onClick={resetZoom} aria-label="Reset view" title="Reset view">⤢</button>
+        </div>
 
         {hover && !pinned && (
           <StateHoverCard

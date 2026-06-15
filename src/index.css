@@ -8,8 +8,8 @@
 
 html, body {
   margin: 0;
-  overflow: hidden; /* the app never scrolls the page — regions scroll internally */
-  overscroll-behavior: none;
+  overflow-x: hidden; /* allow vertical page scroll on menu screens; the in-game
+                         shell contains itself (.shell is height:100dvh, overflow:hidden) */
 }
 
 body {
@@ -17,7 +17,6 @@ body {
 }
 
 #root {
-  height: 100vh;
-  height: 100dvh; /* dynamic viewport — avoids the mobile-Safari toolbar overflow/scroll */
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh; /* dynamic viewport — avoids the mobile-Safari toolbar overflow/scroll */
 }
