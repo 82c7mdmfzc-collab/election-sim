@@ -46,13 +46,14 @@ export function GameShell() {
   const stageKey = `${phase}:${activePlayer?.id ?? 'none'}`;
 
   const [highlightedGroupId, setHighlightedGroupId] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const highlightedStateIds = highlightedGroupId
     ? new Set(STATE_GROUPS.find((g) => g.id === highlightedGroupId)?.members ?? [])
     : null;
 
   return (
-    <div className="shell">
+    <div className="shell" data-sfx="none">
       {multiplayerMode === 'online' && <MultiplayerSyncEffect />}
 
       <div className="shell__top">
@@ -69,8 +70,33 @@ export function GameShell() {
             ? <ElectionOverlay />
             : <ElectionMap highlightedStateIds={highlightedStateIds} />}
         </div>
-        <Sidebar />
+        <div className={`shell__panel${panelOpen ? ' is-open' : ''}`}>
+          <button
+            type="button"
+            className="shell__panel-handle"
+            onClick={() => { AudioManager.play('click'); setPanelOpen(false); }}
+            aria-label="Close panel"
+          >
+            <span className="shell__panel-grip" />
+          </button>
+          <Sidebar />
+        </div>
       </main>
+
+      {/* Mobile-only: backdrop + FAB to open the National Groups panel sheet. */}
+      {panelOpen && (
+        <div
+          className="shell__panel-backdrop"
+          onClick={() => { AudioManager.play('quit'); setPanelOpen(false); }}
+        />
+      )}
+      <button
+        type="button"
+        className="shell__panel-toggle"
+        onClick={() => { AudioManager.play('click'); setPanelOpen((o) => !o); }}
+      >
+        Groups
+      </button>
 
       <PhaseFooter />
 

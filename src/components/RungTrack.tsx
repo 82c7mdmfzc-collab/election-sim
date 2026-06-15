@@ -24,6 +24,8 @@ interface RungTrackProps {
   colors: Record<string, ResolvedColor>;
   securedBy?: string | null;
   onBuyNext?: () => void;
+  /** Retract the most-recently queued (top pending) rung. */
+  onRetractLast?: () => void;
   clashing?: boolean;
   size?: 'sm' | 'md';
 }
@@ -36,6 +38,7 @@ export function RungTrack({
   colors,
   securedBy = null,
   onBuyNext,
+  onRetractLast,
   clashing = false,
   size = 'md',
 }: RungTrackProps) {
@@ -43,6 +46,8 @@ export function RungTrack({
   const activeColor = activePlayerId ? colors[activePlayerId]?.hex : undefined;
   const nextIndex = activeSettled + pendingRungs + 1;
   const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs;
+  // The topmost pending pip is click-to-retract (rung-by-rung undo).
+  const topPendingIndex = pendingRungs > 0 ? activeSettled + pendingRungs : -1;
 
   const opponents = Object.entries(settledByPlayer)
     .filter(([id, r]) => id !== activePlayerId && r > 0)
@@ -67,6 +72,13 @@ export function RungTrack({
           else if (idx === nextIndex && canBuy) state = 'next';
 
           const isSecuredPip = !!securedBy && securedBy === activePlayerId && idx <= activeSettled;
+          const isRetractable = !!onRetractLast && idx === topPendingIndex;
+
+          const handleClick = state === 'next'
+            ? () => { AudioManager.play('buy'); onBuyNext?.(); }
+            : isRetractable
+              ? () => { AudioManager.play('quit'); onRetractLast?.(); }
+              : undefined;
 
           return (
             <button
@@ -76,11 +88,12 @@ export function RungTrack({
                 'rung-pip',
                 `rung-pip--${state}`,
                 isSecuredPip ? 'rung-pip--secured' : '',
+                isRetractable ? 'rung-pip--retract' : '',
               ].filter(Boolean).join(' ')}
-              disabled={state !== 'next'}
-              onClick={state === 'next' ? () => { AudioManager.play('buy'); onBuyNext?.(); } : undefined}
-              title={state === 'next' ? `Buy rung ${idx}` : `Rung ${idx}`}
-              aria-label={`Rung ${idx} of ${maxRungs}`}
+              disabled={!handleClick}
+              onClick={handleClick}
+              title={state === 'next' ? `Buy rung ${idx}` : isRetractable ? `Undo rung ${idx}` : `Rung ${idx}`}
+              aria-label={state === 'next' ? `Buy rung ${idx} of ${maxRungs}` : isRetractable ? `Undo rung ${idx}` : `Rung ${idx} of ${maxRungs}`}
             />
           );
         })}

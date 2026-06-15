@@ -6,16 +6,39 @@
  * dominance this turn), it plays a punishing fade/drain animation.
  */
 
+import { useEffect, useRef, useState } from 'react';
 import { STATE_GROUPS } from '../game/config';
 import { groupImageUrl } from '../game/candidates';
 import { useGameStore } from '../game/store';
 import type { ResolvedColor } from '../game/colors';
 import { AudioManager } from '../utils/audioManager';
+import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 
 interface WalletDrawerProps {
   playerId: string;
   color?: ResolvedColor;
   onClose: () => void;
+}
+
+/** A single wallet balance that tweens on change and flashes when it drains. */
+function WalletBalance({ value }: { value: number }) {
+  const animated = useAnimatedNumber(value);
+  const prev = useRef(value);
+  const [drain, setDrain] = useState(false);
+  useEffect(() => {
+    if (value < prev.current) {
+      setDrain(true);
+      const t = setTimeout(() => setDrain(false), 500);
+      prev.current = value;
+      return () => clearTimeout(t);
+    }
+    prev.current = value;
+  }, [value]);
+  return (
+    <span className={`wallet-cell__bal${drain ? ' wallet-cell__bal--drain' : ''}`}>
+      ${animated.toFixed(0)}k
+    </span>
+  );
 }
 
 export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
@@ -25,18 +48,19 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
   const prevDominance = useGameStore((s) => s.prevDominance);
   const dominance = useGameStore((s) => s.stateGroupDominance);
 
-  if (!player) return null;
-
   const displayNational = phase === 'PLANNING'
-    ? (workingCash?.nationalCash ?? player.nationalCash)
-    : player.nationalCash;
+    ? (workingCash?.nationalCash ?? player?.nationalCash ?? 0)
+    : (player?.nationalCash ?? 0);
+  const animatedNational = useAnimatedNumber(displayNational);
+
+  if (!player) return null;
 
   return (
     <div className="wallet-drawer" style={{ ['--p-color' as string]: color?.hex ?? '#64748b' }}>
       <div className="wallet-drawer__head">
         <span className="wallet-drawer__title">{player.name} — State Group Wallets</span>
         <span className="wallet-drawer__total">
-          National ${displayNational.toFixed(0)}k
+          National ${animatedNational.toFixed(0)}k
         </span>
         <button type="button" className="wallet-drawer__close" onClick={() => { AudioManager.play('click'); onClose(); }}>×</button>
       </div>
@@ -72,7 +96,7 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
               <span className="wallet-cell__name">{g.id}</span>
-              <span className="wallet-cell__bal">${bal.toFixed(0)}k</span>
+              <WalletBalance value={bal} />
               {isDominant && <span className="wallet-cell__tag">+${g.bonusPayout}k/turn</span>}
               {evaporated && <span className="wallet-cell__evap">EVAPORATED</span>}
             </div>

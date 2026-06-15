@@ -112,6 +112,8 @@ interface GameStore extends GameState {
   ): void;
   allocate(kind: 'state' | 'national', targetId: string, rungs: number): boolean;
   cancelAllocation(kind: 'state' | 'national', targetId: string): void;
+  /** Retract just the most-recently queued rung for a target (refunds it). */
+  retractLastAllocation(kind: 'state' | 'national', targetId: string): void;
   submitTurn(): void;
   confirmResolution(): void;
   dismissResolutionTicker(): void;
@@ -366,6 +368,40 @@ export const useGameStore = create<GameStore>()(
           if (toRemove.length === 0) return;
 
           const newPending = pending.filter((p) => !(p.kind === kind && p.targetId === targetId));
+          const freshWc: WorkingCash = {
+            nationalCash: player.nationalCash,
+            groupWallets: { ...player.groupWallets },
+          };
+          for (const p of newPending) {
+            for (const d of p.walletDraw) {
+              if (d.wallet === 'NATIONAL') freshWc.nationalCash -= d.amount;
+              else freshWc.groupWallets[d.wallet] = (freshWc.groupWallets[d.wallet] ?? 0) - d.amount;
+            }
+          }
+
+          set((s) => ({
+            pendingByPlayer: { ...s.pendingByPlayer, [player.id]: newPending },
+            workingCash: { ...s.workingCash, [player.id]: freshWc },
+          }));
+        },
+
+        // ── retractLastAllocation ────────────────────────────────────────────
+        // Pops only the most-recently queued purchase for a target and refunds
+        // it (rung-by-rung undo), unlike cancelAllocation which clears the target.
+        retractLastAllocation(kind, targetId) {
+          const snap = get();
+          if (snap.phase !== 'PLANNING') return;
+          const player = localPlayer(snap);
+          if (!player) return;
+
+          const pending = snap.pendingByPlayer[player.id] ?? [];
+          let lastIdx = -1;
+          for (let i = pending.length - 1; i >= 0; i--) {
+            if (pending[i].kind === kind && pending[i].targetId === targetId) { lastIdx = i; break; }
+          }
+          if (lastIdx === -1) return;
+
+          const newPending = pending.filter((_, i) => i !== lastIdx);
           const freshWc: WorkingCash = {
             nationalCash: player.nationalCash,
             groupWallets: { ...player.groupWallets },

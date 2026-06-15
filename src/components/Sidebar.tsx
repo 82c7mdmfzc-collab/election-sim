@@ -29,6 +29,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   const players = useGameStore((s) => s.players);
   const phase = useGameStore((s) => s.phase);
   const allocate = useGameStore((s) => s.allocate);
+  const retractLastAllocation = useGameStore((s) => s.retractLastAllocation);
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
   const pending = usePendingRungs('national', group.id);
@@ -47,7 +48,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   }
 
   const leader = leaderId ? players.find((p) => p.id === leaderId) : null;
-  const earns = leaderRungs >= 3; // ≥3 rungs to draw the turn bonus
+  const earns = leaderRungs >= 4; // ≥4 rungs to draw the turn bonus
   const payoutMod = leader ? (leader.payoutModifiers[group.id] ?? 0) : 0;
   const payout = Math.round(group.turnBonus * (1 + payoutMod));
   const canBuy = phase === 'PLANNING' && !!activePlayer && !securedBy;
@@ -76,6 +77,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         colors={colors}
         securedBy={securedBy}
         onBuyNext={canBuy ? () => allocate('national', group.id, 1) : undefined}
+        onRetractLast={canBuy && pending > 0 ? () => retractLastAllocation('national', group.id) : undefined}
       />
 
       <div className="nat-ladder__foot">

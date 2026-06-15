@@ -176,6 +176,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
   const securedById = useGameStore((s) => s.securedBy[stateId]);
   const players = useGameStore((s) => s.players);
   const allocate = useGameStore((s) => s.allocate);
+  const retractLastAllocation = useGameStore((s) => s.retractLastAllocation);
   const phase = useGameStore((s) => s.phase);
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
@@ -239,6 +240,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
           colors={colors}
           securedBy={securedById}
           onBuyNext={canBuy ? () => allocate('state', stateId, 1) : undefined}
+          onRetractLast={canBuy && pendingRungs > 0 ? () => retractLastAllocation('state', stateId) : undefined}
         />
 
         <div className="state-card__standings">
@@ -278,13 +280,25 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
               {discount > 0 && <span className="state-card__disc"> (−{Math.round(discount * 100)}%)</span>}
               {discount < 0 && <span className="state-card__pen"> (+{Math.round(-discount * 100)}% penalty)</span>}
             </span>
-            <button
-              type="button"
-              className="state-card__buy-btn"
-              onClick={() => { AudioManager.play('buy'); allocate('state', stateId, 1); }}
-            >
-              Buy rung →
-            </button>
+            <div className="state-card__buy-actions">
+              {pendingRungs > 0 && (
+                <button
+                  type="button"
+                  className="state-card__undo-btn"
+                  onClick={() => { AudioManager.play('quit'); retractLastAllocation('state', stateId); }}
+                  title="Undo the last rung queued this turn"
+                >
+                  ↩ Undo
+                </button>
+              )}
+              <button
+                type="button"
+                className="state-card__buy-btn"
+                onClick={() => { AudioManager.play('buy'); allocate('state', stateId, 1); }}
+              >
+                Buy rung →
+              </button>
+            </div>
           </div>
         )}
 

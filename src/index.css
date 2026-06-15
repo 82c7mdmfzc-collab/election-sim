@@ -8,7 +8,8 @@
 
 html, body {
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden; /* the app never scrolls the page — regions scroll internally */
+  overscroll-behavior: none;
 }
 
 body {
@@ -16,6 +17,7 @@ body {
 }
 
 #root {
-  min-height: 100vh;
-  min-height: 100dvh; /* dynamic viewport — avoids the mobile-Safari toolbar overflow/scroll */
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport — avoids the mobile-Safari toolbar overflow/scroll */
+  overflow: hidden;
 }

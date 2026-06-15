@@ -381,15 +381,15 @@ export function payTurnIncome(
     }
   }
 
-  // National group bonuses (leader with ≥3 rungs)
+  // National group bonuses (leader with ≥4 rungs)
   for (const g of NATIONAL_GROUPS) {
     let leader: string | null = null;
-    let leaderRungs = 2; // must exceed 2 (≥3)
+    let leaderRungs = 3; // must exceed 3 (≥4)
     let leaderSeq = Infinity;
 
     for (const p of activePlayers) {
       const r = natRungs[g.id]?.[p.id] ?? 0;
-      if (r < 3) continue;
+      if (r < 4) continue;
       const seq = natReachSeq[g.id]?.[p.id] ?? 0;
       if (r > leaderRungs || (r === leaderRungs && seq < leaderSeq)) {
         leader = p.id;

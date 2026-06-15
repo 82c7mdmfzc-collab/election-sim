@@ -25,6 +25,7 @@ import { HelpButton } from './HelpButton';
 import { MuteButton } from './MuteButton';
 import { Avatar } from './Avatar';
 import { useProfile } from '../hooks/useProfile';
+import { useAnimatedNumber } from '../hooks/useAnimatedNumber';
 import { CloseIcon } from './icons';
 
 interface PlayerHudCardProps {
@@ -45,6 +46,20 @@ function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displa
   const securedEV = useSecuredEVs(player.id);
   const tokenUrl = CANDIDATE_MAP[player.candidateId]?.tokenUrl ?? '';
   const fallback = player.name.slice(0, 2).toUpperCase();
+  const animatedCash = useAnimatedNumber(displayCash);
+
+  // Flash the cash chip when the balance drops (a purchase drew from it).
+  const prevCash = useRef(displayCash);
+  const [spendFlash, setSpendFlash] = useState(false);
+  useEffect(() => {
+    if (displayCash < prevCash.current) {
+      setSpendFlash(true);
+      const t = setTimeout(() => setSpendFlash(false), 500);
+      prevCash.current = displayCash;
+      return () => clearTimeout(t);
+    }
+    prevCash.current = displayCash;
+  }, [displayCash]);
 
   return (
     <div
@@ -85,11 +100,11 @@ function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displa
         </div>
         <button
           type="button"
-          className="hud-card__cash"
+          className={`hud-card__cash${spendFlash ? ' hud-card__cash--spend' : ''}`}
           onClick={onToggleWallet}
           title="Show State Group Wallets"
         >
-          ${displayCash.toFixed(0)}k
+          ${animatedCash.toFixed(0)}k
           {income !== 0 && (
             <span className={`hud-card__income ${income > 0 ? 'up' : 'down'}`}>
               {income > 0 ? '+' : ''}{income}k
@@ -142,6 +157,26 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
     }
     prevElectionPct.current = electionPct;
   }, [electionPct]);
+
+  // Surface the wallet drawer when the active player's group wallets drain
+  // (a state purchase drew from them), so the spend is visible — not just the
+  // National headline. Keyed on player id so a hot-seat handoff doesn't fire it.
+  const activeGroupSum = activePlayerId
+    ? Object.values(workingCash[activePlayerId]?.groupWallets ?? {}).reduce((a, b) => a + b, 0)
+    : 0;
+  const prevGroupSum = useRef<{ id: string | null; sum: number }>({ id: activePlayerId, sum: activeGroupSum });
+  useEffect(() => {
+    const prev = prevGroupSum.current;
+    if (
+      phase === 'PLANNING' &&
+      activePlayerId &&
+      prev.id === activePlayerId &&
+      activeGroupSum < prev.sum
+    ) {
+      setOpenWallet(activePlayerId);
+    }
+    prevGroupSum.current = { id: activePlayerId, sum: activeGroupSum };
+  }, [activeGroupSum, phase, activePlayerId]);
 
   return (
     <header className="header-hud">

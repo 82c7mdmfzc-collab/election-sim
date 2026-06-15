@@ -91,8 +91,9 @@ button, a, [role="button"] {
 /* ══ Tactical shell grid ═══════════════════════════════════════════════════ */
 
 .shell {
-  min-height: 100vh;
-  min-height: 100dvh; /* dynamic viewport height — no overflow behind the mobile-Safari toolbar */
+  height: 100vh;
+  height: 100dvh; /* dynamic viewport height — no overflow behind the mobile-Safari toolbar */
+  overflow: hidden;  /* the page never scrolls; the regions below scroll internally */
   display: grid;
   grid-template-rows: auto 1fr auto;
   position: relative;
@@ -103,13 +104,17 @@ button, a, [role="button"] {
   grid-template-columns: 1fr minmax(280px, 360px);
   gap: 0.75rem;
   padding: 0.75rem;
-  align-items: start;
-  min-height: 0;
+  align-items: stretch;
+  min-height: 0;       /* allow children to shrink and scroll within 1fr */
+  overflow: hidden;
 }
 
 .shell__stage {
   position: relative;
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;    /* map column scrolls within itself, not the page */
+  -webkit-overflow-scrolling: touch;
   background: var(--panel-3);
   border-radius: 14px;
   padding: 0.5rem;
@@ -131,9 +136,84 @@ button, a, [role="button"] {
 }
 .shell__reset:hover { color: var(--text); }
 
-@media (max-width: 900px) {
-  .shell__main { grid-template-columns: 1fr; }
+/* On desktop the panel is just the grid's right column; the sheet chrome
+   (drag handle, FAB toggle, backdrop) is mobile-only and hidden here. */
+.shell__panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.shell__panel > .sidebar { flex: 1 1 auto; min-height: 0; }
+.shell__panel-handle,
+.shell__panel-toggle,
+.shell__panel-backdrop { display: none; }
+
+/* Tablet: drop to a single column, narrower right rail still inline. */
+@media (max-width: 900px) and (min-width: 769px) {
+  .shell__main { grid-template-columns: 1fr minmax(240px, 300px); }
 }
+
+/* ── Phone: map fills the stage; National-Groups panel becomes a bottom sheet ── */
+@media (max-width: 768px) {
+  .shell__main { grid-template-columns: 1fr; }
+
+  .shell__panel {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    max-height: 82dvh;
+    background: var(--bg);
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    box-shadow: 0 -10px 30px rgba(17, 24, 39, 0.22);
+    padding: 0.5rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+    transform: translateY(101%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    overflow: hidden;
+  }
+  .shell__panel.is-open { transform: translateY(0); }
+
+  .shell__panel-handle {
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; padding: 0.4rem 0; margin-bottom: 0.2rem;
+    cursor: pointer; width: 100%;
+  }
+  .shell__panel-grip {
+    width: 40px; height: 4px; border-radius: 999px; background: var(--faint);
+  }
+
+  .shell__panel-backdrop {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(17, 24, 39, 0.4);
+    z-index: 55;
+    animation: fade-in 0.2s ease;
+  }
+
+  .shell__panel-toggle {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    position: fixed;
+    right: calc(0.75rem + env(safe-area-inset-right));
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 40;
+    min-height: 44px;
+    padding: 0 1rem;
+    border-radius: 999px;
+    border: none;
+    background: var(--brand);
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+  }
+  .shell__panel-toggle::before { content: '🏛'; font-size: 1rem; }
+  .shell__panel-toggle:active { transform: scale(0.96); }
+
+  /* Tuck the reset FAB out of the way of the panel toggle. */
+  .shell__reset { bottom: calc(72px + env(safe-area-inset-bottom)); left: calc(0.75rem + env(safe-area-inset-left)); right: auto; }
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ══ Header HUD ════════════════════════════════════════════════════════════ */
 
@@ -396,6 +476,11 @@ button, a, [role="button"] {
   cursor: pointer;
 }
 .hud-card__cash:hover { border-color: var(--p-color); }
+.hud-card__cash--spend { animation: cash-spend 0.5s ease; }
+@keyframes cash-spend {
+  0%   { background: #fde2e2; color: var(--danger-red); transform: scale(1.06); }
+  100% { background: var(--panel-3); transform: scale(1); }
+}
 .hud-card__chev { color: var(--muted); font-size: 0.6rem; }
 .hud-card__income { font-size: 0.72rem; font-weight: 700; }
 .hud-card__income.up { color: var(--green); }
@@ -449,6 +534,11 @@ button, a, [role="button"] {
 }
 .wallet-cell__name { font-size: 0.72rem; color: var(--muted); }
 .wallet-cell__bal { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.wallet-cell__bal--drain { animation: wallet-drain 0.5s ease; }
+@keyframes wallet-drain {
+  0%   { color: var(--danger-red); transform: scale(1.12); }
+  100% { color: inherit; transform: scale(1); }
+}
 .wallet-cell--empty { opacity: 0.55; }
 .wallet-cell--dominant { border-color: var(--p-color); }
 .wallet-cell--dominant .wallet-cell__bal { color: var(--green); }
@@ -577,6 +667,16 @@ button, a, [role="button"] {
 }
 .state-card__buy-btn:hover { filter: brightness(1.12); }
 .state-card__buy-btn:active { transform: scale(0.97); }
+.state-card__buy-actions { display: flex; align-items: center; gap: 0.4rem; }
+.state-card__undo-btn {
+  background: var(--panel-2); color: var(--danger-red);
+  border: 1px solid var(--danger-red); border-radius: 3px;
+  padding: 0.35rem 0.55rem; font-size: 0.72rem; font-weight: 700;
+  font-family: var(--font-display); letter-spacing: 0.04em; text-transform: uppercase;
+  cursor: pointer;
+}
+.state-card__undo-btn:hover { background: #fde2e2; }
+.state-card__undo-btn:active { transform: scale(0.97); }
 
 .state-card__groups { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.5rem; }
 .state-card__tag {
@@ -624,6 +724,14 @@ button, a, [role="button"] {
 }
 .rung-pip--next:hover { background: color-mix(in srgb, var(--rt-color) 30%, var(--panel-3)); }
 .rung-pip--secured { box-shadow: inset 0 0 0 2px rgba(250, 204, 21, 0.8); }
+/* Topmost pending pip is click-to-retract (rung-by-rung undo). */
+.rung-pip--retract { cursor: pointer; }
+.rung-pip--retract:hover {
+  border-style: solid;
+  border-color: var(--danger-red);
+  box-shadow: inset 0 0 0 1px var(--danger-red);
+  animation: none;
+}
 
 @keyframes pip-pulse {
   0%, 100% { opacity: 0.5; }
@@ -654,7 +762,14 @@ button, a, [role="button"] {
 
 /* ══ Sidebar ═══════════════════════════════════════════════════════════════ */
 
-.sidebar { display: flex; flex-direction: column; gap: 0.75rem; }
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  overflow-y: auto;   /* the ladders/dominance panels scroll within the column */
+  -webkit-overflow-scrolling: touch;
+}
 .sidebar__section {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -1943,6 +2058,49 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   text-decoration: underline; text-underline-offset: 3px;
 }
 .home__link:hover { color: var(--text); }
+/* ── Phone ergonomics: compact header, bigger touch targets, tidy footer ──── */
+@media (max-width: 768px) {
+  .header-hud { padding: 0.4rem 0.6rem; }
+  .header-hud__bar { gap: 0.45rem; flex-wrap: wrap; }
+  .header-hud__brand { padding-right: 0.5rem; }
+  .header-hud__title { font-size: 1.2rem; }
+  /* Players take the full second row and scroll sideways if there are many. */
+  .header-hud__players {
+    order: 3;
+    flex-basis: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 0.4rem;
+  }
+  .header-hud__players::-webkit-scrollbar { display: none; }
+  .hud-card { flex: 0 0 auto; min-width: 160px; }
+  .header-hud__timer { padding: 0 0.5rem; }
+  .header-hud__timer-clock { font-size: 1.1rem; }
+  /* Abort collapses to its icon to save room. */
+  .header-hud__abort { padding: 0.4rem 0.5rem; min-height: 40px; }
+
+  /* Bigger, finger-friendly rung pips. */
+  .rung-pip { height: 24px; }
+  .rung-track--sm .rung-pip { height: 18px; }
+
+  /* Footer: keep it to one compact row; allocations scroll horizontally. */
+  .phase-footer { padding: 0.5rem 0.6rem calc(0.5rem + env(safe-area-inset-bottom)); }
+  .phase-btn { min-height: 48px; }
+  .planning__chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .planning__chips::-webkit-scrollbar { display: none; }
+  .alloc-chip { flex: 0 0 auto; padding: 0.3rem 0.5rem; font-size: 0.8rem; }
+  .alloc-chip__x { min-width: 28px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; }
+  .planning__hint { display: none; }
+
+  /* Larger state-group chips for touch. */
+  .sg-chip__main, .sg-chip__info { min-height: 38px; }
+}
+
 @media (max-width: 460px) {
   .home__modes { grid-template-columns: 1fr; width: min(360px, 92vw); }
 

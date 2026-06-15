@@ -32,6 +32,9 @@ class _AudioManager {
   private readonly sounds = new Map<string, HTMLAudioElement>();
   // Tracks the active looping instance for each soundId so stop() can target it.
   private readonly looping = new Map<string, HTMLAudioElement>();
+  // Last time each non-looping soundId fired, so a global click handler and an
+  // explicit play() of the same sound collapse into one instead of doubling up.
+  private readonly lastPlayed = new Map<string, number>();
   private muted = false;
 
   init(): void {
@@ -68,6 +71,11 @@ class _AudioManager {
       src.play().catch(() => {/* autoplay policy — silently ignore */});
       this.looping.set(soundId, src);
     } else {
+      // Collapse duplicate triggers (e.g. global click handler + an explicit
+      // play('click') on the same button) that land within a short window.
+      const now = performance.now();
+      if (now - (this.lastPlayed.get(soundId) ?? -Infinity) < 80) return;
+      this.lastPlayed.set(soundId, now);
       // Clone so simultaneous rapid clicks don't interrupt each other.
       const clone = src.cloneNode() as HTMLAudioElement;
       clone.play().catch(() => {});
