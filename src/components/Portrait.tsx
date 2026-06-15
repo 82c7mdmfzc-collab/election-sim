@@ -31,6 +31,8 @@ export function Portrait({ src, initials, name, className = '' }: PortraitProps)
       src={src}
       alt={name}
       draggable={false}
+      loading="lazy"
+      decoding="async"
       onError={() => setFailed(true)}
     />
   );

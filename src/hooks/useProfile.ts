@@ -21,7 +21,7 @@ import {
   saveLocalProfile,
   fetchRemoteProfile,
   pushRemoteStats,
-  awardFundsRemote,
+  claimGameRewardRemote,
   unlockCharacterRemote,
   mergeProfiles,
 } from '../game/profile';
@@ -36,6 +36,8 @@ import {
 } from '../utils/authClient';
 
 export interface GameResult {
+  /** Unique id of the finished game — used for server-side reward dedup. */
+  gameId: string;
   won: boolean;
   securedStates: number;
   coalitionsDominated: number;
@@ -109,9 +111,16 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     persist(optimistic, set);
     set({ lastReward: breakdown });
 
-    // Server: authoritative funds award + stats sync.
+    // Server: authoritative, deduped funds claim + stats sync. The server owns
+    // the amount; we send only the (range-checked) outcome and the gameId.
     const userId = get().userId;
-    const newBalance = await awardFundsRemote(breakdown.total);
+    const newBalance = await claimGameRewardRemote({
+      gameId: result.gameId,
+      won: result.won,
+      securedStates: result.securedStates,
+      coalitionsDominated: result.coalitionsDominated,
+      winStreak: newStreak,
+    });
     if (userId) void pushRemoteStats(userId, nextStats);
     if (newBalance != null) {
       const reconciled: Profile = { ...get().profile, campaignFunds: newBalance, stats: nextStats };

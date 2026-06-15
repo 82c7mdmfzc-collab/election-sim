@@ -67,6 +67,8 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
                 src={groupImageUrl('state', g.id)}
                 alt={g.id}
                 draggable={false}
+                loading="lazy"
+                decoding="async"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
               <span className="wallet-cell__name">{g.id}</span>

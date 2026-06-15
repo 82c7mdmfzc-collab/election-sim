@@ -106,12 +106,29 @@ export async function pushRemoteStats(userId: string, stats: ProfileStats): Prom
   await supabase.from('profiles').update({ stats, updated_at: new Date().toISOString() }).eq('id', userId);
 }
 
-/** Server-validated funds award. Returns the new balance, or null on failure. */
-export async function awardFundsRemote(amount: number): Promise<number | null> {
+/**
+ * Server-authoritative reward claim. The SERVER computes the amount from the
+ * (range-checked) game outcome and dedups by game_id, so the client can neither
+ * pick the amount nor replay a game for more funds. Returns the new balance, or
+ * null on failure. See supabase/rewards.sql.
+ */
+export async function claimGameRewardRemote(args: {
+  gameId: string;
+  won: boolean;
+  securedStates: number;
+  coalitionsDominated: number;
+  winStreak: number;
+}): Promise<number | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase.rpc('award_funds', { p_amount: amount });
+  const { data, error } = await supabase.rpc('claim_game_reward', {
+    p_game_id: args.gameId,
+    p_won: args.won,
+    p_secured: args.securedStates,
+    p_coalitions: args.coalitionsDominated,
+    p_win_streak: args.winStreak,
+  });
   if (error) {
-    console.warn('awardFundsRemote failed:', error.message);
+    console.warn('claimGameRewardRemote failed:', error.message);
     return null;
   }
   return data as number;

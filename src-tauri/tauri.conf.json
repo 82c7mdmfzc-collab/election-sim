@@ -1,9 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "election-sim",
+  "productName": "Elector",
   "version": "1.0.0",
 
-  "identifier": "com.electionsim.app",
+  "identifier": "com.playelector.app",
 
   "build": {
     "frontendDist": "../dist",
@@ -17,7 +17,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "270 — Election Simulator",
+        "title": "Elector",
 
         "width": 960,
         "height": 720,
@@ -28,7 +28,7 @@
 
         "center": true,
 
-        "userAgent": "ElectionSim/1.0"
+        "userAgent": "Elector/1.0"
       }
     ],
 
@@ -58,9 +58,10 @@
 
     "externalBin": [],
 
-    "copyright": "",
+    "copyright": "© 2026 Elector",
     "category": "Game",
-    "longDescription": "",
+    "shortDescription": "Win the Electoral College.",
+    "longDescription": "Elector — the strategy game of winning the US Electoral College. Campaign across the states, build coalitions, and race to 270 against bots or friends online.",
 
     "macOS": {
       "entitlements": null,

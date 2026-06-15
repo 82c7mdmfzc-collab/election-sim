@@ -36,7 +36,8 @@ import {
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
-import { rpcPushGameState, rpcSetLobbyStatus } from '../utils/supabaseClient';
+import { rpcSetLobbyStatus } from '../utils/supabaseClient';
+import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
 import { saveSession, clearSession } from '../utils/sessionStore';
 import type { CandidateDef } from './candidates';
@@ -185,40 +186,24 @@ function localPlayer(s: GameStore): PlayerState | null {
   return activePlayers(s.players)[s.activePlayerIndex] ?? null;
 }
 
-/** Snapshots store fields into the LobbyGameState shape for Supabase writes. */
-function buildLobbySnapshot(s: GameStore): LobbyGameState {
-  return {
-    turn: s.turn,
-    seqCounter: s.seqCounter,
-    players: s.players,
-    rungs: s.rungs,
-    natRungs: s.natRungs,
-    reachSeq: s.reachSeq,
-    natReachSeq: s.natReachSeq,
-    securedBy: s.securedBy,
-    natSecuredBy: s.natSecuredBy,
-    stateGroupDominance: s.stateGroupDominance,
-    hungColleges: s.hungColleges,
-    phase: s.phase,
-    activePlayerIndex: s.activePlayerIndex,
-    electionResult: s.electionResult,
-    lastIncome: s.lastIncome,
-    lastTurnReport: s.lastTurnReport,
-    lastRoundPurchases: s.lastRoundPurchases,
-    prevDominance: s.prevDominance,
-    electionTallyProgress: s.electionTallyProgress,
-    hostPlayerId: s.hostPlayerId ?? '',
-    submittedPlayers: s.submittedPlayers,
-    pendingSubmissions: {},
-    turnDeadlineUtc: s.turnDeadline,
-  };
-}
-
-/** Push the current store's phase state to Supabase after a phase transition. Host only. */
-function pushPhaseToSupabase(s: GameStore): void {
-  if (s.multiplayerMode !== 'online' || !s.lobbyId) return;
-  // Host-only push via SECURITY DEFINER RPC (server verifies host_uid).
-  void rpcPushGameState(s.lobbyId, buildLobbySnapshot(s));
+/**
+ * In online mode, all post-resolution phase transitions are server-authoritative
+ * (see advanceHostPhase → resolve-turn Edge Function), so the host no longer
+ * computes them locally and pushes. Returns true if the transition was delegated
+ * to the server (caller should not run local logic); false for single/bot, where
+ * the caller applies the transition locally.
+ */
+function delegatePhaseIfOnline(
+  s: GameStore,
+  action: 'confirmResolution' | 'resolveElection' | 'completeTally',
+  apply: (resolved: LobbyGameState) => void,
+): boolean {
+  if (s.multiplayerMode !== 'online') return false;
+  // Only the host triggers the server transition; guests wait for Realtime.
+  if (s.localPlayerId === s.hostPlayerId && s.lobbyId) {
+    void advanceHostPhase(s.lobbyId, action, apply);
+  }
+  return true;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -478,7 +463,8 @@ export const useGameStore = create<GameStore>()(
         confirmResolution() {
           const snap = get();
           if (snap.phase !== 'RESOLUTION') return;
-          if (snap.multiplayerMode === 'online' && snap.localPlayerId !== snap.hostPlayerId) return;
+          // Online: server-authoritative transition (host triggers, all sync via Realtime).
+          if (delegatePhaseIfOnline(snap, 'confirmResolution', (resolved) => get().syncFromPayload(resolved))) return;
 
           if (rollElection(snap)) {
             const result = tallyElectoralVotes(snap);
@@ -499,21 +485,19 @@ export const useGameStore = create<GameStore>()(
             }));
             AudioManager.play('round_end');
           }
-
-          pushPhaseToSupabase(get());
         },
 
         // ── resolveElection ──────────────────────────────────────────────────
         resolveElection() {
           const snap = get();
           if (snap.phase !== 'ELECTION' || !snap.electionResult) return;
-          if (snap.multiplayerMode === 'online' && snap.localPlayerId !== snap.hostPlayerId) return;
+          // Online: server-authoritative election resolution.
+          if (delegatePhaseIfOnline(snap, 'resolveElection', (resolved) => get().syncFromPayload(resolved))) return;
 
           const outcome = engineResolveElection(snap);
 
           if (outcome.type === 'winner') {
             set({ phase: 'ELECTION_TALLY', electionTallyProgress: 0 });
-            pushPhaseToSupabase(get());
             return;
           }
 
@@ -533,7 +517,6 @@ export const useGameStore = create<GameStore>()(
               handoffAckKey: `${s.turn + 1}:0`,
               turnDeadline: newDeadline,
             }));
-            pushPhaseToSupabase(get());
             return;
           }
 
@@ -551,7 +534,6 @@ export const useGameStore = create<GameStore>()(
               phase: 'ELECTION_TALLY',
               electionTallyProgress: 0,
             });
-            pushPhaseToSupabase(get());
             return;
           }
 
@@ -568,7 +550,6 @@ export const useGameStore = create<GameStore>()(
             handoffAckKey: `${nextState.turn + 1}:0`,
             turnDeadline: elimDeadline,
           });
-          pushPhaseToSupabase(get());
         },
 
         // ── advanceTallyProgress ─────────────────────────────────────────────
@@ -579,9 +560,9 @@ export const useGameStore = create<GameStore>()(
         // ── completeTally ────────────────────────────────────────────────────
         completeTally() {
           const snap = get();
-          if (snap.multiplayerMode === 'online' && snap.localPlayerId !== snap.hostPlayerId) return;
+          // Online: server-authoritative (also flips the lobby to 'finished').
+          if (delegatePhaseIfOnline(snap, 'completeTally', (resolved) => get().syncFromPayload(resolved))) return;
           set({ phase: 'GAME_OVER' });
-          pushPhaseToSupabase(get());
         },
 
         // ── reset ────────────────────────────────────────────────────────────
@@ -692,6 +673,18 @@ export const useGameStore = create<GameStore>()(
         },
 
         syncFromPayload(payload) {
+          // Defense-in-depth: turn numbers never legitimately decrease, so reject
+          // any payload that tries to roll the game backward (a stale Realtime
+          // event, or a tampered write). Phase transitions keep the same turn, so
+          // only a strict decrease is rejected.
+          const cur = get();
+          if (
+            cur.multiplayerMode === 'online' &&
+            cur.phase !== 'SETUP' && cur.phase !== 'MENU' &&
+            payload.turn < cur.turn
+          ) {
+            return;
+          }
           set((s) => ({
             // Core GameState
             turn: payload.turn,
@@ -730,6 +723,8 @@ export const useGameStore = create<GameStore>()(
             // Pre-ack the handoff so the curtain never shows in online mode
             handoffAckKey: `${payload.turn}:0`,
             turnDeadline: payload.turnDeadlineUtc ?? null,
+            // Keep the server-owned per-turn limit in sync (used by the timer UI).
+            turnTimeLimit: payload.turnTimeLimitSec ?? s.turnTimeLimit,
           }));
         },
 

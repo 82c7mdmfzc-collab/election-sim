@@ -35,6 +35,6 @@ export function useGameRewards(): void {
     const securedStates = Object.values(s.securedBy).filter((pid) => pid === ownerId).length;
     const coalitionsDominated = Object.values(s.stateGroupDominance).filter((pid) => pid === ownerId).length;
 
-    void useProfile.getState().applyGameResult({ won, securedStates, coalitionsDominated });
+    void useProfile.getState().applyGameResult({ gameId, won, securedStates, coalitionsDominated });
   }, [phase, gameId]);
 }

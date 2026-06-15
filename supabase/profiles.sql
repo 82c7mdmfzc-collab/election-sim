@@ -100,3 +100,7 @@ begin
     returning * into prof;
   return prof;
 end; $$;
+
+-- ── GRANTs — explicit EXECUTE so anon/authenticated clients can call the RPCs ──
+grant execute on function public.award_funds(integer)   to anon, authenticated;
+grant execute on function public.unlock_character(text) to anon, authenticated;

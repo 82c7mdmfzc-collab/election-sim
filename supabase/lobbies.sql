@@ -150,9 +150,14 @@ begin
   if v_host_pid is null then
     raise exception 'game_state.hostPlayerId required';
   end if;
+  -- Room codes are short alphanumeric tokens; reject anything malformed so a
+  -- crafted code can't be silently truncated into a colliding/odd value.
+  if p_room_code is null or p_room_code !~ '^[A-Za-z0-9]{1,12}$' then
+    raise exception 'invalid room_code';
+  end if;
 
   insert into public.lobbies (room_code, is_public, player_count, status, game_state, host_uid)
-  values (left(coalesce(p_room_code, ''), 12), coalesce(p_is_public, false),
+  values (p_room_code, coalesce(p_is_public, false),
           greatest(2, least(coalesce(p_player_count, 2), 6)), 'waiting', p_game_state, v_uid)
   returning * into v_row;
 
@@ -274,7 +279,13 @@ begin
 end;
 $$;
 
--- ── RPC: push_game_state — host pushes resolved state / phase transitions ──────
+-- ── RPC: push_game_state — DEPRECATED & DISABLED ──────────────────────────────
+-- All turn resolution and phase transitions are now server-authoritative inside
+-- the resolve-turn Edge Function, which writes the lobby row with the service-role
+-- key (bypassing this RPC and RLS). Allowing the host to push an arbitrary
+-- game_state let a malicious host fabricate election outcomes, skip turns, or
+-- rewrite other players' state. The body now hard-fails and EXECUTE is revoked
+-- from clients below; kept as a tombstone so old clients get a clear error.
 create or replace function public.push_game_state(
   p_lobby_id   uuid,
   p_game_state jsonb
@@ -285,12 +296,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_lobby_host(p_lobby_id) then
-    raise exception 'only the host may push game state';
-  end if;
-  update public.lobbies
-     set game_state = p_game_state, updated_at = now()
-   where id = p_lobby_id;
+  raise exception 'push_game_state is disabled: phase transitions are server-authoritative';
 end;
 $$;
 
@@ -320,7 +326,8 @@ grant execute on function public.create_lobby(text, boolean, integer, jsonb)    
 grant execute on function public.join_lobby_player(uuid, jsonb)                    to anon, authenticated;
 grant execute on function public.start_game(uuid, jsonb)                           to anon, authenticated;
 grant execute on function public.submit_turn_pending(uuid, text, jsonb, jsonb)     to anon, authenticated;
-grant execute on function public.push_game_state(uuid, jsonb)                      to anon, authenticated;
 grant execute on function public.set_lobby_status(uuid, text)                      to anon, authenticated;
+-- push_game_state is deprecated/disabled — revoke so no client can call it.
+revoke execute on function public.push_game_state(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.is_lobby_participant(uuid)                        to anon, authenticated;
 grant execute on function public.is_lobby_host(uuid)                               to anon, authenticated;

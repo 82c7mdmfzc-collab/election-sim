@@ -27,6 +27,7 @@ const FILES = [
   'statesData.ts',
   'engine.ts',
   'resolveLobbyTurn.ts',
+  'advanceLobbyPhase.ts',
 ];
 
 const srcDir = join(root, 'src', 'game');

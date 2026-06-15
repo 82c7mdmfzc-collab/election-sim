@@ -64,6 +64,7 @@ export function resolveLobbyTurn(
     hostPlayerId: remote.hostPlayerId,
     submittedPlayers: [],
     pendingSubmissions: {},
+    turnTimeLimitSec: remote.turnTimeLimitSec,
   };
 
   return { resolved };

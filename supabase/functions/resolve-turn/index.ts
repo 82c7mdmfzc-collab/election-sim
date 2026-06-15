@@ -21,27 +21,48 @@
 // ════════════════════════════════════════════════════════════════════════════
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { resolveLobbyTurn } from './_engine/resolveLobbyTurn.ts';
+import { advanceLobbyPhase, REQUIRED_PHASE, type PhaseAction } from './_engine/advanceLobbyPhase.ts';
 import type { LobbyGameState } from './_engine/types.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// Restrict cross-origin callers to our own surfaces (defense-in-depth; the JWT
+// is still validated below). Tauri mobile/desktop webviews use the tauri origins.
+const ALLOWED_ORIGINS = new Set<string>([
+  'https://playelector.com',
+  'https://www.playelector.com',
+  'http://localhost:5174',
+  'tauri://localhost',
+  'https://tauri.localhost',
+  'http://tauri.localhost',
+]);
+const FALLBACK_ORIGIN = 'https://playelector.com';
 
-function json(body: unknown, status = 200): Response {
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allow = ALLOWED_ORIGINS.has(origin) ? origin : FALLBACK_ORIGIN;
+  return {
+    'Access-Control-Allow-Origin': allow,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+}
+
+const PHASE_ACTIONS = new Set<PhaseAction>(['confirmResolution', 'resolveElection', 'completeTally']);
+
+function json(body: unknown, status = 200, cors: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const cors = corsFor(req);
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return json({ error: 'missing auth' }, 401);
+    if (!authHeader) return json({ error: 'missing auth' }, 401, cors);
 
     const url = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -52,14 +73,15 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData.user) return json({ error: 'invalid auth' }, 401);
+    if (userErr || !userData.user) return json({ error: 'invalid auth' }, 401, cors);
     const uid = userData.user.id;
 
-    const { lobbyId, force } = (await req.json().catch(() => ({}))) as {
+    const { lobbyId, force, action } = (await req.json().catch(() => ({}))) as {
       lobbyId?: string;
       force?: boolean;
+      action?: string;
     };
-    if (!lobbyId) return json({ error: 'lobbyId required' }, 400);
+    if (!lobbyId) return json({ error: 'lobbyId required' }, 400, cors);
 
     // Privileged client for the authoritative read/write (bypasses RLS).
     const admin = createClient(url, serviceKey);
@@ -71,22 +93,50 @@ Deno.serve(async (req: Request) => {
       .eq('lobby_id', lobbyId)
       .eq('auth_uid', uid)
       .maybeSingle();
-    if (!member) return json({ error: 'not a participant' }, 403);
+    if (!member) return json({ error: 'not a participant' }, 403, cors);
 
     const { data: row, error: rowErr } = await admin
       .from('lobbies')
       .select('game_state, status')
       .eq('id', lobbyId)
       .single();
-    if (rowErr || !row?.game_state) return json({ error: 'lobby not found' }, 404);
+    if (rowErr || !row?.game_state) return json({ error: 'lobby not found' }, 404, cors);
 
     const remote = row.game_state as LobbyGameState;
-    if (remote.phase !== 'PLANNING') return json({ skipped: 'not planning' });
+
+    // ── Branch 1: post-resolution phase advance (server-authoritative) ─────────
+    if (action && PHASE_ACTIONS.has(action as PhaseAction)) {
+      const act = action as PhaseAction;
+      const required = REQUIRED_PHASE[act];
+      if (remote.phase !== required) return json({ skipped: 'phase mismatch' }, 200, cors);
+
+      const next = advanceLobbyPhase(remote, act, Date.now());
+      if (!next) return json({ skipped: 'no-op' }, 200, cors);
+
+      // Compare-and-set on the expected phase so duplicate calls no-op.
+      const { data: updated, error: updErr } = await admin
+        .from('lobbies')
+        .update({ game_state: next, updated_at: new Date().toISOString() })
+        .eq('id', lobbyId)
+        .filter('game_state->>phase', 'eq', required)
+        .select('id');
+      if (updErr) return json({ error: updErr.message }, 500, cors);
+      if (!updated || updated.length === 0) return json({ skipped: 'already advanced' }, 200, cors);
+
+      // When the game ends, also flip the lobby lifecycle to finished.
+      if (next.phase === 'GAME_OVER') {
+        await admin.from('lobbies').update({ status: 'finished' }).eq('id', lobbyId);
+      }
+      return json({ resolved: next }, 200, cors);
+    }
+
+    // ── Branch 2: PLANNING → RESOLUTION turn resolution ────────────────────────
+    if (remote.phase !== 'PLANNING') return json({ skipped: 'not planning' }, 200, cors);
 
     // Force is only valid once the (server-evaluated) turn deadline has passed.
     const deadlinePassed = !!remote.turnDeadlineUtc && Date.now() >= remote.turnDeadlineUtc;
     const outcome = resolveLobbyTurn(remote, force === true && deadlinePassed);
-    if (!outcome) return json({ skipped: 'not all submitted' });
+    if (!outcome) return json({ skipped: 'not all submitted' }, 200, cors);
 
     // Compare-and-set: only write if the row is STILL in PLANNING. A concurrent
     // duplicate invocation will match zero rows and no-op.
@@ -96,11 +146,11 @@ Deno.serve(async (req: Request) => {
       .eq('id', lobbyId)
       .filter('game_state->>phase', 'eq', 'PLANNING')
       .select('id');
-    if (updErr) return json({ error: updErr.message }, 500);
-    if (!updated || updated.length === 0) return json({ skipped: 'already resolved' });
+    if (updErr) return json({ error: updErr.message }, 500, cors);
+    if (!updated || updated.length === 0) return json({ skipped: 'already resolved' }, 200, cors);
 
-    return json({ resolved: outcome.resolved });
+    return json({ resolved: outcome.resolved }, 200, cors);
   } catch (e) {
-    return json({ error: String(e) }, 500);
+    return json({ error: String(e) }, 500, corsFor(req));
   }
 });

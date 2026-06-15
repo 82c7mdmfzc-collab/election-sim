@@ -45,6 +45,8 @@ export function Avatar({
           alt=""
           aria-hidden
           draggable={false}
+          loading="lazy"
+          decoding="async"
           onError={() => setFrameFailed(true)}
         />
       )}

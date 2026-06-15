@@ -263,6 +263,8 @@ export function MultiplayerMenu({ onBack }: Props) {
       hostPlayerId: myPlayerId,
       submittedPlayers: [],
       pendingSubmissions: {},
+      turnDeadlineUtc: snap.turnDeadline,
+      turnTimeLimitSec: snap.turnTimeLimit,
     };
 
     try {
@@ -621,7 +623,7 @@ export function MultiplayerMenu({ onBack }: Props) {
               return (
                 <div key={p.id} className="mp-player-row">
                   {c?.tokenUrl && (
-                    <img src={c.tokenUrl} className="cand-token mp-player-token" alt={c.name} />
+                    <img src={c.tokenUrl} className="cand-token mp-player-token" alt={c.name} loading="lazy" decoding="async" />
                   )}
                   <span className="mp-player-name">{p.name}</span>
                   <span className="mp-player-cand">{c?.name ?? p.candidateId}</span>

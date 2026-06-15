@@ -2,8 +2,10 @@
  * rewards.ts — pure Campaign Funds award math (no IO, no store, no React).
  *
  * Mirrors the engine.ts testing pattern so the economy is verifiable in
- * isolation. The client computes the *suggested* award from a finished game and
- * the server caps/records it via the award_funds RPC (see supabase/profiles.sql).
+ * isolation. This computes the optimistic award shown instantly in the victory
+ * reveal; the AUTHORITATIVE amount is computed server-side and deduped per game
+ * via the claim_game_reward RPC (see supabase/rewards.sql), which is the value
+ * the balance reconciles to. The formula here is kept in sync with that SQL.
  *
  * Reward perspective: a single device has one progression account, so every
  * award is computed for ONE "owner" seat (online: the local player; otherwise
@@ -30,7 +32,7 @@ export interface RewardBreakdown {
   total: number;
 }
 
-/** Matches the per-call cap enforced server-side in award_funds(). */
+/** Matches the per-game cap enforced server-side in claim_game_reward(). */
 export const REWARD_CAP = 5000;
 
 const BASE_FINISH = 100;       // just for completing a game

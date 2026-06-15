@@ -174,6 +174,9 @@ export interface LobbyGameState extends GameState {
   lastRoundPurchases?: RoundPurchase[];
   /** UTC epoch ms when the current planning turn expires; synced to all clients. Optional for backward-compat. */
   turnDeadlineUtc?: number | null;
+  /** Per-turn time limit in seconds, set once at game start. The server uses this
+   *  to compute each new turn's deadline from its own clock. Optional for back-compat. */
+  turnTimeLimitSec?: number | null;
 }
 
 // ── Waiting-room types (before game starts) ───────────────────────────────────

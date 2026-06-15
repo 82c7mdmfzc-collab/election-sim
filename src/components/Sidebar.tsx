@@ -60,6 +60,8 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
           src={groupImageUrl('national', group.id)}
           alt={group.id}
           draggable={false}
+          loading="lazy"
+          decoding="async"
         />
         <span className="nat-ladder__name">{group.id}</span>
         <span className="nat-ladder__bonus">${group.turnBonus}k/turn</span>

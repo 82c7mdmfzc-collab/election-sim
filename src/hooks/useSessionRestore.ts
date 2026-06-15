@@ -24,30 +24,52 @@ export function useSessionRestore(): void {
       return;
     }
 
-    supabase
-      .from('lobbies')
-      .select('game_state, status')
-      .eq('id', session.lobbyId)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data || data.status !== 'in_progress') {
-          clearSession();
-          clearMultiplayerMeta();
-          return;
-        }
-        const gs = data.game_state as LobbyGameState;
-        if (!gs.players.find((p) => p.id === session.localPlayerId)) {
-          clearSession();
-          clearMultiplayerMeta();
-          return;
-        }
-        setMultiplayerMeta({
-          lobbyId: session.lobbyId,
-          localPlayerId: session.localPlayerId,
-          hostPlayerId: gs.hostPlayerId,
-        });
-        syncFromPayload(gs);
+    let cancelled = false;
+
+    // Restore with one retry, so a transient network error doesn't silently
+    // discard an in-progress game on refresh.
+    async function restore(attempt = 0): Promise<void> {
+      const { data, error } = await supabase
+        .from('lobbies')
+        .select('game_state, status')
+        .eq('id', session!.lobbyId)
+        .single();
+
+      if (cancelled) return;
+
+      // Network/transient error: retry once before giving up.
+      if (error && attempt === 0) {
+        await new Promise((r) => setTimeout(r, 600));
+        if (!cancelled) await restore(1);
+        return;
+      }
+
+      if (error || !data || data.status !== 'in_progress') {
+        clearSession();
+        clearMultiplayerMeta();
+        return;
+      }
+      const gs = data.game_state as LobbyGameState;
+      if (!gs.players.find((p) => p.id === session!.localPlayerId)) {
+        clearSession();
+        clearMultiplayerMeta();
+        return;
+      }
+      setMultiplayerMeta({
+        lobbyId: session!.lobbyId,
+        localPlayerId: session!.localPlayerId,
+        hostPlayerId: gs.hostPlayerId,
       });
+      syncFromPayload(gs);
+    }
+
+    restore().catch((e) => {
+      console.error('[multiplayer] session restore failed:', e);
+      clearSession();
+      clearMultiplayerMeta();
+    });
+
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }

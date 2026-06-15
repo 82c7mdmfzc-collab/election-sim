@@ -66,23 +66,31 @@ export async function rpcStartGame(lobbyId: string, gameState: LobbyGameState): 
   if (error) throw error;
 }
 
-/** Host-only: push a resolved/phase-transitioned game state. Fire-and-forget. */
-export async function rpcPushGameState(lobbyId: string, gameState: LobbyGameState): Promise<void> {
-  const { error } = await supabase.rpc('push_game_state', {
-    p_lobby_id: lobbyId,
-    p_game_state: gameState,
-  });
-  if (error) console.error('[multiplayer] push_game_state failed:', error);
+/** Retry an RPC call with exponential backoff. Returns true on success. */
+async function retryRpc(
+  label: string,
+  fn: string,
+  args: Record<string, unknown>,
+  attempts = 3,
+): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    const { error } = await supabase.rpc(fn, args);
+    if (!error) return true;
+    console.error(`[multiplayer] ${label} failed (attempt ${i + 1}/${attempts}):`, error);
+    if (i < attempts - 1) {
+      await new Promise((r) => setTimeout(r, 400 * 2 ** i));
+    }
+  }
+  return false;
 }
 
-/** Host-only: update lobby lifecycle status (e.g. mark 'finished'). */
+/** Host-only: update lobby lifecycle status (e.g. mark 'finished'). Retries on failure. */
 export async function rpcSetLobbyStatus(
   lobbyId: string,
   status: LobbyRow['status'],
 ): Promise<void> {
-  const { error } = await supabase.rpc('set_lobby_status', {
+  await retryRpc('set_lobby_status', 'set_lobby_status', {
     p_lobby_id: lobbyId,
     p_status: status,
   });
-  if (error) console.error('[multiplayer] set_lobby_status failed:', error);
 }

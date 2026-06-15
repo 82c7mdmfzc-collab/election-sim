@@ -6,6 +6,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { notifyError } from './toast';
 import type { LobbyGameState } from '../game/types';
 
 /** Build the JSONB payload for the lobbies.game_state column from current store state. */
@@ -39,7 +40,10 @@ export async function pushMySubmission(
     p_pending: pending,
     p_submitted_list: submittedList,
   });
-  if (error) console.error('[multiplayer] submit_turn_pending failed:', error);
+  if (error) {
+    console.error('[multiplayer] submit_turn_pending failed:', error);
+    notifyError('Could not submit your turn. Check your connection and try again.');
+  }
 }
 
 /**
@@ -65,6 +69,35 @@ export async function resolveHostTurn(
 
   if (error) {
     console.error('[multiplayer] resolve-turn failed:', error);
+    notifyError('Turn resolution failed. Retrying shortly…');
+    return;
+  }
+
+  const resolved = (data as { resolved?: LobbyGameState } | null)?.resolved;
+  if (resolved) onResolved(resolved);
+}
+
+/**
+ * Trigger a server-authoritative post-resolution phase transition
+ * (confirmResolution / resolveElection / completeTally).
+ *
+ * Like resolveHostTurn, this runs inside the resolve-turn Edge Function so the
+ * host browser can no longer fabricate an election outcome, skip turns, or
+ * declare a false winner. The authoritative next state is applied locally via
+ * onResolved; other clients receive it over Realtime.
+ */
+export async function advanceHostPhase(
+  lobbyId: string,
+  action: 'confirmResolution' | 'resolveElection' | 'completeTally',
+  onResolved: (resolved: LobbyGameState) => void,
+): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('resolve-turn', {
+    body: { lobbyId, action },
+  });
+
+  if (error) {
+    console.error(`[multiplayer] advance-phase (${action}) failed:`, error);
+    notifyError('Could not advance the game. Check your connection and try again.');
     return;
   }
 
