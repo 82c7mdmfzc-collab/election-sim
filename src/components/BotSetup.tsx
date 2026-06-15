@@ -20,6 +20,7 @@ import { AudioManager } from '../utils/audioManager';
 import type { BotDifficulty } from '../game/types';
 import { ModifierSheet } from './ModifierSheet';
 import { Portrait } from './Portrait';
+import { PartyBadge } from './PartyBadge';
 
 const DIFFICULTIES: { id: BotDifficulty; label: string; blurb: string }[] = [
   { id: 'easy',   label: 'Easy',   blurb: 'Campaigns at random. A gentle warm-up.' },
@@ -68,7 +69,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
   return (
     <div className="setup">
       <div className="setup__header">
-        <h1 className="setup__title">270 — Play vs the Machine</h1>
+        <h1 className="setup__title">Play vs the Machine</h1>
 
         <div className="setup__count">
           <span>Opponents:</span>
@@ -136,6 +137,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
                 <div className="cand-card__id">
                   <span className="cand-card__name">{c.name}</span>
                   <span className="cand-card__tag">{c.tagline}</span>
+                  <PartyBadge party={c.party} className="cand-card__party" />
                 </div>
                 {chosen && <span className="cand-card__seat">You</span>}
               </div>

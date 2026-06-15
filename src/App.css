@@ -192,12 +192,13 @@ body {
 
 .header-hud__abort {
   align-self: center;
-  padding: 0.25rem 0.6rem;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
   font-size: 0.72rem;
-  background: transparent;
-  border: 1px solid var(--panel-2);
+  background: var(--panel);
+  border: 1px solid var(--border);
   color: var(--muted);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   white-space: nowrap;
   transition: border-color 0.15s, color 0.15s;
@@ -1049,7 +1050,7 @@ body {
 .cand-card.is-assigned { border-color: var(--p-color); box-shadow: 0 0 0 1px var(--p-color); }
 .cand-card.is-locked { opacity: 0.6; }
 .cand-card.is-locked:hover { opacity: 0.85; border-color: var(--gold); }
-.cand-card__lock { margin-left: auto; font-size: 1rem; }
+.cand-card__lock { margin-left: auto; display: inline-flex; align-items: center; color: var(--muted); }
 .cand-card__unlock-hint {
   margin-top: 0.4rem; text-align: center; font-size: 0.72rem; font-weight: 700;
   color: var(--gold); letter-spacing: 0.04em;
@@ -1094,6 +1095,20 @@ body {
 .cand-card__id { flex: 1; min-width: 0; }
 .cand-card__name { display: block; font-weight: 700; font-size: 0.95rem; }
 .cand-card__tag { display: block; font-size: 0.7rem; color: var(--muted); }
+
+/* ── Party badge ───────────────────────────────────────────────────────────── */
+.party-badge {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.12rem 0.5rem; border-radius: var(--r-pill);
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em;
+  background: var(--panel-2); color: var(--muted);
+  border: 1px solid var(--border); white-space: nowrap;
+}
+.party-badge__dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.party-badge--republican { color: var(--rep); background: color-mix(in srgb, var(--rep) 10%, white); border-color: color-mix(in srgb, var(--rep) 28%, white); }
+.party-badge--democrat   { color: var(--dem); background: color-mix(in srgb, var(--dem) 10%, white); border-color: color-mix(in srgb, var(--dem) 28%, white); }
+.party-badge--independent{ color: var(--ind); background: color-mix(in srgb, var(--ind) 10%, white); border-color: color-mix(in srgb, var(--ind) 28%, white); }
+.cand-card__party { margin-top: 0.3rem; }
 .cand-card__seat {
   background: var(--accent-warm); color: #2a1d04; font-weight: 800; font-size: 0.7rem;
   border-radius: 999px; padding: 0.12rem 0.5rem;
@@ -1672,21 +1687,25 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 /* ── HelpButton + How-to-Play overlay ──────────────────────────────────────── */
 .help-btn {
   width: 28px; height: 28px; flex: 0 0 auto;
-  border-radius: 50%; border: 1px solid var(--panel-2);
-  background: var(--panel-3); color: var(--text);
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--border);
+  background: var(--panel); color: var(--muted);
   font-weight: 800; font-size: 0.95rem; line-height: 1; cursor: pointer;
-  transition: filter 0.12s ease, transform 0.12s ease;
+  box-shadow: var(--shadow-sm);
+  transition: filter 0.12s ease, transform 0.12s ease, color 0.12s ease;
 }
-.help-btn:hover { filter: brightness(1.2); }
+.help-btn:hover { color: var(--brand); }
 .help-btn:active { transform: scale(0.94); }
 
 .mute-btn {
   width: 28px; height: 28px; flex: 0 0 auto;
-  border-radius: 50%; border: 1px solid var(--panel-2);
-  background: var(--panel-3); font-size: 0.9rem; line-height: 1;
-  cursor: pointer; transition: filter 0.12s ease, transform 0.12s ease;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--border);
+  background: var(--panel); color: var(--muted); line-height: 1;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer; transition: filter 0.12s ease, transform 0.12s ease, color 0.12s ease;
 }
-.mute-btn:hover { filter: brightness(1.2); }
+.mute-btn:hover { color: var(--brand); }
 .mute-btn:active { transform: scale(0.94); }
 
 .help-overlay {
@@ -1787,13 +1806,74 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 /* ── Account chip (menu) ───────────────────────────────────────────────────── */
 .account-chip {
   position: absolute; top: 1rem; right: 1rem;
-  background: var(--panel-3); border: 1px solid var(--panel-2);
-  color: var(--gold); font-weight: 800; font-size: 0.85rem;
-  padding: 0.4rem 0.7rem; border-radius: 999px; cursor: pointer;
-  letter-spacing: 0.02em; transition: filter 0.12s ease, transform 0.12s ease;
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); font-weight: 700; font-size: 0.85rem;
+  padding: 0.4rem 0.8rem; border-radius: var(--r-pill); cursor: pointer;
+  letter-spacing: 0.01em; box-shadow: var(--shadow-sm);
+  transition: filter 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
-.account-chip:hover { filter: brightness(1.15); }
-.account-chip:active { transform: scale(0.96); }
+.account-chip:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.account-chip:active { transform: scale(0.97); }
+.account-chip__coin {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--brand-yellow), var(--brand) 70%);
+  box-shadow: inset 0 0 0 1.5px var(--brand-deep);
+}
+
+/* ── Home / main menu ──────────────────────────────────────────────────────── */
+.home {
+  min-height: 100dvh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1.6rem;
+  padding: 2rem 1rem 3rem; position: relative;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--brand-soft), transparent 60%),
+    var(--bg);
+}
+.brand { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+.brand__logo { width: min(440px, 78vw); height: auto; display: block; }
+.brand__wordmark {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(2.8rem, 9vw, 4.6rem); line-height: 1; letter-spacing: -0.01em;
+  color: var(--text);
+}
+.brand__accent { color: var(--brand); }
+.brand__tagline {
+  margin: 0; color: var(--muted); font-weight: 600;
+  font-size: clamp(0.85rem, 2.4vw, 1.05rem); letter-spacing: 0.01em;
+}
+.home__modes {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem; width: min(560px, 92vw);
+}
+.mode-card {
+  display: flex; align-items: center; gap: 0.85rem; text-align: left;
+  padding: 1rem 1.1rem; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  transition: transform 0.1s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.mode-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: var(--brand); }
+.mode-card:active { transform: translateY(0); }
+.mode-card__icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: var(--r-md);
+  background: var(--brand-soft); color: var(--brand-deep);
+}
+.mode-card--primary { border-color: var(--brand); }
+.mode-card--primary .mode-card__icon { background: var(--brand); color: #fff; }
+.mode-card__text { display: flex; flex-direction: column; min-width: 0; }
+.mode-card__label { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; color: var(--text); }
+.mode-card__sub { font-size: 0.78rem; color: var(--muted); }
+.home__link {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-weight: 600; font-size: 0.9rem;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.home__link:hover { color: var(--text); }
+@media (max-width: 460px) {
+  .home__modes { grid-template-columns: 1fr; width: min(360px, 92vw); }
+}
 
 /* ── Auth gate ─────────────────────────────────────────────────────────────── */
 .auth-gate__funds { text-align: center; margin: 0.5rem 0 1rem; }

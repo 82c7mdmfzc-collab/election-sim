@@ -8,6 +8,8 @@
 
 import { useMemo, useState } from 'react';
 import { CANDIDATES, PLAYER_COLORS, isCandidateAvailable, type CandidateDef } from '../game/candidates';
+import { LockIcon } from './icons';
+import { PartyBadge } from './PartyBadge';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
@@ -77,7 +79,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   return (
     <div className="setup">
       <div className="setup__header">
-        <h1 className="setup__title">270 — Choose Your Coalition</h1>
+        <h1 className="setup__title">Choose Your Coalition</h1>
         <div className="setup__count">
           <span>Players:</span>
           {[2, 3, 4].map((n) => (
@@ -142,9 +144,10 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
                 <div className="cand-card__id">
                   <span className="cand-card__name">{c.name}</span>
                   <span className="cand-card__tag">{c.tagline}</span>
+                  <PartyBadge party={c.party} className="cand-card__party" />
                 </div>
                 {isAssigned && <span className="cand-card__seat">P{seat + 1}</span>}
-                {locked && <span className="cand-card__lock">🔒</span>}
+                {locked && <span className="cand-card__lock"><LockIcon size={14} /></span>}
               </div>
               <div className="cand-card__cash">${c.startingCash}k starting cash</div>
               <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />

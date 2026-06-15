@@ -25,6 +25,7 @@ import { HelpButton } from './HelpButton';
 import { MuteButton } from './MuteButton';
 import { Avatar } from './Avatar';
 import { useProfile } from '../hooks/useProfile';
+import { CloseIcon } from './icons';
 
 interface PlayerHudCardProps {
   player: PlayerState;
@@ -194,7 +195,7 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
           onClick={() => { AudioManager.play('confirm'); abortGame(); }}
           title="Abort game and return to menu"
         >
-          ✕ Abort
+          <CloseIcon size={14} /> Abort
         </button>
       </div>
 

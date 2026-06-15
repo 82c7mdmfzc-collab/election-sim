@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { STATE_GROUPS } from '../game/config';
 import { groupImageUrl } from '../game/candidates';
+import { InfoIcon } from './icons';
 import {
   useActivePlayer,
   useActiveGroupWallet,
@@ -73,7 +74,7 @@ function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps
         title="View group details"
         aria-label={`${group.id} details`}
       >
-        ⓘ
+        <InfoIcon size={15} />
       </button>
     </div>
   );

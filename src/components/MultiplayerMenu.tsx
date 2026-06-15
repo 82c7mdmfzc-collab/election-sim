@@ -28,6 +28,7 @@ import { AudioManager } from '../utils/audioManager';
 import { sanitizeName } from '../utils/sanitize';
 import { Portrait } from './Portrait';
 import { Avatar } from './Avatar';
+import { PartyBadge } from './PartyBadge';
 import {
   supabase,
   rpcJoinLobbyPlayer,
@@ -442,6 +443,7 @@ export function MultiplayerMenu({ onBack }: Props) {
                   <div className="cand-card__id">
                     <span className="cand-card__name">{c.name}</span>
                     <span className="cand-card__tag">{c.tagline}</span>
+                    <PartyBadge party={c.party} className="cand-card__party" />
                   </div>
                   {chosen && <span className="cand-card__seat">You</span>}
                 </div>
@@ -651,6 +653,7 @@ export function MultiplayerMenu({ onBack }: Props) {
                   <div className="cand-card__id">
                     <span className="cand-card__name">{c.name}</span>
                     <span className="cand-card__tag">{taken ? 'Taken' : c.tagline}</span>
+                    <PartyBadge party={c.party} className="cand-card__party" />
                   </div>
                   {chosen && <span className="cand-card__seat">You</span>}
                 </div>

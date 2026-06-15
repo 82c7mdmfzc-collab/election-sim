@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
 import { HowToPlayPanel } from './HowToPlayPanel';
+import { HelpIcon } from './icons';
 
 export function HelpButton() {
   const [open, setOpen] = useState(false);
@@ -22,7 +23,7 @@ export function HelpButton() {
         aria-label="How to play"
         title="How to play"
       >
-        ?
+        <HelpIcon size={18} />
       </button>
       {open && (
         <div className="help-overlay" role="dialog" aria-modal="true" onClick={hide}>

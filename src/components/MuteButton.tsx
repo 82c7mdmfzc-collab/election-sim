@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
 import { isMuted, setMuted } from '../utils/localPrefs';
+import { VolumeOnIcon, VolumeOffIcon } from './icons';
 
 export function MuteButton() {
   const [muted, setMutedState] = useState<boolean>(() => isMuted());
@@ -27,7 +28,7 @@ export function MuteButton() {
       aria-pressed={muted}
       title={muted ? 'Sound off' : 'Sound on'}
     >
-      {muted ? '🔇' : '🔊'}
+      {muted ? <VolumeOffIcon size={18} /> : <VolumeOnIcon size={18} />}
     </button>
   );
 }
