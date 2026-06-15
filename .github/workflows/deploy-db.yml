@@ -1,0 +1,41 @@
+name: Deploy DB (Supabase SQL)
+
+# Re-applies the idempotent schema files to the production Supabase database
+# whenever they change on main. The files use `create or replace`,
+# `drop policy if exists`, and `if not exists` throughout, so running them in
+# full on every change is safe and converges to the desired schema.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/*.sql'
+      - '.github/workflows/deploy-db.yml'
+  workflow_dispatch: {}
+
+# Never run two DB deploys at once.
+concurrency:
+  group: deploy-db
+  cancel-in-progress: false
+
+jobs:
+  apply-sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply SQL in dependency order
+        env:
+          # Session-pooler connection string (IPv4-friendly). See secret setup below.
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set"; exit 1
+          fi
+          # profiles first (rewards' RPCs update profiles.campaign_funds); lobbies is independent.
+          for f in profiles lobbies rewards; do
+            echo "── applying supabase/$f.sql ──"
+            psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f "supabase/$f.sql"
+          done
+          echo "✅ schema applied"
