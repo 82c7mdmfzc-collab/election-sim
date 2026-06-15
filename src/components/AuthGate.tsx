@@ -13,6 +13,11 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { UsernameClaim } from './UsernameClaim';
 
+// Flip to true once the Apple provider is configured in Supabase
+// (Authentication → Providers → Apple). Until then the button is hidden so
+// users don't hit an "provider not enabled" error. Google + email work today.
+const APPLE_SIGNIN_ENABLED = false;
+
 interface AuthGateProps {
   onClose: () => void;
 }
@@ -67,9 +72,11 @@ export function AuthGate({ onClose }: AuthGateProps) {
             </p>
 
             <div className="auth-gate__providers">
-              <button type="button" className="tutorial__btn" onClick={() => void oauth(signInWithApple)}>
-                 Sign in with Apple
-              </button>
+              {APPLE_SIGNIN_ENABLED && (
+                <button type="button" className="tutorial__btn" onClick={() => void oauth(signInWithApple)}>
+                   Sign in with Apple
+                </button>
+              )}
               <button type="button" className="tutorial__btn" onClick={() => void oauth(signInWithGoogle)}>
                 Sign in with Google
               </button>
