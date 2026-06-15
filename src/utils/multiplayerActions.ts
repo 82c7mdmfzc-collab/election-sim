@@ -42,13 +42,7 @@ export async function pushMySubmission(
   });
   if (error) {
     console.error('[multiplayer] submit_turn_pending failed:', error);
-    // Surface the real Postgres error so it can be diagnosed on devices (e.g.
-    // mobile) where the console isn't reachable. TODO: revert to a friendly
-    // message once the submit issue is resolved.
-    const detail = [error.message, error.code, error.details, error.hint]
-      .filter(Boolean)
-      .join(' | ');
-    notifyError(`Submit failed: ${detail || 'unknown error'}`);
+    notifyError('Could not submit your turn. Check your connection and try again.');
   }
 }
 

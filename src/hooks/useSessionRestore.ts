@@ -55,6 +55,13 @@ export function useSessionRestore(): void {
         clearMultiplayerMeta();
         return;
       }
+      // Repair the participant binding in case it was lost (best-effort). With a
+      // durable account this is a no-op; it only helps if the row went missing.
+      await supabase.rpc('ensure_participant', {
+        p_lobby_id: session!.lobbyId,
+        p_player_id: session!.localPlayerId,
+      });
+      if (cancelled) return;
       setMultiplayerMeta({
         lobbyId: session!.lobbyId,
         localPlayerId: session!.localPlayerId,

@@ -22,9 +22,18 @@ create table if not exists public.profiles (
   tutorial_seen       boolean  not null default false,
   settings            jsonb    not null default '{}'::jsonb,
   stats               jsonb    not null default '{}'::jsonb,
+  display_name        text,                         -- permanent, claimed once (see claim_display_name)
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
+
+-- Idempotent add for tables that pre-date the display_name column.
+alter table public.profiles add column if not exists display_name text;
+
+-- Case-insensitive uniqueness for the permanent username. A partial index keeps
+-- pre-claim NULLs exempt while guaranteeing no two accounts share a handle.
+create unique index if not exists profiles_display_name_lower_uidx
+  on public.profiles (lower(display_name)) where display_name is not null;
 
 alter table public.profiles enable row level security;
 
@@ -101,6 +110,37 @@ begin
   return prof;
 end; $$;
 
+-- ── RPC: claim_display_name ──────────────────────────────────────────────────
+-- Claims the caller's PERMANENT username. One-time only: once set it can never be
+-- changed (rejects if already claimed). Validates format and enforces global,
+-- case-insensitive uniqueness server-side. Returns a result code the client maps
+-- to UI: 'ok' | 'taken' | 'invalid' | 'already_set'.
+create or replace function public.claim_display_name(p_name text)
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  v_name    text := btrim(coalesce(p_name, ''));
+  v_current text;
+begin
+  -- Format: 3–20 chars, letters/digits/underscore/hyphen only.
+  if v_name !~ '^[A-Za-z0-9_-]{3,20}$' then
+    return 'invalid';
+  end if;
+
+  select display_name into v_current from public.profiles where id = auth.uid() for update;
+  if not found then raise exception 'claim_display_name: no profile'; end if;
+  if v_current is not null then return 'already_set'; end if;
+
+  begin
+    update public.profiles
+      set display_name = v_name, updated_at = now()
+      where id = auth.uid();
+  exception when unique_violation then
+    return 'taken';
+  end;
+  return 'ok';
+end; $$;
+
 -- ── GRANTs — explicit EXECUTE so anon/authenticated clients can call the RPCs ──
-grant execute on function public.award_funds(integer)   to anon, authenticated;
-grant execute on function public.unlock_character(text) to anon, authenticated;
+grant execute on function public.award_funds(integer)        to anon, authenticated;
+grant execute on function public.unlock_character(text)      to anon, authenticated;
+grant execute on function public.claim_display_name(text)    to authenticated;

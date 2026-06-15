@@ -11,7 +11,7 @@ import { Shop } from './components/Shop';
 import { BotSetup } from './components/BotSetup';
 import { useGameStore } from './game/store';
 import { useSessionRestore } from './hooks/useSessionRestore';
-import { useProfile, selectFunds } from './hooks/useProfile';
+import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
 import { isTutorialSeen } from './utils/localPrefs';
 import { BotIcon, GlobeIcon, CartIcon, UsersIcon } from './components/icons';
@@ -56,11 +56,18 @@ const MODES: ModeDef[] = [
 
 function ModeSelect({ onSelect, onAccount }: { onSelect: (mode: AppMode) => void; onAccount: () => void }) {
   const funds = useProfile(selectFunds);
+  const signedIn = useProfile(selectIsSignedIn);
   return (
     <div className="home">
       <button type="button" className="account-chip" onClick={onAccount} title="Your account">
-        <span className="account-chip__coin" aria-hidden />
-        {funds.toLocaleString()}
+        {signedIn ? (
+          <>
+            <span className="account-chip__coin" aria-hidden />
+            {funds.toLocaleString()}
+          </>
+        ) : (
+          'Sign In'
+        )}
       </button>
 
       <BrandMark />
@@ -89,11 +96,30 @@ function ModeSelect({ onSelect, onAccount }: { onSelect: (mode: AppMode) => void
   );
 }
 
+/** Sign-in wall for account-only features (the shop). */
+function GuestGate({ title, message, onBack, onSignIn }: {
+  title: string; message: string; onBack: () => void; onSignIn: () => void;
+}) {
+  return (
+    <div className="setup">
+      <div className="setup__header"><h1 className="setup__title">{title}</h1></div>
+      <div className="mp-wait">
+        <p className="mp-wait__hint">{message}</p>
+        <button type="button" className="setup__start" style={{ marginTop: '1rem' }} onClick={onSignIn}>
+          Sign In
+        </button>
+        <button type="button" className="mp-back" onClick={onBack}>← Back</button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   useSessionRestore();
   useGameRewards();
   const phase = useGameStore((s) => s.phase);
   const initProfile = useProfile((s) => s.init);
+  const signedIn = useProfile(selectIsSignedIn);
   const [showAccount, setShowAccount] = useState(false);
   // First-ever launch auto-opens the tutorial; afterward start on the menu.
   const [appMode, setAppMode] = useState<AppMode>(() =>
@@ -119,9 +145,23 @@ function App() {
 
   const account = showAccount ? <AuthGate onClose={() => setShowAccount(false)} /> : null;
 
-  if (appMode === 'shop') return <Shop onBack={() => setAppMode('mode-select')} />;
+  if (appMode === 'shop') {
+    return signedIn ? (
+      <Shop onBack={() => setAppMode('mode-select')} />
+    ) : (
+      <>
+        <GuestGate
+          title="Campaign Shop"
+          message="Sign in to earn Campaign Funds and unlock new candidates. Your roster syncs across every device."
+          onBack={() => setAppMode('mode-select')}
+          onSignIn={() => setShowAccount(true)}
+        />
+        {account}
+      </>
+    );
+  }
   if (appMode === 'bot') return <BotSetup onBack={() => setAppMode('mode-select')} />;
-  if (appMode === 'online') return <><MultiplayerMenu onBack={() => setAppMode('mode-select')} />{account}</>;
+  if (appMode === 'online') return <><MultiplayerMenu onBack={() => setAppMode('mode-select')} onOpenAccount={() => setShowAccount(true)} />{account}</>;
   if (appMode === 'single') {
     return (
       <>

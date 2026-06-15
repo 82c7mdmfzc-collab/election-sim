@@ -13,7 +13,18 @@ export const isSupabaseConfigured = !!(url && key);
 export const supabase = createClient(
   url || 'http://placeholder.supabase.co',
   key || 'placeholder',
-  { realtime: { params: { eventsPerSecond: 10 } } },
+  {
+    realtime: { params: { eventsPerSecond: 10 } },
+    // Durable sessions are what make online play reliable: a stable auth.uid()
+    // across refreshes/devices keeps the lobby_participants binding valid. We also
+    // parse the OAuth callback fragment on load (detectSessionInUrl) and refresh
+    // tokens automatically so the uid never drifts mid-game.
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  },
 );
 
 export interface LobbyRow {

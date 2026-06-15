@@ -221,6 +221,55 @@ begin
 end;
 $$;
 
+-- ── RPC: ensure_participant — repair a missing participant binding on rejoin ───
+-- Called on session restore (page refresh / device switch). If the caller's seat
+-- exists in the lobby but their lobby_participants row is missing (e.g. an earlier
+-- insert was lost), this rebinds it to the caller. SECURITY: it will NOT hijack a
+-- seat already bound to a DIFFERENT auth user — only an unbound or self-owned seat
+-- is (re)claimed. With durable accounts the binding is stable, so this is a no-op
+-- safety net rather than the primary mechanism.
+create or replace function public.ensure_participant(
+  p_lobby_id  uuid,
+  p_player_id text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid   uuid := auth.uid();
+  v_state jsonb;
+  v_owner uuid;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+
+  select game_state into v_state from public.lobbies where id = p_lobby_id;
+  if v_state is null then raise exception 'lobby not found'; end if;
+
+  -- The seat must be a real player in this lobby.
+  if not exists (
+    select 1 from jsonb_array_elements(coalesce(v_state->'players', '[]'::jsonb)) e
+    where e->>'id' = p_player_id
+  ) then
+    raise exception 'unknown seat';
+  end if;
+
+  select auth_uid into v_owner
+    from public.lobby_participants
+    where lobby_id = p_lobby_id and player_id = p_player_id;
+
+  -- Refuse to take over a seat already owned by a different account.
+  if v_owner is not null and v_owner <> v_uid then
+    raise exception 'seat owned by another account';
+  end if;
+
+  insert into public.lobby_participants (lobby_id, auth_uid, player_id)
+  values (p_lobby_id, v_uid, p_player_id)
+  on conflict (lobby_id, player_id) do update set auth_uid = excluded.auth_uid;
+end;
+$$;
+
 -- ── RPC: start_game — host transitions waiting → in_progress ───────────────────
 create or replace function public.start_game(
   p_lobby_id   uuid,
@@ -340,6 +389,7 @@ grant execute on function public.create_lobby(text, boolean, integer, jsonb)    
 grant execute on function public.join_lobby_player(uuid, jsonb)                    to anon, authenticated;
 grant execute on function public.start_game(uuid, jsonb)                           to anon, authenticated;
 grant execute on function public.submit_turn_pending(uuid, text, jsonb, jsonb)     to anon, authenticated;
+grant execute on function public.ensure_participant(uuid, text)                    to anon, authenticated;
 grant execute on function public.set_lobby_status(uuid, text)                      to anon, authenticated;
 -- push_game_state is deprecated/disabled — revoke so no client can call it.
 revoke execute on function public.push_game_state(uuid, jsonb) from public, anon, authenticated;

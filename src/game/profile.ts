@@ -2,9 +2,10 @@
  * profile.ts — the meta-progression model and its persistence helpers.
  *
  * A Profile holds everything that survives between games: Campaign Funds,
- * unlocked characters, and lifetime stats. It is mirrored to localStorage so
- * guest/offline play works immediately, and synced to the Supabase `profiles`
- * table (via SECURITY DEFINER RPCs) when the device has a session.
+ * unlocked characters, and lifetime stats. This economy is ACCOUNT-ONLY — it
+ * lives in the Supabase `profiles` table keyed to a durable auth.uid() and is
+ * mutated only via SECURITY DEFINER RPCs. There is no guest/localStorage
+ * economy: a signed-out player simply has no funds, unlocks, or stats.
  *
  * The Zustand store + React hook live in src/hooks/useProfile.ts; this module is
  * pure data + IO so it stays easy to reason about and reuse.
@@ -43,61 +44,41 @@ export const DEFAULT_PROFILE: Profile = {
   stats: { ...DEFAULT_STATS },
 };
 
-const LS_KEY = 'election-sim-profile-v1';
-
-// ── localStorage mirror ───────────────────────────────────────────────────────
-
-export function loadLocalProfile(): Profile {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return structuredClone(DEFAULT_PROFILE);
-    const parsed = JSON.parse(raw) as Partial<Profile>;
-    return {
-      campaignFunds: parsed.campaignFunds ?? 0,
-      unlockedCharacters: parsed.unlockedCharacters ?? [],
-      selectedBorder: parsed.selectedBorder ?? 'classic',
-      stats: { ...DEFAULT_STATS, ...(parsed.stats ?? {}) },
-    };
-  } catch {
-    return structuredClone(DEFAULT_PROFILE);
-  }
-}
-
-export function saveLocalProfile(p: Profile): void {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(p));
-  } catch {
-    /* storage unavailable — ignore */
-  }
-}
-
 // ── Remote (Supabase) ─────────────────────────────────────────────────────────
 
 interface ProfileRow {
   campaign_funds: number;
   unlocked_characters: string[];
   stats: Partial<ProfileStats> | null;
+  display_name?: string | null;
 }
 
 function rowToProfile(row: ProfileRow): Profile {
   return {
     campaignFunds: row.campaign_funds ?? 0,
     unlockedCharacters: row.unlocked_characters ?? [],
-    selectedBorder: 'classic', // no DB column yet — border is a local-only preference
+    selectedBorder: 'classic', // no DB column yet — border is a cosmetic default
     stats: { ...DEFAULT_STATS, ...(row.stats ?? {}) },
   };
 }
 
-/** Fetch the signed-in user's profile row. Null if not configured / no row. */
-export async function fetchRemoteProfile(userId: string): Promise<Profile | null> {
+export interface RemoteAccount {
+  profile: Profile;
+  displayName: string | null;
+}
+
+/** Fetch the signed-in user's account (economy + permanent username). Null if
+ *  not configured / no row. */
+export async function fetchRemoteAccount(userId: string): Promise<RemoteAccount | null> {
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('profiles')
-    .select('campaign_funds, unlocked_characters, stats')
+    .select('campaign_funds, unlocked_characters, stats, display_name')
     .eq('id', userId)
     .maybeSingle();
   if (error || !data) return null;
-  return rowToProfile(data as ProfileRow);
+  const row = data as ProfileRow;
+  return { profile: rowToProfile(row), displayName: row.display_name ?? null };
 }
 
 /** Persist non-sensitive fields (stats) to the owner row. Funds/unlocks use RPCs. */
@@ -143,25 +124,4 @@ export async function unlockCharacterRemote(characterId: string): Promise<Profil
     return null;
   }
   return data ? rowToProfile(data as ProfileRow) : null;
-}
-
-/**
- * Reconcile a freshly-loaded remote profile with the local mirror. Takes the
- * higher Campaign Funds and the union of unlocks so a guest who earned offline
- * doesn't lose progress when their account loads. Stats take the larger totals.
- */
-export function mergeProfiles(local: Profile, remote: Profile): Profile {
-  return {
-    campaignFunds: Math.max(local.campaignFunds, remote.campaignFunds),
-    unlockedCharacters: [...new Set([...local.unlockedCharacters, ...remote.unlockedCharacters])],
-    // Border is a local-only cosmetic preference until it gets a DB column.
-    selectedBorder: local.selectedBorder ?? remote.selectedBorder ?? 'classic',
-    stats: {
-      gamesPlayed: Math.max(local.stats.gamesPlayed, remote.stats.gamesPlayed),
-      gamesWon: Math.max(local.stats.gamesWon, remote.stats.gamesWon),
-      winStreak: remote.stats.winStreak, // streak is "current" — trust the account
-      bestWinStreak: Math.max(local.stats.bestWinStreak, remote.stats.bestWinStreak),
-      coalitionsDominated: Math.max(local.stats.coalitionsDominated, remote.stats.coalitionsDominated),
-    },
-  };
 }

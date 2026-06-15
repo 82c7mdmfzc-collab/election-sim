@@ -1,20 +1,33 @@
 /**
  * authClient — thin wrapper over supabase.auth.
  *
- * Goals:
- *   • Play is NEVER blocked by a login wall. If Supabase is configured we sign
- *     the device in anonymously (a "guest"), which still yields an auth.uid()
- *     so a cloud profile row exists and progression can sync later.
- *   • "Save my progress" upgrades a guest to a real account via magic link,
- *     preserving the same uid (and therefore the same profile/unlocks).
- *   • If Supabase isn't configured (e.g. unit tests, offline), everything no-ops
- *     and callers fall back to the localStorage profile mirror.
+ * Account model:
+ *   • There is NO anonymous/guest economy. Campaign Funds, unlocks, stats, the
+ *     shop, and online play exist ONLY for a signed-in account. A "guest" is
+ *     simply someone with no session — they may still play vs-bot and pass-and-play.
+ *   • Sign-in is via Apple, Google, or an email magic link. All three resolve to a
+ *     durable Supabase auth.uid() that is stable across refreshes and devices,
+ *     which is what keeps online lobby participation valid.
+ *   • Each account claims ONE permanent username (see claimDisplayName), used as
+ *     their display name in online lobbies.
+ *   • If Supabase isn't configured (e.g. unit tests, offline), auth calls no-op.
  */
 
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export type { Session, User };
+
+/** Where OAuth should send the user back. Web uses the current origin; native
+ *  (Tauri) uses a registered deep-link scheme handled on app open. */
+function oauthRedirectTo(): string {
+  // In a Tauri webview the origin is tauri://localhost; route back through the
+  // deep-link scheme the app registers. On the web, return to the current origin.
+  if (typeof window !== 'undefined' && window.location.protocol.startsWith('tauri')) {
+    return 'com.playelector.app://auth-callback';
+  }
+  return typeof window !== 'undefined' ? window.location.origin : 'https://playelector.com';
+}
 
 /** Current session, or null if signed-out / not configured. */
 export async function getSession(): Promise<Session | null> {
@@ -23,46 +36,58 @@ export async function getSession(): Promise<Session | null> {
   return data.session ?? null;
 }
 
-/**
- * Ensure there is *some* session. If signed out, create an anonymous guest
- * session so a profile uid exists. Returns the active user (or null if the
- * project hasn't enabled anonymous sign-ins / isn't configured).
- */
-export async function ensureSession(): Promise<User | null> {
+/** Current user, or null if signed-out / not configured. */
+export async function getUser(): Promise<User | null> {
   if (!isSupabaseConfigured) return null;
-  const existing = await getSession();
-  if (existing?.user) return existing.user;
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    console.warn('ensureSession: anonymous sign-in unavailable —', error.message);
-    return null;
-  }
+  const { data } = await supabase.auth.getUser();
   return data.user ?? null;
 }
 
-/** True when the active user is an anonymous guest (not an email account). */
-export function isGuest(user: User | null): boolean {
-  if (!user) return true;
-  // supabase-js marks anonymous users with is_anonymous; fall back to "no email".
-  return (user as User & { is_anonymous?: boolean }).is_anonymous ?? !user.email;
+/** Begin the Google OAuth flow (redirects the browser). */
+export async function signInWithGoogle(): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: oauthRedirectTo() },
+  });
+  return error ? { error: error.message } : {};
 }
 
-/**
- * Send a magic-link to upgrade/sign-in with email. From a guest session we link
- * the email to the SAME uid via updateUser (preserving progression); if there's
- * no session we fall back to a fresh OTP sign-in.
- */
+/** Begin the Apple OAuth flow (redirects the browser). */
+export async function signInWithApple(): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: { redirectTo: oauthRedirectTo() },
+  });
+  return error ? { error: error.message } : {};
+}
+
+/** Send an email magic link to sign in (passwordless). */
 export async function sendMagicLink(email: string): Promise<{ error?: string }> {
   if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
-
-  const session = await getSession();
-  if (session?.user) {
-    const { error } = await supabase.auth.updateUser({ email });
-    return error ? { error: error.message } : {};
-  }
-
-  const { error } = await supabase.auth.signInWithOtp({ email });
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: oauthRedirectTo() },
+  });
   return error ? { error: error.message } : {};
+}
+
+/** Result of attempting to claim the permanent username. */
+export type ClaimNameResult = 'ok' | 'taken' | 'invalid' | 'already_set' | 'error';
+
+/**
+ * Claim the caller's PERMANENT username. One-time only — the server rejects a
+ * second attempt. Returns a result code the UI maps to a message.
+ */
+export async function claimDisplayName(name: string): Promise<ClaimNameResult> {
+  if (!isSupabaseConfigured) return 'error';
+  const { data, error } = await supabase.rpc('claim_display_name', { p_name: name });
+  if (error) {
+    console.warn('claimDisplayName failed:', error.message);
+    return 'error';
+  }
+  return (data as ClaimNameResult) ?? 'error';
 }
 
 export async function signOut(): Promise<void> {
