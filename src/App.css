@@ -2129,6 +2129,10 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 }
 .landing__guest:hover { color: var(--brand); }
 .landing__guest-note { margin: 0; font-size: 0.75rem; color: var(--muted); }
+.landing__legal, .auth-gate__legal {
+  margin: 1rem auto 0; max-width: 30rem; text-align: center;
+  font-size: 0.7rem; line-height: 1.45; color: var(--muted); opacity: 0.85;
+}
 
 /* ── Shared sign-in options (Landing + AuthGate) ───────────────────────────── */
 .signin { display: flex; flex-direction: column; gap: 0.6rem; }

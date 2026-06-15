@@ -30,6 +30,12 @@ export function Landing({ onContinueAsGuest }: LandingProps) {
         Continue as Guest →
       </button>
       <p className="landing__guest-note">Guests can play vs Bot and pass-and-play.</p>
+
+      <p className="landing__legal">
+        Elector is a satirical strategy game. It is not affiliated with, authorized, or endorsed
+        by any person, party, or government depicted; all names and likenesses are used for parody
+        and commentary.
+      </p>
     </div>
   );
 }

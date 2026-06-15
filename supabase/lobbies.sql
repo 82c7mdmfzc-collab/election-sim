@@ -333,9 +333,13 @@ begin
     v_submitted := v_submitted || to_jsonb(p_player_id);
   end if;
 
+  -- Build the path as a real text[] (array['pendingSubmissions', p_player_id])
+  -- rather than concatenating p_player_id into a '{...}' path literal. The array
+  -- form treats p_player_id as a single, literal path element, so a crafted id
+  -- containing ',' or '}' can't inject extra JSON path segments.
   update public.lobbies
      set game_state = jsonb_set(
-           jsonb_set(v_state, '{pendingSubmissions, ' || p_player_id || '}', p_pending, true),
+           jsonb_set(v_state, array['pendingSubmissions', p_player_id], p_pending, true),
            '{submittedPlayers}', v_submitted, true),
          updated_at = now()
    where id = p_lobby_id;

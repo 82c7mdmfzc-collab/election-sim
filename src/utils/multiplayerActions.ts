@@ -24,16 +24,37 @@ export function buildLobbyPayload(
 }
 
 /**
+ * Invoke the `resolve-turn` Edge Function with a bounded retry. The function is
+ * idempotent (it guards against double-resolution), so retrying a transient
+ * network/cold-start failure is safe. Returns the final invoke result.
+ */
+async function invokeResolveTurn(
+  body: Record<string, unknown>,
+  attempts = 2,
+): Promise<Awaited<ReturnType<typeof supabase.functions.invoke>>> {
+  let last!: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+  for (let i = 0; i < attempts; i++) {
+    last = await supabase.functions.invoke('resolve-turn', { body });
+    if (!last.error) return last;
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, 1200));
+  }
+  return last;
+}
+
+/**
  * Atomically merge a player's pending purchases into the lobby row via the
  * `submit_turn_pending` Postgres function. This prevents race conditions when
  * two players submit simultaneously.
+ *
+ * Returns true on success, false on failure so the caller can roll back its
+ * optimistic "submitted" state and let the player retry.
  */
 export async function pushMySubmission(
   lobbyId: string,
   playerId: string,
   pending: LobbyGameState['pendingSubmissions'][string],
   submittedList: string[],
-): Promise<void> {
+): Promise<boolean> {
   const { error } = await supabase.rpc('submit_turn_pending', {
     p_lobby_id: lobbyId,
     p_player_id: playerId,
@@ -43,7 +64,9 @@ export async function pushMySubmission(
   if (error) {
     console.error('[multiplayer] submit_turn_pending failed:', error);
     notifyError('Could not submit your turn. Check your connection and try again.');
+    return false;
   }
+  return true;
 }
 
 /**
@@ -62,19 +85,18 @@ export async function resolveHostTurn(
   lobbyId: string,
   onResolved: (resolved: LobbyGameState) => void,
   force = false,
-): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('resolve-turn', {
-    body: { lobbyId, force },
-  });
+): Promise<boolean> {
+  const { data, error } = await invokeResolveTurn({ lobbyId, force });
 
   if (error) {
     console.error('[multiplayer] resolve-turn failed:', error);
-    notifyError('Turn resolution failed. Retrying shortly…');
-    return;
+    notifyError('Turn resolution failed. Check your connection — it will retry automatically.');
+    return false;
   }
 
   const resolved = (data as { resolved?: LobbyGameState } | null)?.resolved;
   if (resolved) onResolved(resolved);
+  return true;
 }
 
 /**
@@ -90,17 +112,16 @@ export async function advanceHostPhase(
   lobbyId: string,
   action: 'confirmResolution' | 'resolveElection' | 'completeTally',
   onResolved: (resolved: LobbyGameState) => void,
-): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('resolve-turn', {
-    body: { lobbyId, action },
-  });
+): Promise<boolean> {
+  const { data, error } = await invokeResolveTurn({ lobbyId, action });
 
   if (error) {
     console.error(`[multiplayer] advance-phase (${action}) failed:`, error);
     notifyError('Could not advance the game. Check your connection and try again.');
-    return;
+    return false;
   }
 
   const resolved = (data as { resolved?: LobbyGameState } | null)?.resolved;
   if (resolved) onResolved(resolved);
+  return true;
 }

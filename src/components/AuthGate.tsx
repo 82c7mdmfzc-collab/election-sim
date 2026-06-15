@@ -69,6 +69,12 @@ export function AuthGate({ onClose }: AuthGateProps) {
             </button>
           </>
         )}
+
+        <p className="auth-gate__legal">
+          Elector is a satirical game and is not affiliated with, authorized, or endorsed by any
+          person, party, or government depicted; all names and likenesses are used for parody and
+          commentary.
+        </p>
       </div>
     </div>
   );

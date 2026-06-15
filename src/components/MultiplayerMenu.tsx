@@ -25,6 +25,7 @@ import { playerFromCandidate } from '../game/statesData';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
+import { notifyError } from '../utils/toast';
 import { sanitizeName } from '../utils/sanitize';
 import { Portrait } from './Portrait';
 import { Avatar } from './Avatar';
@@ -321,13 +322,20 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       .order('created_at', { ascending: false })
       .limit(20);
     setLoadingPublic(false);
-    if (!error && data) setPublicLobbies(data as LobbyRow[]);
+    if (error) {
+      notifyError('Could not load public games. Check your connection and try again.');
+      return;
+    }
+    if (data) setPublicLobbies(data as LobbyRow[]);
   }
 
-  // Auto-load the public list whenever the join screen opens.
+  // Auto-load the public list whenever the join screen opens. Deferred to a
+  // macrotask so the load's setState doesn't run synchronously inside the effect
+  // (which would trigger a cascading render).
   useEffect(() => {
-    if (screen === 'joining') void loadPublicLobbies();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (screen !== 'joining') return;
+    const id = window.setTimeout(() => void loadPublicLobbies(), 0);
+    return () => window.clearTimeout(id);
   }, [screen]);
 
   // ── JOIN: pick a public game from the list ────────────────────────────────

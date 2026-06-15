@@ -436,8 +436,18 @@ export const useGameStore = create<GameStore>()(
             // Optimistic local update so the "Waiting for others…" UI renders immediately
             set({ submittedPlayers: nextSubmitted, hasSubmittedLocalTurn: true });
 
-            // Atomic merge via Postgres RPC (prevents race with simultaneous submits)
-            void pushMySubmission(lobbyId, localPlayerId, myPending, nextSubmitted);
+            // Atomic merge via Postgres RPC (prevents race with simultaneous submits).
+            // If it fails, roll back ONLY our own optimistic entry (other players may
+            // have legitimately landed via Realtime in the meantime) so the player can
+            // re-tap Submit instead of being stuck on "Waiting for others…".
+            void pushMySubmission(lobbyId, localPlayerId, myPending, nextSubmitted).then((ok) => {
+              if (!ok) {
+                set((s) => ({
+                  submittedPlayers: s.submittedPlayers.filter((id) => id !== localPlayerId),
+                  hasSubmittedLocalTurn: false,
+                }));
+              }
+            });
 
             // If this device is the host AND everyone is now in, resolve immediately
             // without waiting for the Realtime round-trip.
