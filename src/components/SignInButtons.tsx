@@ -13,9 +13,14 @@
  * it responds with a friendly "coming soon" message instead of an OAuth error.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { APPLE_SIGNIN_ENABLED } from '../utils/authClient';
+
+// Seconds to disable re-sending after a code is emailed. Supabase enforces a
+// per-email cooldown (~60s) server-side; mirroring it here stops users from
+// hammering the button and tripping the rate limit.
+const RESEND_COOLDOWN_S = 60;
 
 type Mode = 'signin' | 'signup';
 type Step = 'email' | 'code';
@@ -33,6 +38,14 @@ export function SignInButtons() {
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+
+  // Tick the resend cooldown down to zero.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(cooldown - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -59,13 +72,14 @@ export function SignInButtons() {
   }
 
   async function sendCode() {
-    if (!email.trim()) return;
+    if (!email.trim() || status === 'sending' || cooldown > 0) return;
     setStatus('sending');
     setMessage('');
     const { error } = await sendEmailCode(email.trim(), mode === 'signup');
     if (error) { setStatus('error'); setMessage(error); return; }
     setStep('code');
     setStatus('sent');
+    setCooldown(RESEND_COOLDOWN_S);
   }
 
   async function verify() {
@@ -124,8 +138,8 @@ export function SignInButtons() {
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void sendCode(); }}
           />
-          <button type="button" className="tutorial__btn" onClick={() => void sendCode()} disabled={status === 'sending'}>
-            {status === 'sending' ? 'Sending…' : 'Send code'}
+          <button type="button" className="tutorial__btn" onClick={() => void sendCode()} disabled={status === 'sending' || cooldown > 0}>
+            {status === 'sending' ? 'Sending…' : cooldown > 0 ? `Wait ${cooldown}s` : 'Send code'}
           </button>
         </div>
       ) : (
@@ -151,8 +165,8 @@ export function SignInButtons() {
             </button>
           </div>
           <div className="signin__actions">
-            <button type="button" className="home__link" onClick={() => void sendCode()} disabled={status === 'sending'}>
-              {status === 'sending' ? 'Resending…' : 'Resend code'}
+            <button type="button" className="home__link" onClick={() => void sendCode()} disabled={status === 'sending' || cooldown > 0}>
+              {status === 'sending' ? 'Resending…' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
             </button>
             <button type="button" className="home__link" onClick={() => { setStep('email'); setCode(''); setStatus('idle'); setMessage(''); }}>
               Use a different email
