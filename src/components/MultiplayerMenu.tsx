@@ -27,6 +27,7 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { sanitizeName } from '../utils/sanitize';
 import { Portrait } from './Portrait';
+import { Avatar } from './Avatar';
 import {
   supabase,
   rpcJoinLobbyPlayer,
@@ -65,13 +66,14 @@ function WaitingRoomPlayerList({
         const cand = CANDIDATE_MAP[p.candidateId];
         return (
           <div key={p.id} className="mp-player-row">
-            {cand?.tokenUrl && (
-              <img
-                src={cand.tokenUrl}
-                className="cand-token mp-player-token"
-                alt={cand.name}
+            <span className="mp-player-token">
+              <Avatar
+                src={cand?.tokenUrl ?? ''}
+                initials={p.name.slice(0, 2).toUpperCase()}
+                name={cand?.name ?? p.name}
+                className="cand-token"
               />
-            )}
+            </span>
             <span className="mp-player-name">{p.name}</span>
             <span className="mp-player-cand">{cand?.name ?? p.candidateId}</span>
             {p.id === hostId && <span className="mp-player-badge">Host</span>}

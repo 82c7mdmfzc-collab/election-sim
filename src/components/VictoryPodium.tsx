@@ -2,7 +2,9 @@ import { useEffect, useMemo } from 'react';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { AudioManager } from '../utils/audioManager';
 import { ALL_STATES } from '../game/statesData';
+import { CANDIDATE_MAP } from '../game/candidates';
 import { RewardReveal } from './RewardReveal';
+import { Avatar } from './Avatar';
 
 const CONFETTI_COLORS = [
   '#2563eb', // blue
@@ -115,9 +117,16 @@ export function VictoryPodium() {
         style={{ ['--p-color' as string]: winnerColor }}
       >
         <div className="victory-sunburst" aria-hidden />
-        <div className="victory-label">270 PROJECTS</div>
+        <div className="victory-label">ELECTOR PROJECTS</div>
         <div className="victory-portrait">
-          {winner ? winner.name.slice(0, 2).toUpperCase() : '??'}
+          {winner ? (
+            <Avatar
+              src={CANDIDATE_MAP[winner.candidateId]?.tokenUrl ?? ''}
+              initials={winner.name.slice(0, 2).toUpperCase()}
+              name={winner.name}
+              className="cand-token"
+            />
+          ) : '??'}
         </div>
         <h1 className="victory-headline">
           {winner ? winner.name : 'Election Complete'}
@@ -154,7 +163,12 @@ export function VictoryPodium() {
             >
               <span className="victory-rank">{RANK_LABELS[i] ?? `#${i + 1}`}</span>
               <div className="victory-portrait-sm">
-                {p.name.slice(0, 2).toUpperCase()}
+                <Avatar
+                  src={CANDIDATE_MAP[p.candidateId]?.tokenUrl ?? ''}
+                  initials={p.name.slice(0, 2).toUpperCase()}
+                  name={p.name}
+                  className="cand-token"
+                />
               </div>
               <div className="victory-info">
                 <span className="victory-row-name">

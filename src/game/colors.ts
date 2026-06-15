@@ -8,7 +8,7 @@
 
 import { CANDIDATE_MAP, PLAYER_COLORS, type PlayerColorId } from './candidates';
 
-const SEAT_ORDER: PlayerColorId[] = ['blue', 'red', 'amber', 'teal'];
+const SEAT_ORDER: PlayerColorId[] = ['red', 'blue', 'green', 'purple'];
 
 export interface ResolvedColor {
   id: PlayerColorId;

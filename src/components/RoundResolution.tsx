@@ -4,6 +4,7 @@ import { CANDIDATE_MAP } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { STRATEGY_TIPS } from '../game/tips';
+import { Avatar } from './Avatar';
 import { RotatingTip } from './RotatingTip';
 import { AudioManager } from '../utils/audioManager';
 
@@ -93,10 +94,14 @@ export function RoundResolution() {
               className="res-card"
               style={{ ['--p-color' as string]: hex }}
             >
-              {cand?.tokenUrl
-                ? <img className="res-card__token" src={cand.tokenUrl} alt={cand.name} />
-                : <span className="res-card__initials">{(player?.name ?? '?')[0]}</span>
-              }
+              <span className="res-card__token">
+                <Avatar
+                  src={cand?.tokenUrl ?? ''}
+                  initials={(player?.name ?? '?')[0]}
+                  name={player?.name ?? p.playerId}
+                  className="cand-token"
+                />
+              </span>
               <div className="res-card__body">
                 <span className="res-card__name">{player?.name ?? p.playerId}</span>
                 <span className="res-card__action">

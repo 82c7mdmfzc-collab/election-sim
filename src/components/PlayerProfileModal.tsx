@@ -10,6 +10,7 @@
 import { CANDIDATE_MAP } from '../game/candidates';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
+import { Avatar } from './Avatar';
 
 interface Props {
   playerId: string;
@@ -49,16 +50,12 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
         {/* Header */}
         <div className="profile-modal__head">
           <div className="profile-modal__portrait">
-            {cand?.tokenUrl ? (
-              <img
-                className="cand-token"
-                src={cand.tokenUrl}
-                alt={player.name}
-                draggable={false}
-              />
-            ) : (
-              player.name.slice(0, 2).toUpperCase()
-            )}
+            <Avatar
+              src={cand?.tokenUrl ?? ''}
+              initials={player.name.slice(0, 2).toUpperCase()}
+              name={player.name}
+              className="cand-token"
+            />
           </div>
           <div className="profile-modal__info">
             <div className="profile-modal__name">{player.name}</div>

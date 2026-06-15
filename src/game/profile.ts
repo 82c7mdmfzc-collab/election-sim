@@ -23,6 +23,8 @@ export interface ProfileStats {
 export interface Profile {
   campaignFunds: number;
   unlockedCharacters: string[];
+  /** Cosmetic avatar frame id (see src/game/borders.ts). Local-only for now. */
+  selectedBorder: string;
   stats: ProfileStats;
 }
 
@@ -37,6 +39,7 @@ export const DEFAULT_STATS: ProfileStats = {
 export const DEFAULT_PROFILE: Profile = {
   campaignFunds: 0,
   unlockedCharacters: [],
+  selectedBorder: 'classic',
   stats: { ...DEFAULT_STATS },
 };
 
@@ -52,6 +55,7 @@ export function loadLocalProfile(): Profile {
     return {
       campaignFunds: parsed.campaignFunds ?? 0,
       unlockedCharacters: parsed.unlockedCharacters ?? [],
+      selectedBorder: parsed.selectedBorder ?? 'classic',
       stats: { ...DEFAULT_STATS, ...(parsed.stats ?? {}) },
     };
   } catch {
@@ -79,6 +83,7 @@ function rowToProfile(row: ProfileRow): Profile {
   return {
     campaignFunds: row.campaign_funds ?? 0,
     unlockedCharacters: row.unlocked_characters ?? [],
+    selectedBorder: 'classic', // no DB column yet — border is a local-only preference
     stats: { ...DEFAULT_STATS, ...(row.stats ?? {}) },
   };
 }
@@ -132,6 +137,8 @@ export function mergeProfiles(local: Profile, remote: Profile): Profile {
   return {
     campaignFunds: Math.max(local.campaignFunds, remote.campaignFunds),
     unlockedCharacters: [...new Set([...local.unlockedCharacters, ...remote.unlockedCharacters])],
+    // Border is a local-only cosmetic preference until it gets a DB column.
+    selectedBorder: local.selectedBorder ?? remote.selectedBorder ?? 'classic',
     stats: {
       gamesPlayed: Math.max(local.stats.gamesPlayed, remote.stats.gamesPlayed),
       gamesWon: Math.max(local.stats.gamesWon, remote.stats.gamesWon),

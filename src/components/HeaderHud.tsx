@@ -23,6 +23,8 @@ import { WalletDrawer } from './WalletDrawer';
 import { PlayerProfileModal } from './PlayerProfileModal';
 import { HelpButton } from './HelpButton';
 import { MuteButton } from './MuteButton';
+import { Avatar } from './Avatar';
+import { useProfile } from '../hooks/useProfile';
 
 interface PlayerHudCardProps {
   player: PlayerState;
@@ -32,14 +34,15 @@ interface PlayerHudCardProps {
   income: number;
   displayCash: number;
   color?: ResolvedColor;
+  borderId: string;
   walletOpen: boolean;
   onToggleWallet: () => void;
   onClickName: () => void;
 }
 
-function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displayCash, color, walletOpen, onToggleWallet, onClickName }: PlayerHudCardProps) {
+function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displayCash, color, borderId, walletOpen, onToggleWallet, onClickName }: PlayerHudCardProps) {
   const securedEV = useSecuredEVs(player.id);
-  const tokenUrl = CANDIDATE_MAP[player.candidateId]?.tokenUrl;
+  const tokenUrl = CANDIDATE_MAP[player.candidateId]?.tokenUrl ?? '';
   const fallback = player.name.slice(0, 2).toUpperCase();
 
   return (
@@ -54,11 +57,7 @@ function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displa
       style={{ ['--p-color' as string]: color?.hex ?? '#64748b' }}
     >
       <div className="hud-card__portrait">
-        {tokenUrl ? (
-          <img className="cand-token" src={tokenUrl} alt={player.name} draggable={false} />
-        ) : (
-          fallback
-        )}
+        <Avatar src={tokenUrl} initials={fallback} name={player.name} borderId={borderId} className="cand-token" />
       </div>
       <div className="hud-card__body">
         <div
@@ -111,6 +110,8 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
   const lastIncome = useGameStore((s) => s.lastIncome);
   const workingCash = useGameStore((s) => s.workingCash);
   const abortGame = useGameStore((s) => s.abortGame);
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
+  const myBorder = useProfile((s) => s.profile.selectedBorder);
   const result = useElectoralResult();
   const colors = usePlayerColors();
   const [openWallet, setOpenWallet] = useState<string | null>(null);
@@ -178,6 +179,7 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
               income={showIncome ? (lastIncome[p.id] ?? 0) : 0}
               displayCash={phase === 'PLANNING' ? (workingCash[p.id]?.nationalCash ?? p.nationalCash) : p.nationalCash}
               color={colors[p.id]}
+              borderId={p.id === localPlayerId ? myBorder : 'classic'}
               walletOpen={openWallet === p.id}
               onToggleWallet={() => { AudioManager.play('click'); setOpenWallet((cur) => (cur === p.id ? null : p.id)); }}
               onClickName={() => { AudioManager.play('click'); setProfilePlayer(p.id); }}

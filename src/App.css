@@ -3,44 +3,58 @@
    browser, mobile webview, and desktop (Tauri) webview. All motion is pure CSS. */
 
 :root {
-  /* Calm-blue surfaces — softer than bright sky; warm-white cards so the eye rests */
-  --bg:      #d7e3f1;
-  --panel:   #fdfbf6;
-  --panel-2: #e7eef7;
-  --panel-3: #f3efe6;
+  /* ── Elector theme — light & clean with an inviting warm-orange brand. ──
+     Brand orange is deliberately distinct from party red so the UI accent
+     never clashes with the Republican color. */
 
-  /* Typography — warm, readable slate-blue */
-  --text:  #1f3550;
-  /* Darkened from #5f7e9e so hint/secondary text clears WCAG AA contrast on the
-     light-blue surfaces (the old value was too faint to read). */
-  --muted: #3f5d7e;
+  /* Brand / accent */
+  --brand:        #f59022;   /* primary CTA / brand */
+  --brand-deep:   #d9740f;   /* pressed lip / hover-dark */
+  --brand-soft:   #fff1dd;   /* tints, selected rows */
+  --brand-yellow: #ffc23d;   /* sunny highlight / gradient top */
 
-  /* Accent palette — friendly blue primary, game hues kept */
-  --red:        #e23b3f;
-  --blue:       #2f80ed;
-  --gold:       #e8a417;
-  --green:      #1f9d57;
-  --danger-red: #d9534f;
-  --teal:       #0e8aa3;
+  /* Surfaces — light & clean */
+  --bg:      #eef1f5;
+  --panel:   #ffffff;
+  --panel-2: #f4f6f9;
+  --panel-3: #e9edf2;
 
-  /* Warm accent + soft UI tokens */
-  --accent-warm: #f5a623;
-  --border:      #aac1dd;
-  --shadow:      rgba(33, 58, 84, 0.16);
+  /* Typography */
+  --text:  #1a1e27;
+  --muted: #5c6675;
+  --faint: #93a0b0;
 
-  /* Deeper accent shades — the "lip" under chunky sticker buttons */
-  --blue-deep: #2161c0;
-  --red-deep:  #b32d31;
-  --gold-deep: #c0850e;
+  /* Lines + elevation. NB: --shadow stays a COLOR — many rules use it as
+     `box-shadow: 0 Xpx Ypx var(--shadow)`. The --shadow-* tokens are full
+     box-shadow values for the refined rules. */
+  --border:    #dde3eb;
+  --shadow:    rgba(17, 24, 39, 0.10);
+  --shadow-sm: 0 1px 3px rgba(17, 24, 39, 0.08);
+  --shadow-md: 0 4px 14px rgba(17, 24, 39, 0.10);
+  --shadow-lg: 0 12px 32px rgba(17, 24, 39, 0.14);
 
-  /* Display font — rounded & characterful for headings/buttons */
-  --font-display: 'Baloo 2', system-ui, sans-serif;
+  /* Party colors: Republican red · Democrat blue · Independent green */
+  --rep: #d8233c;  --dem: #2563eb;  --ind: #1fa85b;
 
-  /* Legacy aliases — keep existing code compiling */
-  --amber:  #e8a417;
-  --yellow: #e8a417;
+  /* Player-seat palette (distinct from each other AND the orange brand) */
+  --p-red: #d8233c;  --p-blue: #2563eb;  --p-green: #1fa85b;  --p-purple: #7c3aed;
 
-  font-family: 'Barlow', system-ui, sans-serif;
+  /* Semantic + legacy aliases — keep the existing selectors compiling */
+  --red: #d8233c;  --red-deep: #b3192c;
+  --blue: #2563eb; --blue-deep: #1d4ed8;
+  --green: #1fa85b;
+  --gold: #f2a516; --amber: #f2a516; --yellow: #f2a516; --gold-deep: #c77f0a;
+  --teal: #0fb5ae; --purple: #7c3aed;
+  --danger-red: #d8233c;
+  --accent-warm: var(--brand);
+
+  /* Radius scale */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+
+  /* Display font — clean geometric, keeps indie warmth without the cartoon */
+  --font-display: 'Outfit', system-ui, sans-serif;
+
+  font-family: 'Inter', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -116,7 +130,7 @@ body {
 
 .header-hud {
   background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
-  border-bottom: 2px solid var(--red);
+  border-bottom: 2px solid var(--brand);
   padding: 0.5rem 0.75rem;
 }
 
@@ -173,7 +187,7 @@ body {
 
 @keyframes timer-pulse {
   0%, 100% { transform: scale(1);    opacity: 1;   }
-  50%      { transform: scale(1.12); opacity: 0.6; }
+  50%      { transform: scale(1.05); opacity: 0.65; }
 }
 
 .header-hud__abort {
@@ -205,8 +219,8 @@ body {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
-  border: 2px solid var(--border);
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-left: 4px solid var(--p-color);
   border-radius: 12px;
   padding: 0.4rem 0.6rem;
@@ -312,7 +326,7 @@ body {
 .election-imminent-banner {
   position: relative;
   width: 100%;
-  background: var(--red);
+  background: var(--brand);
   color: #fff;
   text-align: center;
   font-weight: 700;
@@ -342,12 +356,12 @@ body {
 }
 /* High-odds escalation: the election is imminent — pulse to grab attention. */
 .hud__elect-pill.is-high {
-  color: #fff; background: var(--red);
+  color: #fff; background: var(--brand);
   animation: elect-pulse 1.1s ease-in-out infinite;
 }
 @keyframes elect-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(232,39,43,0.6); }
-  50%      { transform: scale(1.06); box-shadow: 0 0 0 5px rgba(232,39,43,0); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245,144,34,0.55); }
+  50%      { transform: scale(1.06); box-shadow: 0 0 0 5px rgba(245,144,34,0); }
 }
 
 .hud-card__cash {
@@ -440,7 +454,7 @@ body {
 .election-map-container {
   position: relative;
   background: var(--panel);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 16px;
   overflow: visible;
   padding: 0.35rem;
@@ -461,20 +475,20 @@ body {
 .state-card {
   position: fixed;
   z-index: 50;
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
-  border: 2px solid var(--border);
-  border-left: 5px solid var(--red);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--brand);
   border-radius: 14px;
   padding: 0.75rem;
   width: 290px;
-  box-shadow: 0 10px 30px var(--shadow);
+  box-shadow: var(--shadow-lg);
   font-size: 0.8rem;
   pointer-events: none;
 }
 .state-card--pinned {
   pointer-events: auto;
-  border-left-color: var(--red);
-  border-top: 2px solid var(--red);
+  border-left-color: var(--brand);
+  border-top: 2px solid var(--brand);
 }
 
 .state-card__header { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.4rem; position: relative; }
@@ -539,7 +553,7 @@ body {
 .state-card__disc { color: var(--green); }
 .state-card__pen { color: var(--danger-red); }
 .state-card__buy-btn {
-  background: var(--red); color: #fff; border: none; border-radius: 3px;
+  background: var(--brand); color: #fff; border: none; border-radius: 3px;
   padding: 0.35rem 0.7rem; font-size: 0.8rem; font-weight: 700;
   font-family: var(--font-display);
   letter-spacing: 0.05em; text-transform: uppercase;
@@ -626,8 +640,8 @@ body {
 
 .sidebar { display: flex; flex-direction: column; gap: 0.75rem; }
 .sidebar__section {
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
-  border: 2px solid var(--border);
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 0.65rem 0.75rem;
   box-shadow: 0 3px 12px var(--shadow);
@@ -638,7 +652,7 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   color: var(--muted);
 }
 .sidebar__ladders { display: flex; flex-direction: column; gap: 0.55rem; }
@@ -687,7 +701,7 @@ body {
 /* ══ Phase footer ══════════════════════════════════════════════════════════ */
 
 .phase-footer {
-  border-top: 2px solid var(--border);
+  border-top: 1px solid var(--border);
   background: linear-gradient(0deg, var(--panel) 0%, var(--panel-2) 100%);
   padding: 0.6rem 0.75rem;
 }
@@ -697,7 +711,7 @@ body {
   padding: 0.55rem 1.3rem;
   background: var(--panel-2);
   color: var(--text);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 11px;
   font-size: 0.95rem;
   font-weight: 700;
@@ -708,27 +722,28 @@ body {
 .phase-btn:disabled { opacity: 0.55; cursor: progress; }
 
 .phase-btn--primary {
-  background: var(--red);
+  background: var(--brand);
   color: #fff;
   border: none;
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: none;
-  border-radius: 12px;
-  box-shadow: 0 5px 0 var(--red-deep), 0 8px 16px var(--shadow);
+  border-radius: var(--r-md);
+  box-shadow: 0 3px 0 var(--brand-deep), var(--shadow-md);
+  transition: filter 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease;
 }
-.phase-btn--primary:hover:not(:disabled) { filter: brightness(1.05); }
+.phase-btn--primary:hover:not(:disabled) { filter: brightness(1.04); }
 .phase-btn--primary:active:not(:disabled) {
-  transform: translateY(4px);
-  box-shadow: 0 1px 0 var(--red-deep), 0 2px 8px var(--shadow);
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--brand-deep), var(--shadow-sm);
 }
 
 .planning { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .planning__head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
 .planning__who { font-weight: 700; font-size: 0.9rem; }
 .planning__budget { color: var(--green); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
-.footer__committed { color: var(--red); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+.footer__committed { color: var(--brand); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
 .planning__hint { color: var(--muted); font-size: 0.72rem; }
 .planning__chips { display: flex; flex-wrap: wrap; gap: 0.35rem; flex: 1; }
 .planning__empty { color: var(--muted); font-size: 0.78rem; }
@@ -841,7 +856,7 @@ body {
 }
 .handoff__pass {
   color: var(--muted); font-size: 0.75rem; margin-top: 0.5rem;
-  font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.12em;
+  font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.04em;
 }
 .handoff__name {
   font-family: var(--font-display);
@@ -929,6 +944,7 @@ body {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  display: inline-block;
 }
 
 .res-card__initials {
@@ -1020,7 +1036,7 @@ body {
 .cand-card {
   text-align: left;
   background: var(--panel);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-top: 5px solid var(--p-color);
   border-radius: 16px;
   padding: 0.9rem;
@@ -1101,7 +1117,7 @@ body {
   color: var(--text);
 }
 .setup__rule {
-  width: 72px; height: 3px; background: var(--red);
+  width: 72px; height: 3px; background: var(--brand);
   margin: 1.25rem auto 1rem;
 }
 .setup__sub {
@@ -1114,23 +1130,23 @@ body {
 
 .setup__foot { margin-top: 1.5rem; text-align: center; }
 .setup__start {
-  padding: 0.8rem 2rem; background: var(--blue); color: #fff; border: none;
-  border-radius: 14px; font-family: var(--font-display);
+  padding: 0.8rem 2rem; background: var(--brand); color: #fff; border: none;
+  border-radius: var(--r-md); font-family: var(--font-display);
   font-size: 1.15rem; font-weight: 700; letter-spacing: 0.01em; text-transform: none;
   cursor: pointer; min-width: 260px;
-  box-shadow: 0 5px 0 var(--blue-deep), 0 8px 16px var(--shadow);
-  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.12s;
+  box-shadow: 0 3px 0 var(--brand-deep), var(--shadow-md);
+  transition: transform 0.06s ease, box-shadow 0.06s ease, filter 0.12s;
 }
 .setup__start--secondary {
-  background: transparent; border: 2px solid var(--border); color: var(--muted);
-  box-shadow: none;
+  background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+  box-shadow: var(--shadow-sm);
 }
 .setup__start--secondary:hover:not(:disabled) { filter: none; border-color: var(--text); color: var(--text); }
 .setup__start:disabled { opacity: 0.5; cursor: not-allowed; }
-.setup__start:hover:not(:disabled) { filter: brightness(1.06); }
+.setup__start:hover:not(:disabled) { filter: brightness(1.04); }
 .setup__start:active:not(:disabled) {
-  transform: translateY(4px);
-  box-shadow: 0 1px 0 var(--blue-deep), 0 2px 8px var(--shadow);
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--brand-deep), var(--shadow-sm);
 }
 
 /* ══ Global form inputs ════════════════════════════════════════════════════ */
@@ -1159,7 +1175,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .mp-name-row  { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 1rem; }
 .mp-name-label {
   font-family: var(--font-display); font-size: 0.72rem;
-  text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted);
 }
 
 .mp-join { display: flex; flex-direction: column; margin-bottom: 1.25rem; }
@@ -1203,7 +1219,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .mp-wait { margin-bottom: 1.5rem; }
 .mp-wait__code-label {
   font-family: var(--font-display); font-size: 0.72rem;
-  text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); margin-bottom: 0.25rem;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.25rem;
 }
 .mp-wait__code {
   font-family: var(--font-display); font-size: 3.5rem;
@@ -1219,7 +1235,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   border-radius: 10px; padding: 0.6rem 0.85rem;
   box-shadow: 0 1px 4px var(--shadow);
 }
-.mp-player-token { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.mp-player-token { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; display: inline-block; }
 .mp-player-name { font-weight: 700; font-size: 0.88rem; flex: 1; min-width: 0; }
 .mp-player-cand { font-size: 0.72rem; color: var(--muted); }
 .mp-player-badge {
@@ -1253,7 +1269,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   padding: 1.5rem 2rem; max-width: 480px; width: 100%; text-align: center;
 }
 .election-overlay__label {
-  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em;
   color: var(--yellow); text-transform: uppercase; margin-bottom: 0.3rem;
 }
 .election-overlay__title { font-size: 1.4rem; font-weight: 700; margin: 0 0 1rem; }
@@ -1274,7 +1290,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .election-overlay__outcome p { margin: 0.25rem 0; }
 .election-overlay__outcome--win { color: var(--yellow); font-weight: 600; font-size: 1rem; }
 .election-overlay__btn {
-  display: inline-block; padding: 0.65rem 1.75rem; background: var(--red); color: #fff;
+  display: inline-block; padding: 0.65rem 1.75rem; background: var(--brand); color: #fff;
   border: none; border-radius: 4px; cursor: pointer;
   font-family: var(--font-display); font-size: 1rem;
   font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
@@ -1288,7 +1304,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 }
 .game-over__inner { text-align: center; max-width: 560px; width: 100%; }
 .game-over__label {
-  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em;
   color: var(--yellow); text-transform: uppercase; margin-bottom: 0.5rem;
 }
 .game-over__winner-name { font-size: 2.5rem; font-weight: 800; margin: 0 0 0.3rem; }
@@ -1373,7 +1389,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   transition: width 0.4s ease-out;
 }
 .tally-hud__title {
-  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.12em;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em;
   color: var(--muted); text-transform: uppercase; margin-right: auto;
 }
 .tally-stage {
@@ -1511,7 +1527,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .victory-label {
   font-family: var(--font-display);
   font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em;
-  text-transform: uppercase; color: var(--red); margin-bottom: 0.25rem;
+  text-transform: uppercase; color: var(--brand); margin-bottom: 0.25rem;
 }
 .victory-portrait {
   width: 96px; height: 96px; border-radius: 50%;
@@ -1536,7 +1552,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .victory-row {
   display: grid; grid-template-columns: 2rem 2rem 1fr;
   gap: 0.6rem; align-items: center;
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
+  background: var(--panel);
   border-radius: 5px; padding: 0.6rem 0.9rem;
   border: 1px solid var(--panel-2);
   border-left: 3px solid var(--p-color);
@@ -1556,7 +1572,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .victory-cta { margin-top: 0.5rem; }
 .victory-cta { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
 .victory-cta button {
-  padding: 0.7rem 2.2rem; background: var(--red); color: #fff; border: none;
+  padding: 0.7rem 2.2rem; background: var(--brand); color: #fff; border: none;
   border-radius: 4px;
   font-family: var(--font-display);
   font-size: 1.05rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
@@ -1614,7 +1630,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   padding: 0.75rem; border: 1px solid var(--panel-2);
 }
 .waiting-players__tip-label {
-  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--muted);
 }
 .waiting-players__tip-text {
@@ -1623,13 +1639,13 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 
 /* Tighten waiting-players panel to match broadcast aesthetic */
 .waiting-players__panel {
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
+  background: var(--panel);
   border-radius: 6px;
-  border-top: 2px solid var(--red);
+  border-top: 2px solid var(--brand);
 }
 .waiting-players__title {
   font-family: var(--font-display);
-  font-size: 1.1rem; letter-spacing: 0.1em; text-transform: uppercase;
+  font-size: 1.1rem; letter-spacing: 0.04em; text-transform: uppercase;
 }
 .waiting-players__row { border-radius: 4px; }
 .waiting-players__tip { border-radius: 4px; }
@@ -1641,7 +1657,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   padding: 0.75rem; border: 1px solid var(--panel-2);
 }
 .tip-rotator__label {
-  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--muted);
 }
 .tip-rotator__text {
@@ -1681,8 +1697,8 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 }
 .help-overlay__panel {
   width: min(560px, 100%); max-height: 86vh; overflow-y: auto;
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
-  border: 1px solid var(--panel-2); border-top: 3px solid var(--red);
+  background: var(--panel);
+  border: 1px solid var(--panel-2); border-top: 3px solid var(--brand);
   border-radius: 8px; padding: 1.25rem 1.5rem;
   box-shadow: 0 18px 50px rgba(0,0,0,0.5);
 }
@@ -1699,7 +1715,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .howto__sections { display: flex; flex-direction: column; gap: 0.9rem; }
 .howto__section-title {
   font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--red); margin: 0 0 0.2rem;
+  text-transform: uppercase; color: var(--brand); margin: 0 0 0.2rem;
 }
 .howto__section-body { font-size: 0.86rem; line-height: 1.55; color: var(--text); margin: 0; }
 
@@ -1722,8 +1738,8 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .tutorial__panel {
   position: relative;
   width: min(460px, 100%);
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
-  border: 1px solid var(--panel-2); border-top: 3px solid var(--red);
+  background: var(--panel);
+  border: 1px solid var(--panel-2); border-top: 3px solid var(--brand);
   border-radius: 10px; padding: 2rem 1.75rem 1.5rem;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0,0,0,0.55);
@@ -1753,11 +1769,11 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   border: none; background: var(--panel-2); cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
 }
-.tutorial__dot.is-active { background: var(--red); transform: scale(1.25); }
+.tutorial__dot.is-active { background: var(--brand); transform: scale(1.15); }
 .tutorial__nav { display: flex; gap: 0.6rem; }
 .tutorial__btn {
   flex: 1; padding: 0.7rem 1rem; border-radius: 6px; border: none;
-  background: var(--red); color: #fff; font-weight: 700; cursor: pointer;
+  background: var(--brand); color: #fff; font-weight: 700; cursor: pointer;
   letter-spacing: 0.03em; transition: filter 0.12s ease, transform 0.12s ease;
 }
 .tutorial__btn:hover { filter: brightness(1.1); }
@@ -1786,7 +1802,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   font-size: 2.6rem; font-weight: 800; color: var(--gold); line-height: 1;
 }
 .auth-gate__funds-label {
-  font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
 }
 .auth-gate__stats { display: flex; gap: 0.5rem; margin-bottom: 1.1rem; }
 .auth-gate__stat {
@@ -1802,7 +1818,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   border: 1px solid var(--panel-2); background: var(--panel-3); color: var(--text);
 }
 .auth-gate__ok { color: var(--green); font-size: 0.85rem; }
-.auth-gate__err { color: var(--red); font-size: 0.8rem; margin-top: 0.5rem; }
+.auth-gate__err { color: var(--brand); font-size: 0.8rem; margin-top: 0.5rem; }
 
 /* ── Reward reveal (victory) ───────────────────────────────────────────────── */
 .reward-reveal {
@@ -1816,7 +1832,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   font-size: 2.4rem; font-weight: 800; color: var(--gold); line-height: 1;
 }
 .reward-reveal__label {
-  font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--muted); margin-bottom: 0.6rem;
 }
 .reward-reveal__lines { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
@@ -1832,6 +1848,25 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   background: var(--panel-2); color: var(--text);
   font-weight: 800; font-family: var(--font-display);
   letter-spacing: 0.02em;
+}
+
+/* ── Avatar (token + cosmetic frame overlay) ───────────────────────────────── */
+/* The avatar fills its (sized, circular) parent box — e.g. .hud-card__portrait
+   is 38×38. The token fills it; the frame overlays at 100% with its own
+   transparent center hole, so the ring sits on the outer edge of the avatar. */
+.avatar {
+  position: relative;
+  display: block;
+  width: 100%; height: 100%;
+  line-height: 0;
+}
+.avatar__token { width: 100%; height: 100%; display: block; }
+.avatar__frame {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  object-fit: contain;
 }
 
 /* ── Shop ──────────────────────────────────────────────────────────────────── */
@@ -1853,10 +1888,10 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
 }
 .shop-card {
-  background: linear-gradient(160deg, var(--panel) 0%, var(--panel-3) 100%);
+  background: var(--panel);
   border: 1px solid var(--panel-2); border-radius: 10px; padding: 1rem;
   display: flex; flex-direction: column; gap: 0.6rem;
-  --p-color: var(--red);
+  --p-color: var(--brand);
 }
 .shop-card.is-owned { border-color: var(--green); }
 .shop-card__top { display: flex; gap: 0.75rem; align-items: center; }
@@ -1901,7 +1936,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   align-items: center;
   gap: 0;
   background: var(--panel);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 12px;
   white-space: nowrap;
   font-size: 0.72rem;
@@ -1969,7 +2004,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 
 .sg-detail {
   background: var(--panel);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 18px;
   padding: 1.1rem 1.2rem;
   max-width: 660px;
@@ -2077,7 +2112,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   position: relative;
   height: 16px;
   background: var(--panel-2);
-  border: 2px solid var(--border);
+  border: 1px solid var(--border);
   border-radius: 999px;
   overflow: visible;
 }
@@ -2209,7 +2244,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 .profile-modal__section-title {
   font-size: 0.6rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 0.35rem;
@@ -2259,7 +2294,7 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 /* ══ Global interaction polish ═════════════════════════════════════════════ */
 
 *:focus-visible {
-  outline: 2px solid var(--red);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 

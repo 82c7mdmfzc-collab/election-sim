@@ -15,7 +15,23 @@
  * carries a +0.05 Swing States cost affinity (override) — see plan.
  */
 
-export type PlayerColorId = 'blue' | 'red' | 'amber' | 'teal';
+export type PlayerColorId = 'red' | 'blue' | 'green' | 'purple';
+
+/** Political party — cosmetic only (drives color + badge, never gameplay). */
+export type Party = 'republican' | 'democrat' | 'independent';
+
+/** Party → preferred seat color. */
+export const PARTY_COLOR: Record<Party, PlayerColorId> = {
+  republican: 'red',
+  democrat: 'blue',
+  independent: 'green',
+};
+
+export const PARTY_LABEL: Record<Party, string> = {
+  republican: 'Republican',
+  democrat: 'Democrat',
+  independent: 'Independent',
+};
 
 export interface CandidateDef {
   readonly id: string;
@@ -28,6 +44,8 @@ export interface CandidateDef {
   readonly tokenUrl: string;
   /** $1k units. */
   readonly startingCash: number;
+  /** Political party — cosmetic (sets color + badge, drives no gameplay). */
+  readonly party: Party;
   /** Default political color (overridable per-seat at setup). */
   readonly color: PlayerColorId;
   readonly tagline: string;
@@ -78,7 +96,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/bobby_tooley.png',
     tokenUrl: '/assets/tokens/bobby_tooley_token.png',
     startingCash: 300,
-    color: 'blue',
+    party: 'independent',
+    color: 'green',
     tagline: 'The Baseline — completely neutral across every track.',
     unlockCost: 0,
     affinities: {},
@@ -91,6 +110,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/donald_trump.png',
     tokenUrl: '/assets/tokens/donald_trump_token.png',
     startingCash: 250,
+    party: 'republican',
     color: 'red',
     tagline: 'The Industrial Populist.',
     unlockCost: 0,
@@ -120,7 +140,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/kamala_harris.png',
     tokenUrl: '/assets/tokens/kamala_harris_token.png',
     startingCash: 250,
-    color: 'teal',
+    party: 'democrat',
+    color: 'blue',
     tagline: 'The Metro Coalition.',
     unlockCost: 0,
     affinities: {
@@ -145,7 +166,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/abraham_lincoln.png',
     tokenUrl: '/assets/tokens/abraham_lincoln_token.png',
     startingCash: 250,
-    color: 'amber',
+    party: 'republican',
+    color: 'red',
     tagline: 'The Centrist Unifier.',
     unlockCost: 0,
     affinities: {
@@ -171,6 +193,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/joe_biden.png',
     tokenUrl: '/assets/tokens/joe_biden_token.png',
     startingCash: 250,
+    party: 'democrat',
     color: 'blue',
     tagline: 'The Union Hall Veteran.',
     unlockCost: 1500,
@@ -198,6 +221,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/ronald_reagan.png',
     tokenUrl: '/assets/tokens/ronald_reagan_token.png',
     startingCash: 250,
+    party: 'republican',
     color: 'red',
     tagline: 'The Sun Belt Optimist.',
     unlockCost: 1500,
@@ -234,10 +258,10 @@ export function isCandidateAvailable(c: CandidateDef, unlocked: readonly string[
   return c.unlockCost === 0 || unlocked.includes(c.id);
 }
 
-/** Hex values for each political color (mirrors --player-* CSS vars). */
+/** Hex values for each seat color (mirrors the --p-* CSS vars). */
 export const PLAYER_COLORS: Record<PlayerColorId, string> = {
+  red: '#d8233c',
   blue: '#2563eb',
-  red: '#dc2626',
-  amber: '#f59e0b',
-  teal: '#14b8a6',
+  green: '#1fa85b',
+  purple: '#7c3aed',
 };
