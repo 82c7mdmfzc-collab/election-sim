@@ -50,13 +50,16 @@ Both were pasted/visible in the assistant chat and should be considered compromi
       `git remote set-url origin https://<NEW_TOKEN>@github.com/82c7mdmfzc-collab/election-sim.git`
 
 ## 3. Supabase auth configuration (before public launch)
-Dashboard → Authentication:
+Accounts are **required for online play** and the economy is account-only. Dashboard → Authentication:
+- [ ] **Anonymous = OFF** (no guest economy; durable accounts fix the online submit/identity drift).
+- [ ] **Google** provider ON (OAuth client id/secret).
+- [ ] **Apple** provider ON (Service ID, Team ID, Key ID, private key).
+- [ ] **Email magic link** ON; set the sender/branding.
 - [ ] **URL Configuration:** Site URL = `https://playelector.com`. Add Redirect URLs:
-      `https://playelector.com/*`, the Vercel preview domain, and mobile deep link
-      `com.playelector.app://`.
+      `https://playelector.com`, `https://www.playelector.com`, the Vercel preview domain,
+      `http://localhost:5174`, and the mobile deep link `com.playelector.app://auth-callback`.
 - [ ] **Rate Limits / Attestation:** enable rate limiting + CAPTCHA (hCaptcha/Turnstile) on
-      anonymous sign-ins to stop account farming.
-- [ ] Confirm Anonymous sign-in is enabled; set the magic-link email sender/branding.
+      sign-ups to stop account farming.
 
 ## 4. Namecheap — domain
 - [x] Finish purchasing **PlayElector.com** (paid 2026-06-15). Verify free **Domain Privacy
@@ -99,7 +102,8 @@ Dashboard → Authentication:
       support URL (`https://playelector.com/support`), privacy URL (`https://playelector.com/privacy`),
       screenshots (6.7" + 5.5" iPhone + iPad — capture from the simulator).
 - [ ] `npm run tauri:ios:build` → upload via Xcode Organizer/Transporter → **TestFlight** first.
-- [ ] Submit for App Review (note for reviewers: anonymous play needs no login).
+- [ ] Submit for App Review (note for reviewers: vs-bot and pass-and-play need no login; online
+      play and the shop require a free account — Apple/Google/email sign-in is provided).
 
 ## 8. Google — Play Store (no account yet)
 - [ ] Create **Google Play Console** account ($25 one-time); identity verification can take 1–2 days.

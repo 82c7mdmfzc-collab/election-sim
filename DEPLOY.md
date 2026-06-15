@@ -22,11 +22,17 @@ Test the full create → join → play → resolve flow in a staging project bef
 Run [`supabase/profiles.sql`](supabase/profiles.sql) in **Dashboard → SQL Editor**.
 It is idempotent. It creates:
 - `public.profiles` (keyed by `auth.uid()`) with **RLS: owner-only** read/insert/update.
-- A trigger that auto-creates a profile row for every new auth user (incl. anonymous guests).
+- A trigger that auto-creates a profile row for every new auth user.
+- `display_name` column + a **case-insensitive unique** partial index, and the
+  `claim_display_name(name)` RPC — a **one-time, permanent** username claim (rejects a second
+  attempt; enforces 3–20 chars `[A-Za-z0-9_-]` and global uniqueness server-side).
 - `award_funds(amount)` — `SECURITY DEFINER`, caps each grant at 5000 to limit tampering.
 - `unlock_character(character)` — `SECURITY DEFINER`; the **server owns the price catalog**,
   so a client can never spoof a cheap unlock. Keep its `CASE` price list in sync with
   `unlockCost` in `src/game/candidates.ts`.
+
+> **Economy is account-only.** There is no guest/localStorage economy. Campaign Funds,
+> unlocks, stats, the shop, and online play all require a signed-in account.
 
 ### Apply the lobbies schema
 Run [`supabase/lobbies.sql`](supabase/lobbies.sql) in **Dashboard → SQL Editor** (after profiles).
@@ -37,7 +43,10 @@ Idempotent. It creates/hardens:
   can be looked up before joining). **No direct client INSERT/UPDATE/DELETE.**
 - Identity-bound RPCs: `create_lobby` (caller becomes host), `join_lobby_player`
   (binds caller ↔ claimed player), `start_game` / `push_game_state` / `set_lobby_status`
-  (**host only**), `submit_turn_pending` (submit **only as the player you own**).
+  (**host only**), `submit_turn_pending` (submit **only as the player you own**;
+  `submittedPlayers` is merged server-side so concurrent submits never clobber each other),
+  `ensure_participant` (best-effort re-bind on session restore; never hijacks a seat owned by
+  another account).
 - After applying, delete any leftover test rows (e.g. `room_code = 'TEST'`).
 
 ### Deploy the resolve-turn Edge Function (server-authoritative resolution)
@@ -58,11 +67,24 @@ The client invokes it via `supabase.functions.invoke('resolve-turn', …)`. Depl
 > (RESOLUTION→next PLANNING, election tally) via `push_game_state`. Moving the election/winner
 > computation server-side is the remaining hardening step.
 
-### Enable anonymous sign-ins
-Dashboard → Authentication → Providers → **Anonymous** = ON. This lets guests play and
-earn progression immediately; `sendMagicLink` later links an email to the same uid so
-funds/unlocks carry over (`src/utils/authClient.ts`). Note: the lobbies identity binding relies
-on each browser having a persistent anonymous auth session.
+### Configure auth providers (accounts are required for online play)
+Dashboard → Authentication → Providers:
+- **Anonymous = OFF.** There is no guest economy and online play requires a real account, so
+  anonymous sign-ins must be disabled (also stops account farming). A durable account `auth.uid()`
+  is what keeps the `lobby_participants` binding valid across refreshes/devices — the root cause of
+  the old "stuck on Thinking…" submit bug was anonymous uid drift.
+- **Google = ON.** Create an OAuth client (Google Cloud Console), paste client id/secret.
+- **Apple = ON.** Configure Service ID, Team ID, Key ID, and the private key.
+- **Email (magic link) = ON.** Set the sender/branding.
+
+Add these to **Authentication → URL Configuration → Redirect URLs**:
+`https://playelector.com`, `https://www.playelector.com`, the Vercel preview domain,
+`http://localhost:5174`, and the Tauri deep link `com.playelector.app://auth-callback`
+(see `oauthRedirectTo()` in `src/utils/authClient.ts`).
+
+> **Native (Tauri) note:** web OAuth works via `detectSessionInUrl`. Desktop/mobile additionally
+> need the deep-link scheme registered and the returned URL fed back to `supabase.auth` on app open
+> — wire this when shipping the native builds (web is unaffected).
 
 ### Verify (re-run after applying both files)
 - `GET /rest/v1/profiles` with the anon key → **must NOT return rows** (owner-only RLS).

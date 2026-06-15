@@ -1,36 +1,39 @@
 /**
  * useProfile — Zustand store for the player's meta-progression account.
  *
- * Responsibilities:
- *   • On init: ensure a session (guest is fine), load the remote profile, merge
- *     it with the local mirror, and keep both in sync.
- *   • applyGameResult(): the single entry point used at game end — updates stats,
- *     computes the Campaign Funds award (pure rewards.ts), writes through to the
- *     server RPC, and stashes the breakdown for the victory reveal.
- *   • unlock(): server-validated character purchase.
+ * The economy (Campaign Funds, unlocks, lifetime stats) and the permanent
+ * username are ACCOUNT-ONLY: they exist only while signed in and live entirely
+ * in Supabase. A signed-out "guest" has the DEFAULT_PROFILE (all zeros), no
+ * username, and cannot earn funds, unlock characters, or play online — but can
+ * still play vs-bot and pass-and-play.
  *
- * Everything degrades to localStorage-only when Supabase isn't configured, so
- * guest/offline play never breaks.
+ * Responsibilities:
+ *   • init(): load the current session (if any) and hydrate the account.
+ *   • applyGameResult(): single entry point at game end — when signed in, claims
+ *     the server-authoritative Campaign Funds award and syncs stats.
+ *   • unlock(): server-validated character purchase (signed-in only).
+ *   • claimUsername(): one-time permanent username claim.
  */
 
 import { create } from 'zustand';
 import {
   type Profile,
   type ProfileStats,
-  loadLocalProfile,
-  saveLocalProfile,
-  fetchRemoteProfile,
+  DEFAULT_PROFILE,
+  fetchRemoteAccount,
   pushRemoteStats,
   claimGameRewardRemote,
   unlockCharacterRemote,
-  mergeProfiles,
 } from '../game/profile';
 import { computeReward, type RewardBreakdown } from '../game/rewards';
 import {
-  ensureSession,
-  isGuest as authIsGuest,
+  getUser,
   onAuthChange,
   sendMagicLink,
+  signInWithGoogle as authSignInWithGoogle,
+  signInWithApple as authSignInWithApple,
+  claimDisplayName,
+  type ClaimNameResult,
   signOut as authSignOut,
   type User,
 } from '../utils/authClient';
@@ -46,7 +49,10 @@ export interface GameResult {
 interface ProfileStore {
   profile: Profile;
   userId: string | null;
+  /** True when there is no signed-in account (guest). */
   guest: boolean;
+  /** The account's permanent username, or null if signed-out / not yet claimed. */
+  displayName: string | null;
   ready: boolean;
   /** The most recent award breakdown, for the victory-screen reveal. */
   lastReward: RewardBreakdown | null;
@@ -57,15 +63,28 @@ interface ProfileStore {
   unlock(characterId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
   signInWithEmail(email: string): Promise<{ error?: string }>;
+  signInWithGoogle(): Promise<{ error?: string }>;
+  signInWithApple(): Promise<{ error?: string }>;
+  claimUsername(name: string): Promise<ClaimNameResult>;
   signOut(): Promise<void>;
 }
 
 let initialized = false;
 
+const EMPTY_REWARD: RewardBreakdown = {
+  base: 0,
+  winBonus: 0,
+  securedBonus: 0,
+  dominanceBonus: 0,
+  streakBonus: 0,
+  total: 0,
+};
+
 export const useProfile = create<ProfileStore>((set, get) => ({
-  profile: loadLocalProfile(),
+  profile: structuredClone(DEFAULT_PROFILE),
   userId: null,
   guest: true,
+  displayName: null,
   ready: false,
   lastReward: null,
 
@@ -73,17 +92,24 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     if (initialized) return;
     initialized = true;
 
-    // React to future sign-in/out (e.g. magic-link upgrade) by reloading.
+    // React to future sign-in/out (OAuth redirect, magic link) by reloading.
     onAuthChange((user: User | null) => {
-      void hydrateForUser(user, set, get);
+      void hydrateForUser(user, set);
     });
 
-    const user = await ensureSession();
-    await hydrateForUser(user, set, get);
+    const user = await getUser();
+    await hydrateForUser(user, set);
   },
 
   async applyGameResult(result) {
-    const { profile } = get();
+    const { profile, userId } = get();
+
+    // No guest economy: a signed-out player earns nothing and sees no reveal.
+    if (!userId) {
+      set({ lastReward: null });
+      return EMPTY_REWARD;
+    }
+
     const prevStreak = profile.stats.winStreak;
     const newStreak = result.won ? prevStreak + 1 : 0;
 
@@ -102,18 +128,14 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       coalitionsDominated: profile.stats.coalitionsDominated + result.coalitionsDominated,
     };
 
-    // Optimistic local update so the reveal is instant.
-    const optimistic: Profile = {
-      ...profile,
-      campaignFunds: profile.campaignFunds + breakdown.total,
-      stats: nextStats,
-    };
-    persist(optimistic, set);
-    set({ lastReward: breakdown });
+    // Optimistic in-memory update so the reveal is instant.
+    set({
+      profile: { ...profile, campaignFunds: profile.campaignFunds + breakdown.total, stats: nextStats },
+      lastReward: breakdown,
+    });
 
     // Server: authoritative, deduped funds claim + stats sync. The server owns
     // the amount; we send only the (range-checked) outcome and the gameId.
-    const userId = get().userId;
     const newBalance = await claimGameRewardRemote({
       gameId: result.gameId,
       won: result.won,
@@ -121,10 +143,9 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       coalitionsDominated: result.coalitionsDominated,
       winStreak: newStreak,
     });
-    if (userId) void pushRemoteStats(userId, nextStats);
+    void pushRemoteStats(userId, nextStats);
     if (newBalance != null) {
-      const reconciled: Profile = { ...get().profile, campaignFunds: newBalance, stats: nextStats };
-      persist(reconciled, set);
+      set({ profile: { ...get().profile, campaignFunds: newBalance, stats: nextStats } });
     }
     return breakdown;
   },
@@ -134,24 +155,16 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   },
 
   async unlock(characterId) {
-    const { profile } = get();
+    const { profile, userId } = get();
     if (profile.unlockedCharacters.includes(characterId)) return true;
+    if (!userId) return false; // unlocks are account-only
 
     const updated = await unlockCharacterRemote(characterId);
     if (updated) {
-      persist(updated, set);
+      set({ profile: updated });
       return true;
     }
-    // Offline/guest fallback: enforce the catalog cost locally.
-    const cost = LOCAL_UNLOCK_COSTS[characterId];
-    if (cost == null || profile.campaignFunds < cost) return false;
-    const next: Profile = {
-      ...profile,
-      campaignFunds: profile.campaignFunds - cost,
-      unlockedCharacters: [...profile.unlockedCharacters, characterId],
-    };
-    persist(next, set);
-    return true;
+    return false;
   },
 
   isUnlocked(characterId) {
@@ -162,37 +175,44 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     return sendMagicLink(email);
   },
 
+  async signInWithGoogle() {
+    return authSignInWithGoogle();
+  },
+
+  async signInWithApple() {
+    return authSignInWithApple();
+  },
+
+  async claimUsername(name) {
+    const result = await claimDisplayName(name);
+    if (result === 'ok') set({ displayName: name.trim() });
+    return result;
+  },
+
   async signOut() {
     await authSignOut();
-    set({ userId: null, guest: true });
+    set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
   },
 }));
-
-/** Local fallback catalog (kept in sync with supabase/profiles.sql). */
-const LOCAL_UNLOCK_COSTS: Record<string, number> = {
-  joe_biden: 1500,
-  ronald_reagan: 1500,
-};
-
-function persist(profile: Profile, set: (p: Partial<ProfileStore>) => void): void {
-  saveLocalProfile(profile);
-  set({ profile });
-}
 
 async function hydrateForUser(
   user: User | null,
   set: (p: Partial<ProfileStore>) => void,
-  get: () => ProfileStore,
 ): Promise<void> {
-  const local = get().profile;
   if (!user) {
-    set({ userId: null, guest: true, ready: true });
+    set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE), ready: true });
     return;
   }
-  const remote = await fetchRemoteProfile(user.id);
-  const merged = remote ? mergeProfiles(local, remote) : local;
-  persist(merged, set as (p: Partial<ProfileStore>) => void);
-  set({ userId: user.id, guest: authIsGuest(user), ready: true });
+  const account = await fetchRemoteAccount(user.id);
+  set({
+    userId: user.id,
+    guest: false,
+    displayName: account?.displayName ?? null,
+    profile: account?.profile ?? structuredClone(DEFAULT_PROFILE),
+    ready: true,
+  });
 }
 
 export const selectFunds = (s: ProfileStore) => s.profile.campaignFunds;
+export const selectIsSignedIn = (s: ProfileStore) => !s.guest;
+export const selectDisplayName = (s: ProfileStore) => s.displayName;

@@ -92,12 +92,18 @@ function WaitingRoomPlayerList({
 
 interface Props {
   onBack: () => void;
+  onOpenAccount: () => void;
 }
 
-export function MultiplayerMenu({ onBack }: Props) {
+export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   const setMultiplayerMeta = useGameStore((s) => s.setMultiplayerMeta);
   const syncFromPayload    = useGameStore((s) => s.syncFromPayload);
   const initOnlineGame     = useGameStore((s) => s.initOnlineGame);
+
+  // Online play requires a signed-in account with a claimed permanent username;
+  // the username is used as this player's display name in the lobby.
+  const guest       = useProfile((s) => s.guest);
+  const displayName = useProfile((s) => s.displayName);
 
   // This device can only field candidates it owns (founding roster + unlocks).
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
@@ -113,7 +119,6 @@ export function MultiplayerMenu({ onBack }: Props) {
   // ── Create-flow state ──────────────────────────────────────────────────────
   const [playerCount, setPlayerCount]       = useState(2);
   const [myCandidate, setMyCandidate]       = useState<CandidateDef | null>(null);
-  const [myName, setMyName]                 = useState('');
 
   // ── Shared lobby state (set after create or join) ─────────────────────────
   const [lobby, setLobby]                   = useState<LobbyRow | null>(null);
@@ -124,7 +129,6 @@ export function MultiplayerMenu({ onBack }: Props) {
   const [codeInput, setCodeInput]           = useState('');
   const [foundLobby, setFoundLobby]         = useState<LobbyRow | null>(null);
   const [guestCandidate, setGuestCandidate] = useState<CandidateDef | null>(null);
-  const [guestName, setGuestName]           = useState('');
   const [publicLobbies, setPublicLobbies]   = useState<LobbyRow[]>([]);
   const [loadingPublic, setLoadingPublic]   = useState(false);
 
@@ -178,7 +182,7 @@ export function MultiplayerMenu({ onBack }: Props) {
 
   // ── CREATE: insert waiting lobby ──────────────────────────────────────────
   async function createRoom(isPublic: boolean) {
-    if (!myCandidate || !myName.trim()) return;
+    if (!myCandidate || !displayName) return;
     setLoading(true);
     setErrorMsg(null);
 
@@ -186,7 +190,7 @@ export function MultiplayerMenu({ onBack }: Props) {
     const hostPlayer: WaitingPlayer = {
       id: hostId,
       candidateId: myCandidate.id,
-      name: sanitizeName(myName),
+      name: sanitizeName(displayName),
       isHost: true,
     };
     const waitingState: WaitingLobbyState = {
@@ -336,7 +340,7 @@ export function MultiplayerMenu({ onBack }: Props) {
 
   // ── JOIN: claim a slot and enter waiting room ─────────────────────────────
   async function joinRoom() {
-    if (!foundLobby || !guestCandidate || !guestName.trim()) return;
+    if (!foundLobby || !guestCandidate || !displayName) return;
     setLoading(true);
     setErrorMsg(null);
 
@@ -346,7 +350,7 @@ export function MultiplayerMenu({ onBack }: Props) {
     const guestPlayer: WaitingPlayer = {
       id: guestId,
       candidateId: guestCandidate.id,
-      name: sanitizeName(guestName),
+      name: sanitizeName(displayName),
       isHost: false,
     };
 
@@ -377,6 +381,28 @@ export function MultiplayerMenu({ onBack }: Props) {
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
+
+  // Gate: online play requires a signed-in account with a claimed username.
+  if (guest || !displayName) {
+    return (
+      <div className="setup">
+        <div className="setup__header">
+          <h1 className="setup__title">Play Online</h1>
+        </div>
+        <div className="mp-wait">
+          <p className="mp-wait__hint">
+            {guest
+              ? 'Sign in to host or join online games. Your account also keeps your Campaign Funds, unlocks, and record synced across devices.'
+              : 'Choose your permanent username to play online.'}
+          </p>
+          <button type="button" className="setup__start" style={{ marginTop: '1rem' }} onClick={onOpenAccount}>
+            {guest ? 'Sign In' : 'Choose Username'}
+          </button>
+          <button type="button" className="mp-back" onClick={onBack}>← Back</button>
+        </div>
+      </div>
+    );
+  }
 
   if (screen === 'main') {
     return (
@@ -456,17 +482,7 @@ export function MultiplayerMenu({ onBack }: Props) {
           })}
         </div>
 
-        <div className="mp-name-row">
-          <label htmlFor="mp-host-name" className="mp-name-label">What should we call you?</label>
-          <input
-            id="mp-host-name"
-            className="mp-join__input"
-            value={myName}
-            onChange={(e) => setMyName(e.target.value.slice(0, 20))}
-            placeholder="Your name"
-            maxLength={20}
-          />
-        </div>
+        <p className="mp-hint">Playing as <strong>@{displayName}</strong></p>
 
         {errorMsg && <p className="mp-error">{errorMsg}</p>}
 
@@ -474,7 +490,7 @@ export function MultiplayerMenu({ onBack }: Props) {
           <button
             type="button"
             className="setup__start"
-            disabled={!myCandidate || !myName.trim() || loading}
+            disabled={!myCandidate || loading}
             onClick={() => createRoom(false)}
           >
             {loading ? 'Creating…' : 'Create Private Game'}
@@ -483,7 +499,7 @@ export function MultiplayerMenu({ onBack }: Props) {
             type="button"
             className="setup__start"
             style={{ opacity: 0.8, marginTop: '0.5rem' }}
-            disabled={!myCandidate || !myName.trim() || loading}
+            disabled={!myCandidate || loading}
             onClick={() => createRoom(true)}
           >
             Create Public Game
@@ -666,17 +682,7 @@ export function MultiplayerMenu({ onBack }: Props) {
           })}
         </div>
 
-        <div className="mp-name-row">
-          <label htmlFor="mp-guest-name" className="mp-name-label">What should we call you?</label>
-          <input
-            id="mp-guest-name"
-            className="mp-join__input"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value.slice(0, 20))}
-            placeholder="Your name"
-            maxLength={20}
-          />
-        </div>
+        <p className="mp-hint">Playing as <strong>@{displayName}</strong></p>
 
         {errorMsg && <p className="mp-error">{errorMsg}</p>}
 
@@ -684,7 +690,7 @@ export function MultiplayerMenu({ onBack }: Props) {
           <button
             type="button"
             className="setup__start"
-            disabled={!guestCandidate || !guestName.trim() || loading}
+            disabled={!guestCandidate || loading}
             onClick={() => void joinRoom()}
           >
             {loading ? 'Joining…' : 'Join Game'}
