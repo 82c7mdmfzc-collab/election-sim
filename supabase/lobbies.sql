@@ -246,7 +246,7 @@ create or replace function public.submit_turn_pending(
   p_lobby_id       uuid,
   p_player_id      text,
   p_pending        jsonb,          -- PendingPurchase[] for this player
-  p_submitted_list jsonb           -- updated submittedPlayers (string[])
+  p_submitted_list jsonb           -- DEPRECATED/ignored: submittedPlayers is now merged server-side
 )
 returns void
 language plpgsql
@@ -254,8 +254,9 @@ security definer
 set search_path = public
 as $$
 declare
-  v_uid   uuid := auth.uid();
-  v_state jsonb;
+  v_uid       uuid := auth.uid();
+  v_state     jsonb;
+  v_submitted jsonb;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
 
@@ -270,10 +271,27 @@ begin
   select game_state into v_state from public.lobbies where id = p_lobby_id for update;
   if v_state is null then raise exception 'lobby not found'; end if;
 
+  -- Merge this player into the AUTHORITATIVE submittedPlayers array server-side
+  -- (under the row lock above) instead of trusting the client-supplied list.
+  -- A client's p_submitted_list is computed from its own local snapshot, which
+  -- is frequently stale (it hasn't yet received the other players' Realtime
+  -- submission events). Overwriting with it let a late/concurrent submit clobber
+  -- earlier submitters, so resolve-turn would see "not all submitted" and the
+  -- turn never resolved — every player stuck on "Thinking…". Merging by player
+  -- id makes concurrent submits commutative and idempotent.
+  v_submitted := (
+    select coalesce(jsonb_agg(distinct elem), '[]'::jsonb)
+    from (
+      select jsonb_array_elements_text(coalesce(v_state->'submittedPlayers', '[]'::jsonb)) as elem
+      union
+      select p_player_id
+    ) merged
+  );
+
   update public.lobbies
      set game_state = jsonb_set(
            jsonb_set(v_state, '{pendingSubmissions, ' || p_player_id || '}', p_pending, true),
-           '{submittedPlayers}', p_submitted_list, true),
+           '{submittedPlayers}', v_submitted, true),
          updated_at = now()
    where id = p_lobby_id;
 end;
