@@ -2132,6 +2132,18 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 
 /* ── Shared sign-in options (Landing + AuthGate) ───────────────────────────── */
 .signin { display: flex; flex-direction: column; gap: 0.6rem; }
+.signin__tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r-pill); padding: 0.2rem;
+}
+.signin__tab {
+  border: none; background: none; cursor: pointer;
+  padding: 0.5rem 0.75rem; border-radius: var(--r-pill);
+  font-weight: 700; font-size: 0.85rem; color: var(--muted);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.signin__tab.is-active { background: var(--panel); color: var(--text); box-shadow: var(--shadow-sm); }
 .signin__providers { display: flex; flex-direction: column; gap: 0.5rem; }
 .signin__provider {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
@@ -2149,6 +2161,18 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
 }
 .signin__divider::before, .signin__divider::after {
   content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.signin__verify { display: flex; flex-direction: column; gap: 0.5rem; }
+.signin__code {
+  text-align: center; font-family: var(--font-display); font-weight: 800;
+  font-size: 1.15rem; letter-spacing: 0.4em; text-indent: 0.4em;
+}
+.signin__actions { display: flex; justify-content: space-between; gap: 0.5rem; }
+.signin__actions .home__link { font-size: 0.8rem; }
+.signin__actions .home__link:disabled { opacity: 0.5; cursor: default; }
+.signin__inline-link {
+  background: none; border: none; cursor: pointer; padding: 0;
+  color: var(--brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px;
 }
 /* ── Phone ergonomics: compact header, bigger touch targets, tidy footer ──── */
 @media (max-width: 768px), (max-height: 600px) {

@@ -54,7 +54,8 @@ Accounts are **required for online play** and the economy is account-only. Dashb
 - [ ] **Anonymous = OFF** (no guest economy; durable accounts fix the online submit/identity drift).
 - [ ] **Google** provider ON (OAuth client id/secret).
 - [ ] **Apple** provider ON (Service ID, Team ID, Key ID, private key).
-- [ ] **Email magic link** ON; set the sender/branding.
+- [ ] **Email** ON; set sender/branding. Set **OTP Length = 8** and **OTP Expiry = 900s** (15 min),
+      and add `{{ .Token }}` to the Magic Link email template so the 8-digit code shows (keep the link too).
 - [ ] **URL Configuration:** Site URL = `https://playelector.com`. Add Redirect URLs:
       `https://playelector.com`, `https://www.playelector.com`, the Vercel preview domain,
       `http://localhost:5174`, and the mobile deep link `com.playelector.app://auth-callback`.

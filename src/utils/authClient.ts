@@ -69,14 +69,41 @@ export async function signInWithApple(): Promise<{ error?: string }> {
   return error ? { error: error.message } : {};
 }
 
-/** Send an email magic link to sign in (passwordless). */
-export async function sendMagicLink(email: string): Promise<{ error?: string }> {
+/**
+ * Email the player a passwordless sign-in. The email carries BOTH a clickable
+ * magic link (same-device) and an 8-digit code (cross-device — read it on your
+ * phone, type it on the device you're playing on). Code length/expiry are set in
+ * the Supabase dashboard (8 digits / 15 min).
+ *
+ * @param signUp  Create Account mode (true) creates the user if new; Sign In
+ *                mode (false) rejects an unknown email so we can prompt to register.
+ */
+export async function sendEmailCode(
+  email: string,
+  { signUp }: { signUp: boolean },
+): Promise<{ error?: string }> {
   if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: oauthRedirectTo() },
+    options: { shouldCreateUser: signUp, emailRedirectTo: oauthRedirectTo() },
   });
-  return error ? { error: error.message } : {};
+  if (!error) return {};
+  // Friendlier copy for the common Sign-In-with-unknown-email case.
+  const msg = /signups? not allowed|not found|no user/i.test(error.message)
+    ? 'No account found for that email. Switch to Create Account to make one.'
+    : error.message;
+  return { error: msg };
+}
+
+/** Redeem the 8-digit email code. On success the session is set and onAuthChange fires. */
+export async function verifyEmailCode(email: string, token: string): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
+  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+  if (!error) return {};
+  const msg = /expired|invalid|token/i.test(error.message)
+    ? 'That code is invalid or has expired. Request a new one.'
+    : error.message;
+  return { error: msg };
 }
 
 /** Result of attempting to claim the permanent username. */

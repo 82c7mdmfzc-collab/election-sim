@@ -29,7 +29,8 @@ import { computeReward, type RewardBreakdown } from '../game/rewards';
 import {
   getUser,
   onAuthChange,
-  sendMagicLink,
+  sendEmailCode as authSendEmailCode,
+  verifyEmailCode as authVerifyEmailCode,
   signInWithGoogle as authSignInWithGoogle,
   signInWithApple as authSignInWithApple,
   claimDisplayName,
@@ -62,7 +63,8 @@ interface ProfileStore {
   clearLastReward(): void;
   unlock(characterId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
-  signInWithEmail(email: string): Promise<{ error?: string }>;
+  sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
+  verifyEmailCode(email: string, code: string): Promise<{ error?: string }>;
   signInWithGoogle(): Promise<{ error?: string }>;
   signInWithApple(): Promise<{ error?: string }>;
   claimUsername(name: string): Promise<ClaimNameResult>;
@@ -171,8 +173,12 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     return get().profile.unlockedCharacters.includes(characterId);
   },
 
-  async signInWithEmail(email) {
-    return sendMagicLink(email);
+  async sendEmailCode(email, signUp) {
+    return authSendEmailCode(email, { signUp });
+  },
+
+  async verifyEmailCode(email, code) {
+    return authVerifyEmailCode(email, code);
   },
 
   async signInWithGoogle() {

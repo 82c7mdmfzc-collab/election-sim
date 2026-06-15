@@ -75,7 +75,14 @@ Dashboard → Authentication → Providers:
   the old "stuck on Thinking…" submit bug was anonymous uid drift.
 - **Google = ON.** Create an OAuth client (Google Cloud Console), paste client id/secret.
 - **Apple = ON.** Configure Service ID, Team ID, Key ID, and the private key.
-- **Email (magic link) = ON.** Set the sender/branding.
+- **Email = ON.** Set the sender/branding. The client uses a **passwordless 8-digit code**
+  (with a magic link as a same-device fallback) so a player can read the code on a different
+  device than they're playing on. Configure:
+  - **Authentication → Providers → Email:** Email **OTP Length = 8**, Email **OTP Expiry = 900**
+    seconds (15 minutes).
+  - **Authentication → Email Templates → Magic Link:** the template must include **both** the link
+    (`{{ .ConfirmationURL }}`) **and** the code (`{{ .Token }}`). Add `{{ .Token }}` if it's missing,
+    or the email won't show a code to type.
 
 Add these to **Authentication → URL Configuration → Redirect URLs**:
 `https://playelector.com`, `https://www.playelector.com`, the Vercel preview domain,
