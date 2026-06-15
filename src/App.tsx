@@ -11,6 +11,7 @@ import { Shop } from './components/Shop';
 import { BotSetup } from './components/BotSetup';
 import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
+import { UsernameClaim } from './components/UsernameClaim';
 import { useGameStore } from './game/store';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
@@ -103,6 +104,7 @@ function App() {
   const initProfile = useProfile((s) => s.init);
   const ready = useProfile((s) => s.ready);
   const signedIn = useProfile(selectIsSignedIn);
+  const displayName = useProfile((s) => s.displayName);
   const [showAccount, setShowAccount] = useState(false);
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
   // can choose to continue as a guest for the rest of this session.
@@ -128,6 +130,19 @@ function App() {
   // Signed-out front door — shown on every fresh load until "Continue as Guest".
   if (!signedIn && !guestContinued) {
     return <Landing onContinueAsGuest={() => setGuestContinued(true)} />;
+  }
+
+  // One-time, mandatory username claim immediately after a new account signs in.
+  if (signedIn && !displayName) {
+    return (
+      <div className="landing">
+        <BrandMark />
+        <div className="landing__card">
+          <h2 className="landing__title">Choose your username</h2>
+          <UsernameClaim />
+        </div>
+      </div>
+    );
   }
 
   // Pre-game routing

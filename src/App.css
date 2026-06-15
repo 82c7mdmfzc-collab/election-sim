@@ -2118,6 +2118,10 @@ input[type="text"]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba
   margin: 0 0 1.1rem; text-align: center;
   font-size: 0.9rem; line-height: 1.5; color: var(--muted);
 }
+.landing__title {
+  margin: 0 0 0.9rem; text-align: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; color: var(--text);
+}
 .landing__guest {
   background: none; border: none; cursor: pointer;
   color: var(--text); font-family: var(--font-display); font-weight: 700;
