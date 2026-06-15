@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Support — Elector</title>
+  <meta name="description" content="Support and help for Elector (PlayElector.com)." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --brand:#f59022; --deep:#d9740f; --soft:#fff1dd; --bg:#eef1f5; --panel:#fff;
+      --text:#1a1e27; --muted:#5c6675; --border:#dde3eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+      font-family:'Inter',system-ui,sans-serif;line-height:1.6;-webkit-text-size-adjust:100%}
+    .wrap{max-width:760px;margin:0 auto;padding:48px 22px 80px}
+    header a.brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+    .mark{font-family:'Outfit',sans-serif;font-weight:800;font-size:26px;letter-spacing:-.01em}
+    .mark .o{color:var(--brand)}
+    h1{font-family:'Outfit',sans-serif;font-weight:800;font-size:34px;margin:34px 0 6px;letter-spacing:-.02em}
+    .lead{color:var(--muted);font-size:17px;margin:0 0 24px;max-width:60ch}
+    h2{font-family:'Outfit',sans-serif;font-weight:700;font-size:20px;margin:26px 0 6px}
+    p,li{color:#2b313c;font-size:16px}
+    a{color:var(--deep)}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;
+      padding:26px 28px;box-shadow:0 4px 14px rgba(17,24,39,.06)}
+    .contact{display:flex;align-items:center;gap:14px;background:var(--soft);
+      border:1px solid #f4d6a8;border-radius:14px;padding:18px 20px;margin:18px 0 8px}
+    .contact .em{font-family:'Outfit',sans-serif;font-weight:700;font-size:18px;color:var(--deep);text-decoration:none}
+    .btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;
+      font-family:'Outfit',sans-serif;font-weight:700;padding:11px 20px;border-radius:999px;
+      box-shadow:0 4px 12px rgba(217,116,15,.35);margin-left:auto}
+    details{border-top:1px solid var(--border);padding:14px 0}
+    details:first-of-type{border-top:none}
+    summary{font-family:'Outfit',sans-serif;font-weight:600;font-size:16px;cursor:pointer;list-style:none}
+    summary::-webkit-details-marker{display:none}
+    summary::before{content:"+";color:var(--brand);font-weight:800;margin-right:10px}
+    details[open] summary::before{content:"–"}
+    details p{margin:10px 0 2px}
+    footer{margin-top:40px;padding-top:22px;border-top:1px solid var(--border);
+      color:var(--muted);font-size:14px;display:flex;gap:18px;flex-wrap:wrap}
+    footer a{color:var(--muted);text-decoration:none}
+    footer a:hover{color:var(--deep)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="brand" href="/"><span class="mark">Elect<span class="o">o</span>r</span></a>
+    </header>
+
+    <h1>Support</h1>
+    <p class="lead">Need a hand with Elector? We're happy to help with bugs, account questions,
+    or anything else.</p>
+
+    <div class="card">
+      <div class="contact">
+        <div>
+          <div style="font-size:13px;color:var(--muted)">Email us</div>
+          <a class="em" href="mailto:support@playelector.com">support@playelector.com</a>
+        </div>
+        <a class="btn" href="mailto:support@playelector.com?subject=Elector%20Support">Contact</a>
+      </div>
+      <p style="color:var(--muted);font-size:14px;margin:6px 2px 2px">
+      When reporting a bug, it helps to include your device, the platform (web, iOS, or Android),
+      and what you were doing when it happened.</p>
+    </div>
+
+    <h2 style="margin-top:34px">Frequently asked</h2>
+    <div class="card">
+      <details open>
+        <summary>How do I play?</summary>
+        <p>Elector is a turn-based strategy game about winning the US Electoral College. Campaign
+        across states, build coalitions, and race to 270 electoral votes — solo, against bots, or
+        online with friends. A built-in tutorial walks you through your first game.</p>
+      </details>
+      <details>
+        <summary>Do I need an account?</summary>
+        <p>No. You can play anonymously and your progress is still saved to your device. If you'd
+        like to keep your progress across devices, you can save it with a magic link sent to your
+        email.</p>
+      </details>
+      <details>
+        <summary>How does online multiplayer work?</summary>
+        <p>One player hosts a lobby and shares the room code; others join with it. Turns are
+        coordinated by our server so games stay in sync. If a game stalls, make sure all players
+        have a stable connection and try rejoining with the same room code.</p>
+      </details>
+      <details>
+        <summary>What are Campaign Funds?</summary>
+        <p>Campaign Funds are the in-game currency you earn by finishing games. They're tracked on
+        your account and can be spent in the in-game Shop. Replaying an already-finished game does
+        not grant funds again.</p>
+      </details>
+      <details>
+        <summary>How do I delete my account and data?</summary>
+        <p>Email <a href="mailto:support@playelector.com">support@playelector.com</a> from the
+        address linked to your account (or include your account details) and we'll delete your data
+        within 30 days. See our <a href="/privacy">Privacy Policy</a> for details.</p>
+      </details>
+    </div>
+
+    <footer>
+      <a href="/">Home</a>
+      <a href="/support">Support</a>
+      <a href="/privacy">Privacy</a>
+    </footer>
+  </div>
+</body>
+</html>

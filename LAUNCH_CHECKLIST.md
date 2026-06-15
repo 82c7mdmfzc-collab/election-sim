@@ -59,7 +59,8 @@ Dashboard → Authentication:
 - [ ] Confirm Anonymous sign-in is enabled; set the magic-link email sender/branding.
 
 ## 4. Namecheap — domain
-- [ ] Finish purchasing **PlayElector.com**; enable free **Domain Privacy (WhoisGuard)**.
+- [x] Finish purchasing **PlayElector.com** (paid 2026-06-15). Verify free **Domain Privacy
+      (WhoisGuard)** is toggled ON in Namecheap → Domain List → Manage.
 - [ ] Point DNS at Vercel (either set Vercel's nameservers, or add the A record `@ → 76.76.21.21`
       and CNAME `www → cname.vercel-dns.com` that Vercel shows you).
 - [ ] Create **support@playelector.com** (email forwarding to your inbox is fine) — a support email
@@ -68,17 +69,22 @@ Dashboard → Authentication:
 ## 5. Vercel — domain + required pages
 - [ ] Vercel → project → Settings → **Domains**: add `playelector.com` and `www.playelector.com`;
       follow DNS prompts; choose primary redirect (www→apex or apex→www). SSL is automatic.
-- [ ] Add reachable **/privacy** and **/support** pages on the domain (store review requires both).
+- [x] Add reachable **/privacy** and **/support** pages on the domain (store review requires both).
+      Built `public/privacy.html` + `public/support.html` (CSP-safe, inline styles) and added
+      `/privacy` + `/support` rewrites to `vercel.json`. Live once the next deploy ships.
 - [ ] Re-confirm `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set for Production (they are).
-- [ ] Create an **og-image.png** (1200×630) at `public/assets/brand/og-image.png` (referenced by the
-      OG tags) and a real app logo at `public/assets/brand/elector_logo.png` (currently text fallback).
+- [x] Create an **og-image.png** (1200×630) at `public/assets/brand/og-image.png` (referenced by the
+      OG tags) and a real app logo at `public/assets/brand/elector_logo.png`. Both generated on-brand
+      via `scripts/gen-brand-assets.py` (orange wordmark, accent "o", "Race to 270" OG card).
 
 ## 6. App icons (one master → all sizes)
 - [ ] Make a 1024×1024 PNG master icon (no transparency for iOS).
 - [ ] Run `npx tauri icon path/to/icon.png` — populates `src-tauri/icons/` + the iOS/Android asset
       catalogs. Add Android adaptive-icon foreground/background and an iOS/Android splash.
-- [ ] Update web `public/favicon.svg` if the brand mark changed; regenerate PWA PNG icons (192/512)
-      and add them to `public/manifest.webmanifest` (currently references the SVG only).
+- [x] Regenerate PWA PNG icons (192/512 + maskable-512, 180 apple-touch) and add them to
+      `public/manifest.webmanifest`; added `apple-touch-icon` link to `index.html`. `favicon.svg`
+      left as-is (still on-brand). A 1024 master icon (`public/assets/brand/icon-1024.png`, opaque,
+      iOS-safe) is ready for the `tauri icon` step below.
 
 ## 7. Apple — App Store (no account yet)
 - [ ] Enroll in **Apple Developer Program** ($99/yr) at developer.apple.com (individual enrollment is
