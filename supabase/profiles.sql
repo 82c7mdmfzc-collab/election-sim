@@ -20,6 +20,7 @@ begin
     when 'washington'    then 1500
     when 'starmer'       then 1500
     when 'farage'        then 1500
+    when 'jfk'           then 1500
     else null end;
   if v_cost is null then raise exception 'unlock_character: unknown character %', p_character; end if;
 

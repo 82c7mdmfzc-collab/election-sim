@@ -33,7 +33,7 @@ const FALLBACK_ORIGIN = 'https://playelector.com';
 const KNOWN_SKUS = new Set<string>([
   'funds_1500', 'funds_4000', 'funds_8000', 'funds_12000',
   'unlock_washington', 'unlock_joe_biden', 'unlock_ronald_reagan',
-  'unlock_starmer', 'unlock_farage',
+  'unlock_starmer', 'unlock_farage', 'unlock_jfk',
 ]);
 
 function corsFor(req: Request): Record<string, string> {

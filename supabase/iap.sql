@@ -54,7 +54,7 @@ begin
     elsif p_sku like 'unlock_%' then
       -- Character unlocks bought with cash. SKU 'unlock_<id>' → character id.
       v_char := substring(p_sku from 8);
-      if v_char not in ('joe_biden','ronald_reagan','washington','starmer','farage') then
+      if v_char not in ('joe_biden','ronald_reagan','washington','starmer','farage','jfk') then
         raise exception 'fulfill_purchase: unknown unlock sku %', p_sku;
       end if;
       update public.profiles

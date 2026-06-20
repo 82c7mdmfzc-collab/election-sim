@@ -321,6 +321,32 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Environmental': -0.20,
     },
   },
+  {
+    id: 'jfk',
+    name: 'John F. Kennedy',
+    portrait: 'JK',
+    portraitUrl: '/assets/portraits/jfk.jpg',
+    tokenUrl: '/assets/tokens/jfk_token.png',
+    startingCash: 250,
+    party: 'democrat',
+    color: 'blue',
+    tagline: 'The New Frontier.',
+    unlockCost: 1500,
+    affinities: {
+      'High Tech': 0.15,
+      'Youth Vote': 0.15,
+      'African American': 0.10,
+      'Big Conservative': -0.20,
+      'Oil and Gas': -0.15,
+      'Old South': -0.10,
+    },
+    payoutModifiers: {
+      'Youth Vote': 0.20,
+      'High Tech': 0.15,
+      "Women's Vote": 0.10,
+      'Gun Lobby': -0.20,
+    },
+  },
 ];
 
 export const CANDIDATE_MAP: Record<string, CandidateDef> = Object.fromEntries(

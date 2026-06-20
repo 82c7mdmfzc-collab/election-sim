@@ -32,6 +32,7 @@ const WEB_PRICE_CENTS: Record<string, { cents: number; label: string }> = {
   unlock_ronald_reagan: { cents: 299, label: 'Ronald Reagan (character)' },
   unlock_starmer: { cents: 299, label: 'Keir Starmer (character)' },
   unlock_farage: { cents: 299, label: 'Nigel Farage (character)' },
+  unlock_jfk: { cents: 299, label: 'John F. Kennedy (character)' },
 };
 
 function corsFor(req: Request): Record<string, string> {
