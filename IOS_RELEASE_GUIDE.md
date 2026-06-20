@@ -11,7 +11,13 @@ This is the copy-paste handoff for building the first iOS TestFlight release fro
 - iOS priority: TestFlight first; Android remains visually prepared by the same icon set.
 - Native paid Campaign Funds are release-gated. Stripe remains web-only, and iOS/Android purchase bundles stay hidden unless a reviewed native billing bridge injects `window.__ELECTOR_IAP__`.
 
-Local blocker from this machine: `npm run tauri:ios:init` could not finish because `cargo`/`rustc`, full Xcode, and simulator tools are not installed or not selected.
+Toolchain status (updated 2026-06-20):
+- ✅ **Rust + iOS targets installed** (`aarch64-apple-ios`, `aarch64-apple-ios-sim`, `x86_64-apple-ios`).
+- ❌ **Full Xcode** — only Command Line Tools are present; iOS builds need full Xcode (Mac App Store), then `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer && sudo xcodebuild -license accept`.
+- ❌ **CocoaPods** — `brew install cocoapods` (or `sudo gem install cocoapods`); required by `tauri ios init`.
+- ❌ **Apple signing** — add your Apple ID in Xcode → Settings → Accounts (auto-manage signing).
+
+Once those three are in, run the Build Commands below. App Store metadata + review notes are drafted in `APP_STORE_LISTING.md`. Realistic timing: **TestFlight today; public App Store after Apple review (~1–3 days)**.
 
 ## One-Time Prereqs
 
