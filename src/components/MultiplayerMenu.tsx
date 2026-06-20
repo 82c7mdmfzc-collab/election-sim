@@ -21,7 +21,6 @@ import {
   isCandidateAvailable,
   type CandidateDef,
 } from '../game/candidates';
-import { playerFromCandidate } from '../game/statesData';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
@@ -35,6 +34,8 @@ import {
   rpcJoinLobbyPlayer,
   rpcCreateLobby,
   rpcStartGame,
+  rpcFindLobbyByCode,
+  rpcListPublicLobbies,
   type LobbyRow,
 } from '../utils/supabaseClient';
 import { ModifierSheet } from './ModifierSheet';
@@ -99,7 +100,6 @@ interface Props {
 export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   const setMultiplayerMeta = useGameStore((s) => s.setMultiplayerMeta);
   const syncFromPayload    = useGameStore((s) => s.syncFromPayload);
-  const initOnlineGame     = useGameStore((s) => s.initOnlineGame);
 
   // Online play requires a signed-in account with a claimed permanent username;
   // the username is used as this player's display name in the lobby.
@@ -234,46 +234,9 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     setLoading(true);
     setErrorMsg(null);
 
-    // Build PlayerState[] from the confirmed waiting room player list
-    const players = waitingPlayers.map((wp) => {
-      const cand = CANDIDATE_MAP[wp.candidateId];
-      if (!cand) throw new Error(`Unknown candidateId: ${wp.candidateId}`);
-      return playerFromCandidate(cand, { id: wp.id, name: wp.name });
-    });
-
-    // Initialize game in the store — sets phase='PLANNING' which routes to GameShell
-    initOnlineGame(players);
-
-    // Snapshot the freshly-initialized state to push to Supabase
-    const snap = useGameStore.getState();
-    const gameState: LobbyGameState = {
-      turn: snap.turn,
-      seqCounter: snap.seqCounter,
-      players: snap.players,
-      rungs: snap.rungs,
-      natRungs: snap.natRungs,
-      reachSeq: snap.reachSeq,
-      natReachSeq: snap.natReachSeq,
-      securedBy: snap.securedBy,
-      natSecuredBy: snap.natSecuredBy,
-      stateGroupDominance: snap.stateGroupDominance,
-      hungColleges: snap.hungColleges,
-      phase: 'PLANNING',
-      activePlayerIndex: 0,
-      electionResult: null,
-      lastIncome: Object.fromEntries(snap.players.map((p) => [p.id, 0])),
-      lastTurnReport: null,
-      prevDominance: snap.stateGroupDominance,
-      electionTallyProgress: 0,
-      hostPlayerId: myPlayerId,
-      submittedPlayers: [],
-      pendingSubmissions: {},
-      turnDeadlineUtc: snap.turnDeadline,
-      turnTimeLimitSec: snap.turnTimeLimit,
-    };
-
     try {
-      await rpcStartGame(lobby.id, gameState);
+      const gameState = await rpcStartGame(lobby.id, useGameStore.getState().turnTimeLimit);
+      syncFromPayload(gameState);
     } catch (e) {
       setLoading(false);
       setErrorMsg(`Could not start game: ${(e as Error).message}`);
@@ -292,41 +255,37 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     setLoading(true);
     setErrorMsg(null);
 
-    const { data, error } = await supabase
-      .from('lobbies')
-      .select('*')
-      .eq('room_code', code)
-      .eq('status', 'waiting')
-      .single();
-
+    let data: LobbyRow | null;
+    try {
+      data = await rpcFindLobbyByCode(code);
+    } catch {
+      setLoading(false);
+      setErrorMsg('Room not found or game already started.');
+      return;
+    }
     setLoading(false);
 
-    if (error || !data) {
+    if (!data) {
       setErrorMsg('Room not found or game already started.');
       return;
     }
 
     AudioManager.play('click');
-    setFoundLobby(data as LobbyRow);
+    setFoundLobby(data);
     setScreen('picking');
   }
 
   // ── JOIN: list open public games ──────────────────────────────────────────
   async function loadPublicLobbies() {
     setLoadingPublic(true);
-    const { data, error } = await supabase
-      .from('lobbies')
-      .select('*')
-      .eq('status', 'waiting')
-      .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    setLoadingPublic(false);
-    if (error) {
+    try {
+      const data = await rpcListPublicLobbies();
+      setPublicLobbies(data);
+    } catch {
       notifyError('Could not load public games. Check your connection and try again.');
-      return;
+    } finally {
+      setLoadingPublic(false);
     }
-    if (data) setPublicLobbies(data as LobbyRow[]);
   }
 
   // Auto-load the public list whenever the join screen opens. Deferred to a

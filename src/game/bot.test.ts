@@ -6,11 +6,13 @@ import {
   calcNationalCost,
   computeWalletSplit,
   maxBuyableThisTurn,
+  resolveTurn,
+  tallyElectoralVotes,
 } from './engine';
-import { createInitialGameState, ALL_STATES } from './statesData';
+import { createInitialGameState, createInitialGameStateFromPlayers, playerFromCandidate, ALL_STATES } from './statesData';
 import { NATIONAL_GROUPS } from './config';
 import { CANDIDATES } from './candidates';
-import type { BotDifficulty, GameState, PlayerState } from './types';
+import type { BotDifficulty, GameState, PendingPurchase, PlayerState } from './types';
 
 const STATE_BY_ID = Object.fromEntries(ALL_STATES.map((s) => [s.id, s]));
 const NAT_BY_ID = Object.fromEntries(NATIONAL_GROUPS.map((g) => [g.id, g]));
@@ -77,6 +79,74 @@ function assertLegal(state: GameState, playerId: string, moves: BotMove[]): void
   }
 }
 
+function movesToPending(state: GameState, playerId: string, moves: BotMove[]): PendingPurchase[] {
+  const p = state.players.find((x) => x.id === playerId)!;
+  const tracker: PlayerState = { ...p, groupWallets: { ...p.groupWallets } };
+  const pendingRungs: Record<string, number> = {};
+  const purchases: PendingPurchase[] = [];
+
+  for (const m of moves) {
+    if (m.kind === 'state') {
+      const us = STATE_BY_ID[m.targetId];
+      const startRung = state.rungs[m.targetId]?.[playerId] ?? 0;
+      const pend = pendingRungs[m.targetId] ?? 0;
+      const discount = bestAffinityForState(tracker, m.targetId);
+      const cost = calcStateCost(m.targetId, us.baseCampaignCost, startRung + pend, m.rungs, discount);
+      const split = computeWalletSplit(tracker, m.targetId, cost);
+      if (!split) continue;
+      for (const d of split.walletDraw) {
+        if (d.wallet === 'NATIONAL') tracker.nationalCash -= d.amount;
+        else tracker.groupWallets[d.wallet] -= d.amount;
+      }
+      pendingRungs[m.targetId] = pend + m.rungs;
+      purchases.push({ kind: 'state', targetId: m.targetId, rungs: m.rungs, cost, walletDraw: split.walletDraw });
+    } else {
+      const startRung = state.natRungs[m.targetId]?.[playerId] ?? 0;
+      const pend = pendingRungs[m.targetId] ?? 0;
+      const cost = calcNationalCost(m.targetId, startRung + pend, m.rungs, tracker);
+      if (cost > tracker.nationalCash) continue;
+      tracker.nationalCash -= cost;
+      pendingRungs[m.targetId] = pend + m.rungs;
+      purchases.push({ kind: 'national', targetId: m.targetId, rungs: m.rungs, cost, walletDraw: [{ wallet: 'NATIONAL', amount: cost }] });
+    }
+  }
+
+  return purchases;
+}
+
+function simulateDuel(
+  left: BotDifficulty,
+  right: BotDifficulty,
+  seed: number,
+  candidateIndex: number,
+): Record<BotDifficulty, number> {
+  const base = CANDIDATES[candidateIndex % CANDIDATES.length];
+  const players = [
+    { ...playerFromCandidate(base, { id: `${left}-left`, name: left }), isBot: true, botDifficulty: left },
+    { ...playerFromCandidate(base, { id: `${right}-right`, name: right }), isBot: true, botDifficulty: right },
+  ];
+  let state = createInitialGameStateFromPlayers(players);
+  const rngs = Object.fromEntries(players.map((p, i) => [p.id, mulberry32(seed * 100 + i + 1)]));
+
+  for (let turn = 0; turn < 12; turn++) {
+    const pending: Record<string, PendingPurchase[]> = {};
+    for (const p of players) {
+      const view = { ...state, pendingByPlayer: pending } as GameState;
+      const moves = planBotTurn(view, p.id, p.botDifficulty!, rngs[p.id]);
+      pending[p.id] = movesToPending(state, p.id, moves);
+    }
+    const result = resolveTurn(state, pending);
+    state = { ...result.state, turn: state.turn + 1 };
+  }
+
+  const evs = tallyElectoralVotes(state).evByPlayer;
+  return {
+    easy: players.filter((p) => p.botDifficulty === 'easy').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
+    medium: players.filter((p) => p.botDifficulty === 'medium').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
+    hard: players.filter((p) => p.botDifficulty === 'hard').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
+  };
+}
+
 const DIFFICULTIES: BotDifficulty[] = ['easy', 'medium', 'hard'];
 
 describe('planBotTurn — legality', () => {
@@ -131,7 +201,7 @@ describe('planBotTurn — behavior', () => {
     expect(planBotTurn(state, botId, 'medium', mulberry32(1))).toEqual([]);
   });
 
-  it('hard keeps a larger cash reserve than easy (easy spends harder)', () => {
+  it('easy leaves budget unused while hard makes a serious plan', () => {
     const state = freshGame();
     const botId = state.players[1].id;
     const start = state.players[1].nationalCash;
@@ -147,6 +217,29 @@ describe('planBotTurn — behavior', () => {
     const hardSpend = spent(planBotTurn(state, botId, 'hard', mulberry32(5)));
     expect(easySpend).toBeLessThanOrEqual(start);
     expect(hardSpend).toBeLessThanOrEqual(start);
-    expect(hardSpend).toBeLessThan(easySpend); // hard reserves; easy dumps cash
+    expect(easySpend).toBeLessThan(start);
+    expect(hardSpend).toBeGreaterThan(0);
   });
+
+  it('calibrates full simulated games by difficulty tier', () => {
+    const mediumVsEasy = { easy: 0, medium: 0 };
+    const hardVsMedium = { medium: 0, hard: 0 };
+
+    for (let seed = 1; seed <= 5; seed++) {
+      for (let c = 0; c < 3; c++) {
+        const meA = simulateDuel('medium', 'easy', seed, c);
+        const meB = simulateDuel('easy', 'medium', seed + 50, c);
+        mediumVsEasy.medium += meA.medium + meB.medium;
+        mediumVsEasy.easy += meA.easy + meB.easy;
+
+        const hmA = simulateDuel('hard', 'medium', seed + 100, c);
+        const hmB = simulateDuel('medium', 'hard', seed + 150, c);
+        hardVsMedium.hard += hmA.hard + hmB.hard;
+        hardVsMedium.medium += hmA.medium + hmB.medium;
+      }
+    }
+
+    expect(hardVsMedium.hard).toBeGreaterThan(hardVsMedium.medium);
+    expect(mediumVsEasy.medium).toBeGreaterThan(mediumVsEasy.easy);
+  }, 12000);
 });

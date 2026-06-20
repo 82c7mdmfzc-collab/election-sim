@@ -1,8 +1,6 @@
 /**
  * Landing — the front door for signed-out visitors. Shown on every load while
- * logged out. Offers Apple/Google/email sign-in (an account unlocks Campaign
- * Funds, unlocks, and online play) plus an explicit "Continue as Guest" path
- * into vs-bot and pass-and-play.
+ * logged out. Starts with the game, then offers account sign-in as a sync path.
  */
 
 import { BrandMark } from './BrandMark';
@@ -17,19 +15,26 @@ export function Landing({ onContinueAsGuest }: LandingProps) {
     <div className="landing">
       <BrandMark />
 
-      <div className="landing__card">
+      <div className="landing__hero">
+        <p className="landing__eyebrow">Strategy • Solo • Online</p>
         <p className="landing__pitch">
-          Sign in to earn Campaign Funds, unlock candidates, and play online — your progress
-          follows you across devices.
+          Campaign across the map, build coalitions, and race to 270 electoral votes.
+        </p>
+        <button type="button" className="landing__guest" onClick={onContinueAsGuest}>
+          Start Solo →
+        </button>
+      </div>
+
+      <div className="landing__card">
+        <h2 className="landing__title">Account</h2>
+        <p className="landing__account-copy">
+          Sync your roster, earned funds, and online play.
         </p>
 
         <SignInButtons />
       </div>
 
-      <button type="button" className="landing__guest" onClick={onContinueAsGuest}>
-        Continue as Guest →
-      </button>
-      <p className="landing__guest-note">Guests can play vs Bot and pass-and-play.</p>
+      <p className="landing__guest-note">Guest play includes Solo and pass-and-play.</p>
 
       <p className="landing__legal">
         Elector is a satirical strategy game. It is not affiliated with, authorized, or endorsed

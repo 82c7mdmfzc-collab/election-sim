@@ -1,13 +1,13 @@
 {
   "name": "Elector — Win the Electoral College",
   "short_name": "Elector",
-  "description": "The strategy game of winning the US Electoral College. Race to 270 — solo, vs bots, or online.",
+  "description": "The strategy game of winning the US Electoral College. Race to 270 in Solo, pass-and-play, or online.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "any",
-  "background_color": "#eef1f5",
-  "theme_color": "#eef1f5",
+  "orientation": "landscape",
+  "background_color": "#0b1426",
+  "theme_color": "#0b1426",
   "icons": [
     {
       "src": "/favicon.svg",

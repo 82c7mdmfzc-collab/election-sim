@@ -4,7 +4,7 @@
  * Account model:
  *   • There is NO anonymous/guest economy. Campaign Funds, unlocks, stats, the
  *     shop, and online play exist ONLY for a signed-in account. A "guest" is
- *     simply someone with no session — they may still play vs-bot and pass-and-play.
+ *     simply someone with no session — they may still play Solo and pass-and-play.
  *   • Sign-in is via Apple, Google, or an email magic link. All three resolve to a
  *     durable Supabase auth.uid() that is stable across refreshes and devices,
  *     which is what keeps online lobby participation valid.

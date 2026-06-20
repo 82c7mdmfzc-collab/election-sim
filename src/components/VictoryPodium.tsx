@@ -1,10 +1,14 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { AudioManager } from '../utils/audioManager';
 import { ALL_STATES } from '../game/statesData';
 import { CANDIDATE_MAP } from '../game/candidates';
+import { victoryMessageText } from '../game/victoryMessages';
+import { getSelectedVictoryMessage } from '../utils/localPrefs';
+import { renderShareCardSvg, svgToPngBlob, sharePng, shareLine } from '../utils/shareImage';
 import { RewardReveal } from './RewardReveal';
 import { Avatar } from './Avatar';
+import { NextChallengeHint, ProgressPanel } from './ProgressPanel';
 
 const CONFETTI_COLORS = [
   '#2563eb', // blue
@@ -48,11 +52,53 @@ export function VictoryPodium() {
     AudioManager.play('victory');
   }, []);
 
+  const [sharing, setSharing] = useState(false);
+
   const winner = electionResult?.winner
     ? players.find((p) => p.id === electionResult.winner)
     : null;
   const winnerEVs = winner ? (electionResult?.evByPlayer[winner.id] ?? 0) : 0;
   const winnerColor = winner ? (colors[winner.id]?.hex ?? '#facc15') : '#facc15';
+
+  async function handleShare() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      AudioManager.play('click');
+      const stateColors: Record<string, string> = {};
+      for (const st of ALL_STATES) {
+        const pid = securedBy[st.id];
+        if (pid && colors[pid]) stateColors[st.id] = colors[pid].hex;
+      }
+      const svg = renderShareCardSvg({
+        winnerName: winner ? winner.name : null,
+        winnerEV: winnerEVs,
+        line: shareLine(winner?.name ?? null, winnerEVs),
+        stateColors,
+      });
+      const blob = await svgToPngBlob(svg);
+      await sharePng({
+        blob,
+        filename: 'elector-result.png',
+        title: 'Elector',
+        text: winner
+          ? `${winner.name} just won my Elector game with ${winnerEVs} EV!`
+          : 'My Elector game ended in a hung Electoral College!',
+        url: 'https://playelector.com',
+      });
+    } catch (err) {
+      console.error('share-card failed', err);
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  // Per-winner background art (slug derived from the candidate's portrait file)
+  // and the equipped victory-message cosmetic shown in the speech box.
+  const winnerCand = winner ? CANDIDATE_MAP[winner.candidateId] : null;
+  const victorySlug = winnerCand?.portraitUrl.split('/').pop()?.replace(/\.\w+$/, '') ?? '';
+  const victoryBg = victorySlug ? `/assets/victory/${victorySlug}.png` : '';
+  const victorySpeech = victoryMessageText(getSelectedVictoryMessage());
 
   // Rank players by EVs descending
   const ranked = useMemo(() => {
@@ -92,6 +138,18 @@ export function VictoryPodium() {
 
   return (
     <div className="victory-podium">
+      {/* Per-winner background art (hidden if the asset is absent → gradient shows) */}
+      {victoryBg && (
+        <img
+          className="victory-bg"
+          src={victoryBg}
+          alt=""
+          aria-hidden
+          draggable={false}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      )}
+
       {/* Confetti layer */}
       <div className="confetti-layer" aria-hidden>
         {CONFETTI_PARTICLES.map((p, i) => (
@@ -136,10 +194,15 @@ export function VictoryPodium() {
             ? `${winnerEVs} Electoral Votes — Victory`
             : 'No majority reached'}
         </div>
+        {winner && (
+          <p className="victory-speech">“{victorySpeech}”</p>
+        )}
       </div>
 
       {/* Campaign Funds payout */}
       <RewardReveal />
+      <ProgressPanel compact showAll={false} />
+      <NextChallengeHint context="victory" />
 
       {/* Leaderboard */}
       <div className="victory-board">
@@ -194,6 +257,14 @@ export function VictoryPodium() {
       <div className="victory-cta">
         <button type="button" onClick={() => { AudioManager.play('click'); reset(); }}>
           Play Again
+        </button>
+        <button
+          type="button"
+          className="victory-share-btn"
+          onClick={handleShare}
+          disabled={sharing}
+        >
+          {sharing ? 'Preparing…' : 'Share Result'}
         </button>
         {multiplayerMode === 'online' && (
           <button

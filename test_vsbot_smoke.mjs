@@ -1,6 +1,6 @@
 /**
- * Smoke test: vs-Bot flow. Verifies the menu route, game start, and that the
- * bot autonomously takes its turn (resolution only fires once every seat submits).
+ * Smoke test: Solo flow. Verifies the menu route, game start, and that the
+ * computer opponent autonomously takes its turn.
  * Run against the dev server on :5174.
  */
 import puppeteer from 'puppeteer';
@@ -21,25 +21,36 @@ try {
 
   await page.goto(URL, { waitUntil: 'networkidle2' });
 
-  // First launch auto-opens the tutorial — skip it.
-  await page.waitForSelector('.tutorial__skip', { timeout: 10000 });
-  await page.click('.tutorial__skip');
-  log('tutorial skipped');
-
-  // Menu → vs Bot.
-  await page.waitForSelector('.setup__actions');
-  const clickedBot = await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /vs Bot/i.test(b.textContent));
+  // Signed-out fresh sessions may show the landing first.
+  const continued = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => /(Start Solo|Continue as Guest)/i.test(b.textContent ?? ''));
     if (btn) { btn.click(); return true; }
     return false;
   });
-  if (!clickedBot) throw new Error('vs Bot button not found');
-  log('entered BotSetup');
+  if (continued) log('continued as guest');
 
-  // Start the game with defaults (1 medium bot).
+  // First launch auto-opens the tutorial; returning sessions may already be on the menu.
+  const tutorialVisible = await page.waitForSelector('.tutorial__skip', { timeout: 2500 }).then(() => true).catch(() => false);
+  if (tutorialVisible) {
+    await page.click('.tutorial__skip');
+    log('tutorial skipped');
+  }
+
+  // Menu → Solo.
+  await page.waitForSelector('.home__modes, .setup__start', { timeout: 10000 });
+  const alreadyInSolo = await page.evaluate(() => /Solo Campaign/i.test(document.body.textContent ?? ''));
+  const clickedBot = alreadyInSolo || (await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => /^Solo$/i.test((b.textContent ?? '').trim()));
+    if (btn) { btn.click(); return true; }
+    return false;
+  }));
+  if (!clickedBot) throw new Error('Solo button not found');
+  log('entered Solo setup');
+
+  // Start the game with defaults (1 medium computer opponent).
   await page.waitForSelector('.setup__start');
   await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /Start Game/i.test(b.textContent));
+    const btn = [...document.querySelectorAll('button')].find((b) => /Start (Campaign|Game)/i.test(b.textContent ?? ''));
     btn.click();
   });
 
@@ -47,14 +58,17 @@ try {
   await page.waitForSelector('.phase-btn--primary', { timeout: 10000 });
   log('game started (PLANNING)');
 
-  // Human submits its (empty) turn → it becomes the bot's turn.
-  await page.click('.phase-btn--primary');
-  log('human submitted; waiting for the bot to play…');
+  // Human submits its (empty) turn → it becomes the computer opponent's turn.
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => /Hand to|Resolve Turn|Submit Turn/i.test(b.textContent ?? ''));
+    btn?.click();
+  });
+  log('human submitted; waiting for the computer opponent to play…');
 
   // Resolution only renders after EVERY active seat submits, so its appearance
-  // proves the bot autonomously allocated + submitted.
+  // proves the computer opponent autonomously allocated + submitted.
   await page.waitForSelector('.round-resolution, .res-card, .resolution', { timeout: 12000 });
-  log('✓ resolution reached — the bot took its turn');
+  log('✓ resolution reached — the computer opponent took its turn');
 
   if (errors.length) {
     log('page errors during run:', errors.slice(0, 5));

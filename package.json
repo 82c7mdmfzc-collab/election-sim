@@ -28,6 +28,9 @@
     "us-atlas": "^3.0.1",
     "zustand": "^5.0.14"
   },
+  "overrides": {
+    "d3-color": "^3.1.0"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.11.2",

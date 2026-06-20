@@ -1,7 +1,7 @@
 /**
  * Zustand store — single source of truth for all mutable game state.
  *
- * Phase machine:
+ * Phase flow:
  *   PLANNING → (each player submits) → RESOLUTION
  *   RESOLUTION → (confirmResolution) → PLANNING [or ELECTION]
  *   ELECTION → (resolveElection) → PLANNING [or ELECTION_TALLY]
@@ -102,8 +102,8 @@ interface GameStore extends GameState {
   // ── Actions ─────────────────────────────────────────────────────────────────
   initOnlineGame(players: PlayerState[]): void;
   /**
-   * Start a hot-seat / vs-Bot game. `botSeats` maps a chosen candidate's id to a
-   * bot difficulty; those seats become AI-controlled (single-player only).
+   * Start a hot-seat / Solo game. `botSeats` maps a chosen candidate's id to a
+   * difficulty; those seats become computer-controlled (single-player only).
    */
   startGame(
     chosen: CandidateDef[],
@@ -243,7 +243,7 @@ export const useGameStore = create<GameStore>()(
         // ── startGame ─────────────────────────────────────────────────────────
         startGame(chosen, turnTimeLimit, botSeats) {
           const fresh = createInitialGameState(chosen);
-          // Tag AI seats (single-player vs-Bot). Player ids equal candidate ids
+          // Tag computer-controlled seats (Solo). Player ids equal candidate ids
           // here, and every other map keys by id, so this is a safe overlay.
           const players = botSeats
             ? fresh.players.map((p) =>
@@ -431,6 +431,7 @@ export const useGameStore = create<GameStore>()(
             if (snap.submittedPlayers.includes(localPlayerId)) return;
 
             const myPending = snap.pendingByPlayer[localPlayerId] ?? [];
+            const myIntents = myPending.map(({ kind, targetId, rungs }) => ({ kind, targetId, rungs }));
             const nextSubmitted = [...snap.submittedPlayers, localPlayerId];
 
             // Optimistic local update so the "Waiting for others…" UI renders immediately
@@ -440,7 +441,7 @@ export const useGameStore = create<GameStore>()(
             // If it fails, roll back ONLY our own optimistic entry (other players may
             // have legitimately landed via Realtime in the meantime) so the player can
             // re-tap Submit instead of being stuck on "Waiting for others…".
-            void pushMySubmission(lobbyId, localPlayerId, myPending, nextSubmitted).then((ok) => {
+            void pushMySubmission(lobbyId, localPlayerId, myIntents).then((ok) => {
               if (!ok) {
                 set((s) => ({
                   submittedPlayers: s.submittedPlayers.filter((id) => id !== localPlayerId),

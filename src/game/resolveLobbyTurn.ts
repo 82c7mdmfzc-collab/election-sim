@@ -13,6 +13,7 @@
  */
 
 import { resolveTurn } from './engine';
+import { sanitizePendingSubmissions } from './lobbySecurity';
 import type { LobbyGameState, RoundPurchase } from './types';
 
 export interface ResolveOutcome {
@@ -37,9 +38,11 @@ export function resolveLobbyTurn(
   const allIn = active.every((p) => remote.submittedPlayers.includes(p.id));
   if (!force && !allIn) return null;
 
+  const pendingSubmissions = sanitizePendingSubmissions(remote);
+
   // Flat purchase log (drives the RESOLUTION ticker overlay on every client).
   const lastRoundPurchases: RoundPurchase[] = active.flatMap((p) =>
-    (remote.pendingSubmissions[p.id] ?? []).map((pp) => ({
+    (pendingSubmissions[p.id] ?? []).map((pp) => ({
       playerId: p.id,
       candidateId: p.candidateId,
       kind: pp.kind,
@@ -49,7 +52,7 @@ export function resolveLobbyTurn(
     })),
   );
 
-  const { state: newState, report } = resolveTurn(remote, remote.pendingSubmissions);
+  const { state: newState, report } = resolveTurn(remote, pendingSubmissions);
 
   const resolved: LobbyGameState = {
     ...newState,

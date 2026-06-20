@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveLobbyTurn } from './resolveLobbyTurn';
+import { buildPendingSubmission } from './lobbySecurity';
 import { ALL_STATES } from './statesData';
 import { NATIONAL_GROUPS, STATE_GROUPS } from './config';
 import type { LobbyGameState, PlayerState } from './types';
@@ -63,7 +64,7 @@ describe('resolveLobbyTurn', () => {
     expect(r.rungs['CA'].p1).toBe(1);
     // ticker log reflects the purchase, host is preserved
     expect(r.lastRoundPurchases).toEqual([
-      expect.objectContaining({ playerId: 'p1', targetId: 'CA', rungsBought: 1, cost: 10 }),
+      expect.objectContaining({ playerId: 'p1', targetId: 'CA', rungsBought: 1, cost: 150 }),
     ]);
     expect(r.hostPlayerId).toBe('p1');
   });
@@ -85,5 +86,36 @@ describe('resolveLobbyTurn', () => {
     });
     // p2 is eliminated, so p1 alone counts as "all submitted"
     expect(resolveLobbyTurn(state)).not.toBeNull();
+  });
+
+  it('recomputes forged pending purchases before resolution', () => {
+    const state = makeLobbyState({
+      pendingSubmissions: {
+        p1: [{
+          kind: 'state',
+          targetId: 'CA',
+          rungs: 1,
+          cost: -9999,
+          walletDraw: [{ wallet: 'NATIONAL', amount: -9999 }],
+        }],
+        p2: [],
+      },
+    });
+
+    const outcome = resolveLobbyTurn(state);
+    expect(outcome).not.toBeNull();
+    const p1 = outcome!.resolved.players.find((p) => p.id === 'p1')!;
+    expect(p1.nationalCash).toBeLessThan(1000 + 250);
+    expect(outcome!.resolved.lastRoundPurchases?.[0]).toEqual(
+      expect.objectContaining({ cost: 150, rungsBought: 1 }),
+    );
+  });
+
+  it('rejects impossible server-built submissions', () => {
+    const result = buildPendingSubmission(makeLobbyState(), 'p1', [
+      { kind: 'state', targetId: 'CA', rungs: 99 },
+    ]);
+    expect(result.error).toBeTruthy();
+    expect(result.pending).toEqual([]);
   });
 });

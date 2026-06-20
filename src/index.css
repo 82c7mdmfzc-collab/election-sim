@@ -1,6 +1,6 @@
 /* Minimal global reset. All component styling lives in App.css. */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -13,7 +13,25 @@ html, body {
 }
 
 body {
-  font-family: 'Barlow', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #f4ead2;
+}
+
+/* Fixed background motif — a faint star field + diagonal sheen behind every
+   screen. Sits above the body gradient (App.css `body`) but below all content
+   via z-index:-1, so it never intercepts clicks and never scrolls. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at center, rgba(240, 184, 80, 0.05) 0.6px, transparent 1.4px),
+    linear-gradient(115deg, transparent 0%, rgba(245, 144, 34, 0.04) 18%, transparent 34%),
+    linear-gradient(245deg, transparent 0%, rgba(61, 130, 240, 0.05) 18%, transparent 34%);
+  background-size: 34px 34px, 100% 100%, 100% 100%;
+  background-position: 0 0, 0 0, 0 0;
 }
 
 #root {

@@ -52,7 +52,7 @@ export interface PlayerState {
   nationalCash: number;
   groupWallets: Record<StateGroupId, number>;
   eliminated: boolean;
-  /** AI-controlled seat (single-player "vs Bot" mode). Absent/false = human. */
+  /** Computer-controlled seat (Solo mode). Absent/false = human. */
   isBot?: boolean;
   /** Bot strength when isBot is true. */
   botDifficulty?: BotDifficulty;
@@ -106,6 +106,13 @@ export interface PendingPurchase {
   cost: number;
   /** Ordered breakdown of which wallets were debited. */
   walletDraw: WalletDraw[];
+}
+
+/** Client-submitted allocation intent. Cost and wallet draw are server-derived. */
+export interface PurchaseIntent {
+  kind: 'state' | 'national';
+  targetId: StateId | NationalGroupId;
+  rungs: number;
 }
 
 // ── Per-round purchase log (drives the Resolution ticker overlay) ─────────────

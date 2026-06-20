@@ -14,6 +14,13 @@ Last updated by the launch-prep work session.
 ---
 
 ## ✅ DONE (this session)
+- [x] Premium mobile release polish: player-facing Solo language, game-first signed-out landing,
+      compact Solo candidate perk chips, cleaner currency treatment, and non-emoji tutorial badges.
+- [x] Native release safety: generated Tauri icons from `public/assets/brand/icon-1024.png`, removed
+      stale `app.security.devmodeUrl`, and gated native paid Campaign Funds unless StoreKit/Play
+      Billing bridge support is present.
+- [x] Added `IOS_RELEASE_GUIDE.md` with TestFlight commands, Xcode fields, App Store Connect fields,
+      reviewer note, simulator smoke checklist, and final-icon replacement command.
 - [x] Security: server-side reward calc + dedup (`claim_game_reward`, `game_rewards`), all MP phase
       transitions moved into the `resolve-turn` Edge Function, `push_game_state` disabled+revoked,
       server-owned deadlines, guest stale-state rejection, Edge CORS allowlist, sanitizer hardening,
@@ -82,9 +89,10 @@ Accounts are **required for online play** and the economy is account-only. Dashb
       via `scripts/gen-brand-assets.py` (orange wordmark, accent "o", "Race to 270" OG card).
 
 ## 6. App icons (one master → all sizes)
-- [ ] Make a 1024×1024 PNG master icon (no transparency for iOS).
-- [ ] Run `npx tauri icon path/to/icon.png` — populates `src-tauri/icons/` + the iOS/Android asset
-      catalogs. Add Android adaptive-icon foreground/background and an iOS/Android splash.
+- [x] Temporary 1024×1024 PNG master icon exists at `public/assets/brand/icon-1024.png` (opaque for iOS).
+- [x] Ran `npx tauri icon public/assets/brand/icon-1024.png` — populated `src-tauri/icons/` with
+      desktop, iOS, and Android icon assets. Final art swap: `npx tauri icon /path/to/final-1024.png`.
+- [ ] Add final Android adaptive-icon foreground/background and iOS/Android splash art if desired.
 - [x] Regenerate PWA PNG icons (192/512 + maskable-512, 180 apple-touch) and add them to
       `public/manifest.webmanifest`; added `apple-touch-icon` link to `index.html`. `favicon.svg`
       left as-is (still on-brand). A 1024 master icon (`public/assets/brand/icon-1024.png`, opaque,
@@ -93,17 +101,18 @@ Accounts are **required for online play** and the economy is account-only. Dashb
 ## 7. Apple — App Store (no account yet)
 - [ ] Enroll in **Apple Developer Program** ($99/yr) at developer.apple.com (individual enrollment is
       fastest; allow 24–48h).
-- [ ] Install latest **Xcode** + Command Line Tools.
-- [ ] `npm run tauri:ios:init` (generates `src-tauri/gen/apple`).
+- [ ] Install latest **Xcode** + Command Line Tools, select full Xcode with `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, and install Rust/Cargo.
+- [ ] `npm run tauri:ios:init` (generates `src-tauri/gen/apple`). Current machine blocker:
+      `cargo`/`rustc` and full Xcode simulator tools are not available on PATH.
 - [ ] In Xcode: Bundle Identifier = `com.playelector.app`, Display Name = "Elector"; under
-      Signing & Capabilities select your Team (let Xcode manage signing); set deployment target,
-      orientations, icons/splash.
+      Signing & Capabilities select your Team (let Xcode manage signing); set deployment target
+      iOS 15+, landscape-left/right only, icons/splash.
 - [ ] In **App Store Connect**: create app record; fill App Privacy (you collect account data via
       Supabase — declare it), age rating, category (Games/Strategy), description, keywords,
       support URL (`https://playelector.com/support`), privacy URL (`https://playelector.com/privacy`),
       screenshots (6.7" + 5.5" iPhone + iPad — capture from the simulator).
 - [ ] `npm run tauri:ios:build` → upload via Xcode Organizer/Transporter → **TestFlight** first.
-- [ ] Submit for App Review (note for reviewers: vs-bot and pass-and-play need no login; online
+- [ ] Submit for App Review (note for reviewers: Solo and pass-and-play need no login; online
       play and the shop require a free account — Apple/Google/email sign-in is provided).
 
 ## 8. Google — Play Store (no account yet)
@@ -135,7 +144,8 @@ Accounts are **required for online play** and the economy is account-only. Dashb
 
 ## Deferred (non-blocking, post-launch)
 - WebP image conversion (needs `cwebp`; `loading="lazy"` already added).
-- Bundle code-splitting (client JS is ~747 KB / 224 KB gzip, dominated by `us-atlas` map data).
+- Bundle code-splitting (client JS is ~977 KB / 294 KB gzip after the current release build,
+  dominated by map/game data and native/progression UI).
 - Pre-existing lint error at `src/components/MultiplayerMenu.tsx:325` (`react-hooks/set-state-in-effect`,
   exists on `main`; build doesn't run lint).
 - Turn-1 deadline is still host-set (turns 2+ are server-owned) — minor residual.

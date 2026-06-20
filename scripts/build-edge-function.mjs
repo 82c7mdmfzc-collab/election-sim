@@ -26,6 +26,7 @@ const FILES = [
   'candidates.ts',
   'statesData.ts',
   'engine.ts',
+  'lobbySecurity.ts',
   'resolveLobbyTurn.ts',
   'advanceLobbyPhase.ts',
 ];

@@ -36,6 +36,13 @@ export const BotIcon = (p: IconProps) => (
   </svg>
 );
 
+export const MonitorIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M9 20h6M12 16v4" />
+  </svg>
+);
+
 export const GlobeIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="9" />

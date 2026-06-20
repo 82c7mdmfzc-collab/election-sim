@@ -38,6 +38,11 @@ export interface LobbyRow {
   updated_at: string;
 }
 
+interface EdgeResolvedResponse {
+  resolved?: LobbyGameState;
+  error?: string;
+}
+
 export async function rpcJoinLobbyPlayer(
   lobbyId: string,
   player: WaitingPlayer,
@@ -68,13 +73,32 @@ export async function rpcCreateLobby(args: {
   return data as LobbyRow;
 }
 
-/** Host-only: transition a waiting lobby to in_progress with the initial game state. */
-export async function rpcStartGame(lobbyId: string, gameState: LobbyGameState): Promise<void> {
-  const { error } = await supabase.rpc('start_game', {
-    p_lobby_id: lobbyId,
-    p_game_state: gameState,
+export async function rpcFindLobbyByCode(roomCode: string): Promise<LobbyRow | null> {
+  const { data, error } = await supabase
+    .rpc('find_lobby_by_code', { p_room_code: roomCode })
+    .maybeSingle();
+  if (error) throw error;
+  return data ? (data as LobbyRow) : null;
+}
+
+export async function rpcListPublicLobbies(): Promise<LobbyRow[]> {
+  const { data, error } = await supabase.rpc('list_public_lobbies');
+  if (error) throw error;
+  return (data ?? []) as LobbyRow[];
+}
+
+/** Host-only: ask the Edge Function to build and start the authoritative game state. */
+export async function rpcStartGame(
+  lobbyId: string,
+  turnTimeLimitSec?: number | null,
+): Promise<LobbyGameState> {
+  const { data, error } = await supabase.functions.invoke('resolve-turn', {
+    body: { lobbyId, action: 'startGame', turnTimeLimitSec },
   });
   if (error) throw error;
+  const resolved = (data as EdgeResolvedResponse | null)?.resolved;
+  if (!resolved) throw new Error((data as EdgeResolvedResponse | null)?.error ?? 'startGame returned no state');
+  return resolved;
 }
 
 /** Retry an RPC call with exponential backoff. Returns true on success. */

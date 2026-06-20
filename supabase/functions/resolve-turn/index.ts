@@ -22,7 +22,13 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { resolveLobbyTurn } from './_engine/resolveLobbyTurn.ts';
 import { advanceLobbyPhase, REQUIRED_PHASE, type PhaseAction } from './_engine/advanceLobbyPhase.ts';
-import type { LobbyGameState } from './_engine/types.ts';
+import {
+  buildLobbyGameStateFromWaiting,
+  buildPendingSubmission,
+  normalizePurchaseIntents,
+  normalizeTurnTimeLimit,
+} from './_engine/lobbySecurity.ts';
+import type { LobbyGameState, WaitingLobbyState } from './_engine/types.ts';
 
 // Restrict cross-origin callers to our own surfaces (defense-in-depth; the JWT
 // is still validated below). Tauri mobile/desktop webviews use the tauri origins.
@@ -76,10 +82,14 @@ Deno.serve(async (req: Request) => {
     if (userErr || !userData.user) return json({ error: 'invalid auth' }, 401, cors);
     const uid = userData.user.id;
 
-    const { lobbyId, force, action } = (await req.json().catch(() => ({}))) as {
+    const { lobbyId, force, action, playerId, intents, turnTimeLimitSec } =
+      (await req.json().catch(() => ({}))) as {
       lobbyId?: string;
       force?: boolean;
       action?: string;
+      playerId?: string;
+      intents?: unknown;
+      turnTimeLimitSec?: unknown;
     };
     if (!lobbyId) return json({ error: 'lobbyId required' }, 400, cors);
 
@@ -97,12 +107,61 @@ Deno.serve(async (req: Request) => {
 
     const { data: row, error: rowErr } = await admin
       .from('lobbies')
-      .select('game_state, status')
+      .select('game_state, status, host_uid')
       .eq('id', lobbyId)
       .single();
     if (rowErr || !row?.game_state) return json({ error: 'lobby not found' }, 404, cors);
 
+    // ── Branch 0: host starts the waiting room with server-built state ─────────
+    if (action === 'startGame') {
+      if (row.host_uid !== uid) return json({ error: 'only the host may start the game' }, 403, cors);
+      if (row.status !== 'waiting') return json({ error: 'lobby not waiting' }, 409, cors);
+
+      const next = buildLobbyGameStateFromWaiting(
+        row.game_state as WaitingLobbyState,
+        Date.now(),
+        normalizeTurnTimeLimit(turnTimeLimitSec),
+      );
+      if (!next) return json({ error: 'invalid waiting lobby' }, 400, cors);
+
+      const { data: updated, error: updErr } = await admin
+        .from('lobbies')
+        .update({ status: 'in_progress', game_state: next, updated_at: new Date().toISOString() })
+        .eq('id', lobbyId)
+        .eq('status', 'waiting')
+        .select('id');
+      if (updErr) return json({ error: updErr.message }, 500, cors);
+      if (!updated || updated.length === 0) return json({ skipped: 'already started' }, 200, cors);
+
+      return json({ resolved: next }, 200, cors);
+    }
+
     const remote = row.game_state as LobbyGameState;
+
+    // ── Branch 0b: submit a validated turn intent as the caller's own seat ─────
+    if (action === 'submitTurn') {
+      const ownedPlayerId = member.player_id as string;
+      if (playerId && playerId !== ownedPlayerId) return json({ error: 'cannot submit as another player' }, 403, cors);
+      if (row.status !== 'in_progress' || remote.phase !== 'PLANNING') {
+        return json({ error: 'lobby not accepting submissions' }, 409, cors);
+      }
+
+      const normalized = normalizePurchaseIntents(intents);
+      if (!normalized) return json({ error: 'invalid purchase intents' }, 400, cors);
+
+      const built = buildPendingSubmission(remote, ownedPlayerId, normalized);
+      if (built.error) return json({ error: built.error }, 400, cors);
+
+      const { error: submitErr } = await admin.rpc('submit_turn_pending', {
+        p_lobby_id: lobbyId,
+        p_player_id: ownedPlayerId,
+        p_pending: built.pending,
+        p_auth_uid: uid,
+      });
+      if (submitErr) return json({ error: submitErr.message }, 500, cors);
+
+      return json({ ok: true }, 200, cors);
+    }
 
     // ── Branch 1: post-resolution phase advance (server-authoritative) ─────────
     if (action && PHASE_ACTIONS.has(action as PhaseAction)) {

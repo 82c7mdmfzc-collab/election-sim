@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
+import { ACHIEVEMENT_BY_ID } from '../game/achievements';
 import { AudioManager } from '../utils/audioManager';
 
 export function RewardReveal() {
@@ -38,6 +39,12 @@ export function RewardReveal() {
     ['States secured', lastReward.securedBonus],
     ['Coalitions dominated', lastReward.dominanceBonus],
     ['Win streak', lastReward.streakBonus],
+    [
+      lastReward.dailyStreakDay > 0
+        ? `Daily streak day ${lastReward.dailyStreakDay}`
+        : 'Daily streak',
+      lastReward.dailyStreakBonus,
+    ],
   ];
 
   return (
@@ -52,6 +59,15 @@ export function RewardReveal() {
           </li>
         ))}
       </ul>
+      {lastReward.newlyCompletedAchievements.length > 0 && (
+        <div className="reward-reveal__achievements">
+          {lastReward.newlyCompletedAchievements.map((id) => (
+            <span key={id}>
+              {ACHIEVEMENT_BY_ID[id]?.title ?? 'Achievement complete'}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

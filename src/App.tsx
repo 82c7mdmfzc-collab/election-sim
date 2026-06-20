@@ -16,8 +16,7 @@ import { useGameStore } from './game/store';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
-import { isTutorialSeen } from './utils/localPrefs';
-import { BotIcon, GlobeIcon, CartIcon, UsersIcon } from './components/icons';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon } from './components/icons';
 import type { ComponentType } from 'react';
 
 type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot';
@@ -25,16 +24,16 @@ type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot'
 interface ModeDef {
   mode: AppMode;
   label: string;
-  sub: string;
   Icon: ComponentType<{ size?: number }>;
+  chip: 'orange' | 'blue';
   primary?: boolean;
 }
 
 const MODES: ModeDef[] = [
-  { mode: 'single', label: 'Hot-Seat',  sub: 'Pass & play on one device', Icon: UsersIcon, primary: true },
-  { mode: 'bot',    label: 'vs Bot',    sub: 'Play against the computer', Icon: BotIcon },
-  { mode: 'online', label: 'Online',    sub: 'Host or join a game',       Icon: GlobeIcon },
-  { mode: 'shop',   label: 'Shop',      sub: 'Candidates & cosmetics',    Icon: CartIcon },
+  { mode: 'single', label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
+  { mode: 'bot',    label: 'Solo',        Icon: MonitorIcon, chip: 'blue' },
+  { mode: 'online', label: 'Online',      Icon: GlobeIcon,   chip: 'orange' },
+  { mode: 'shop',   label: 'Shop',        Icon: CartIcon,    chip: 'blue' },
 ];
 
 function ModeSelect({ onSelect, onAccount }: { onSelect: (mode: AppMode) => void; onAccount: () => void }) {
@@ -42,32 +41,39 @@ function ModeSelect({ onSelect, onAccount }: { onSelect: (mode: AppMode) => void
   const signedIn = useProfile(selectIsSignedIn);
   return (
     <div className="home">
-      <button type="button" className="account-chip" onClick={onAccount} title="Your account">
+      <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
         {signedIn ? (
           <>
-            <span className="account-chip__coin" aria-hidden />
-            {funds.toLocaleString()}
+            <span className="gold-pill__coin" aria-hidden />
+            <span className="home__coin-count">{funds.toLocaleString()}</span>
+            <span className="home__coin-plus" aria-hidden>+</span>
           </>
         ) : (
           'Sign In'
         )}
       </button>
 
-      <BrandMark />
+      <div className="home__crest">
+        <img
+          src="/assets/brand/star_wings.png"
+          alt=""
+          className="home__crest-img"
+          draggable={false}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+        <BrandMark />
+      </div>
 
       <div className="home__modes">
-        {MODES.map(({ mode, label, sub, Icon, primary }) => (
+        {MODES.map(({ mode, label, Icon, chip, primary }) => (
           <button
             key={mode}
             type="button"
-            className={`mode-card${primary ? ' mode-card--primary' : ''}`}
+            className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
             onClick={() => onSelect(mode)}
           >
-            <span className="mode-card__icon"><Icon size={26} /></span>
-            <span className="mode-card__text">
-              <span className="mode-card__label">{label}</span>
-              <span className="mode-card__sub">{sub}</span>
-            </span>
+            <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
+            <span className="menu-btn__label">{label}</span>
           </button>
         ))}
       </div>
@@ -109,10 +115,7 @@ function App() {
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
   // can choose to continue as a guest for the rest of this session.
   const [guestContinued, setGuestContinued] = useState(false);
-  // First-ever launch auto-opens the tutorial; afterward start on the menu.
-  const [appMode, setAppMode] = useState<AppMode>(() =>
-    isTutorialSeen() ? 'mode-select' : 'tutorial',
-  );
+  const [appMode, setAppMode] = useState<AppMode>('mode-select');
 
   useEffect(() => { void initProfile(); }, [initProfile]);
 
@@ -129,7 +132,7 @@ function App() {
 
   // Signed-out front door — shown on every fresh load until "Continue as Guest".
   if (!signedIn && !guestContinued) {
-    return <Landing onContinueAsGuest={() => setGuestContinued(true)} />;
+    return <Landing onContinueAsGuest={() => { setGuestContinued(true); setAppMode('bot'); }} />;
   }
 
   // One-time, mandatory username claim immediately after a new account signs in.
@@ -164,7 +167,7 @@ function App() {
       <>
         <GuestGate
           title="Campaign Shop"
-          message="Sign in to earn Campaign Funds and unlock new candidates. Your roster syncs across every device."
+          message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
           onBack={() => setAppMode('mode-select')}
           onSignIn={() => setShowAccount(true)}
         />

@@ -20,20 +20,15 @@
 --     SECURITY DEFINER RPCs that validate the caller:
 --       - create_lobby ........ caller becomes host; records host participant
 --       - join_lobby_player ... caller is bound to the player UUID they claim
---       - start_game .......... host only
---       - submit_turn_pending . caller may only submit AS the player they own
---       - push_game_state ..... host only (drives RESOLUTION / phase changes)
+--       - start_game .......... disabled; Edge Function builds initial state
+--       - submit_turn_pending . service-only atomic write of validated pending
+--       - push_game_state ..... disabled
 --       - set_lobby_status .... host only (mark finished)
 --
 -- RESIDUAL RISK (documented, not fully closed here)
---   Turn RESOLUTION is now server-authoritative — it runs in the `resolve-turn`
---   Edge Function with the service-role key, so the host can no longer doctor a
---   resolved turn. What the host still pushes via push_game_state are the
---   non-economic phase transitions (RESOLUTION→next PLANNING, election tally,
---   completeTally). A malicious host could still tamper with those; moving the
---   election/winner computation server-side is the remaining follow-up. This
---   file removes the far larger risk of *any anonymous third party* tampering
---   with lobbies they are not in.
+--   Single-player rewards are still client-reported and bounded by
+--   claim_game_reward. Online setup, submissions, turn resolution, and phase
+--   transitions are server-authoritative via the resolve-turn Edge Function.
 -- ════════════════════════════════════════════════════════════════════════════
 
 -- ── Table (created if the ad-hoc one is missing; otherwise left intact) ───────
@@ -109,16 +104,92 @@ as $$
   );
 $$;
 
+create or replace function public.is_known_candidate(p_candidate text)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select p_candidate in ('tooley', 'trump', 'harris', 'lincoln', 'joe_biden', 'ronald_reagan');
+$$;
+
+create or replace function public.is_free_candidate(p_candidate text)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select p_candidate in ('tooley', 'trump', 'harris', 'lincoln');
+$$;
+
+create or replace function public.caller_can_use_candidate(p_candidate text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_unlocked text[];
+begin
+  if not public.is_known_candidate(p_candidate) then return false; end if;
+  if public.is_free_candidate(p_candidate) then return true; end if;
+
+  select unlocked_characters into v_unlocked
+    from public.profiles
+    where id = auth.uid();
+  return coalesce(p_candidate = any(v_unlocked), false);
+end;
+$$;
+
+create or replace function public.normalize_waiting_player(
+  p_player  jsonb,
+  p_is_host boolean
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  v_pid       text := p_player->>'id';
+  v_candidate text := p_player->>'candidateId';
+  v_name      text := p_player->>'name';
+  v_is_host   text := p_player->>'isHost';
+begin
+  if p_player is null or jsonb_typeof(p_player) <> 'object' then
+    raise exception 'invalid player';
+  end if;
+  if v_pid is null or v_pid !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+    raise exception 'invalid player.id';
+  end if;
+  if v_name is null or v_name !~ '^[A-Za-z0-9_-]{3,20}$' then
+    raise exception 'invalid player.name';
+  end if;
+  if v_is_host is null or v_is_host not in ('true', 'false') or (v_is_host::boolean) <> p_is_host then
+    raise exception 'invalid player.isHost';
+  end if;
+  if not public.caller_can_use_candidate(v_candidate) then
+    raise exception 'candidate unavailable';
+  end if;
+
+  return jsonb_build_object(
+    'id', v_pid,
+    'candidateId', v_candidate,
+    'name', v_name,
+    'isHost', p_is_host
+  );
+end;
+$$;
+
 -- ── RLS policies ──────────────────────────────────────────────────────────────
--- Reads: participants always; plus public+waiting rooms for code lookup/discovery.
+-- Full row reads are participants-only. Public lists and room-code lookup use
+-- narrow SECURITY DEFINER RPCs below so private waiting rooms are not enumerable.
 drop policy if exists lobbies_select on public.lobbies;
 create policy lobbies_select on public.lobbies
   for select
-  using (
-    public.is_lobby_participant(id)
-    or (status = 'waiting' and is_public = true)
-    or (status = 'waiting')          -- private rooms still need code lookup to join
-  );
+  using (public.is_lobby_participant(id));
 
 -- No direct client writes: every mutation goes through a SECURITY DEFINER RPC.
 -- (Absence of INSERT/UPDATE/DELETE policies = denied for anon/authenticated.)
@@ -126,6 +197,55 @@ create policy lobbies_select on public.lobbies
 drop policy if exists participants_select on public.lobby_participants;
 create policy participants_select on public.lobby_participants
   for select using (auth_uid = auth.uid());
+
+-- ── RPC: waiting-room lookup surfaces ────────────────────────────────────────
+create or replace function public.find_lobby_by_code(p_room_code text)
+returns table (
+  id uuid,
+  room_code text,
+  is_public boolean,
+  status text,
+  player_count integer,
+  game_state jsonb,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select l.id, l.room_code, l.is_public, l.status, l.player_count, l.game_state, l.created_at, l.updated_at
+  from public.lobbies l
+  where p_room_code ~ '^[0-9]{4}$'
+    and l.room_code = p_room_code
+    and l.status = 'waiting'
+  order by l.created_at desc
+  limit 1;
+$$;
+
+create or replace function public.list_public_lobbies()
+returns table (
+  id uuid,
+  room_code text,
+  is_public boolean,
+  status text,
+  player_count integer,
+  game_state jsonb,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select l.id, l.room_code, l.is_public, l.status, l.player_count, l.game_state, l.created_at, l.updated_at
+  from public.lobbies l
+  where l.status = 'waiting' and l.is_public = true
+  order by l.created_at desc
+  limit 20;
+$$;
 
 -- ── RPC: create_lobby — caller becomes the host ───────────────────────────────
 create or replace function public.create_lobby(
@@ -141,24 +261,45 @@ set search_path = public
 as $$
 declare
   v_uid       uuid := auth.uid();
-  v_host_pid  text := p_game_state->>'hostPlayerId';
+  v_cap       integer := p_player_count;
+  v_host      jsonb;
+  v_host_pid  text;
+  v_state     jsonb;
   v_row       public.lobbies;
 begin
   if v_uid is null then
     raise exception 'auth required';
   end if;
-  if v_host_pid is null then
-    raise exception 'game_state.hostPlayerId required';
+  if v_cap is null or v_cap < 2 or v_cap > 4 then
+    raise exception 'invalid player_count';
   end if;
-  -- Room codes are short alphanumeric tokens; reject anything malformed so a
-  -- crafted code can't be silently truncated into a colliding/odd value.
-  if p_room_code is null or p_room_code !~ '^[A-Za-z0-9]{1,12}$' then
+  if p_game_state is null or jsonb_typeof(p_game_state->'players') <> 'array'
+     or jsonb_array_length(p_game_state->'players') <> 1 then
+    raise exception 'invalid waiting state';
+  end if;
+  if p_game_state->>'playerCount' is null or (p_game_state->>'playerCount')::integer <> v_cap then
+    raise exception 'player_count mismatch';
+  end if;
+
+  v_host := public.normalize_waiting_player((p_game_state->'players')->0, true);
+  v_host_pid := v_host->>'id';
+  if p_game_state->>'hostPlayerId' <> v_host_pid then
+    raise exception 'hostPlayerId mismatch';
+  end if;
+
+  -- Room codes are 4 numeric digits in the client flow.
+  if p_room_code is null or p_room_code !~ '^[0-9]{4}$' then
     raise exception 'invalid room_code';
   end if;
 
+  v_state := jsonb_build_object(
+    'playerCount', v_cap,
+    'hostPlayerId', v_host_pid,
+    'players', jsonb_build_array(v_host)
+  );
+
   insert into public.lobbies (room_code, is_public, player_count, status, game_state, host_uid)
-  values (p_room_code, coalesce(p_is_public, false),
-          greatest(2, least(coalesce(p_player_count, 2), 6)), 'waiting', p_game_state, v_uid)
+  values (p_room_code, coalesce(p_is_public, false), v_cap, 'waiting', v_state, v_uid)
   returning * into v_row;
 
   insert into public.lobby_participants (lobby_id, auth_uid, player_id)
@@ -181,14 +322,18 @@ set search_path = public
 as $$
 declare
   v_uid    uuid := auth.uid();
-  v_pid    text := p_player->>'id';
+  v_player jsonb;
+  v_pid    text;
+  v_candidate text;
   v_state  jsonb;
   v_status text;
   v_cap    integer;
   v_count  integer;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
-  if v_pid is null then raise exception 'player.id required'; end if;
+  v_player := public.normalize_waiting_player(p_player, false);
+  v_pid := v_player->>'id';
+  v_candidate := v_player->>'candidateId';
 
   select game_state, status, player_count
     into v_state, v_status, v_cap
@@ -208,10 +353,19 @@ begin
     raise exception 'player already present';
   end if;
 
+  -- One seat per candidate; the UI disables taken candidates, and the server
+  -- enforces it so concurrent joins cannot duplicate a candidate.
+  if exists (
+    select 1 from jsonb_array_elements(coalesce(v_state->'players', '[]'::jsonb)) e
+    where e->>'candidateId' = v_candidate
+  ) then
+    raise exception 'candidate already taken';
+  end if;
+
   update public.lobbies
      set game_state = jsonb_set(
            v_state, '{players}',
-           coalesce(v_state->'players', '[]'::jsonb) || jsonb_build_array(p_player)),
+           coalesce(v_state->'players', '[]'::jsonb) || jsonb_build_array(v_player)),
          updated_at = now()
    where id = p_lobby_id;
 
@@ -270,7 +424,10 @@ begin
 end;
 $$;
 
--- ── RPC: start_game — host transitions waiting → in_progress ───────────────────
+-- ── RPC: start_game — DEPRECATED & DISABLED ──────────────────────────────────
+-- The Edge Function now builds the initial LobbyGameState from the validated
+-- waiting room. Keeping this old signature writable would let a host seed
+-- forged cash/rungs/secured states.
 create or replace function public.start_game(
   p_lobby_id   uuid,
   p_game_state jsonb               -- full LobbyGameState (phase='PLANNING')
@@ -281,21 +438,17 @@ security definer
 set search_path = public
 as $$
 begin
-  if not public.is_lobby_host(p_lobby_id) then
-    raise exception 'only the host may start the game';
-  end if;
-  update public.lobbies
-     set status = 'in_progress', game_state = p_game_state, updated_at = now()
-   where id = p_lobby_id;
+  raise exception 'start_game is disabled: game starts are server-authoritative';
 end;
 $$;
 
--- ── RPC: submit_turn_pending — caller may only submit as the player they own ───
+-- ── RPC: submit_turn_pending — service-only atomic merge ─────────────────────
+drop function if exists public.submit_turn_pending(uuid, text, jsonb, jsonb);
 create or replace function public.submit_turn_pending(
   p_lobby_id       uuid,
   p_player_id      text,
-  p_pending        jsonb,          -- PendingPurchase[] for this player
-  p_submitted_list jsonb           -- DEPRECATED/ignored: submittedPlayers is now merged server-side
+  p_pending        jsonb,          -- validated PendingPurchase[] from the Edge Function
+  p_auth_uid       uuid            -- caller uid verified by the Edge Function
 )
 returns void
 language plpgsql
@@ -303,31 +456,33 @@ security definer
 set search_path = public
 as $$
 declare
-  v_uid       uuid := auth.uid();
   v_state     jsonb;
+  v_status    text;
   v_submitted jsonb;
 begin
-  if v_uid is null then raise exception 'auth required'; end if;
+  if p_auth_uid is null then raise exception 'auth required'; end if;
+  if p_pending is null or jsonb_typeof(p_pending) <> 'array' or jsonb_array_length(p_pending) > 100 then
+    raise exception 'invalid pending payload';
+  end if;
 
-  -- Identity binding: the caller must own p_player_id in THIS lobby.
+  -- Identity binding: the caller must own p_player_id in THIS lobby. The
+  -- function is granted only to service_role; browser clients cannot call it.
   if not exists (
     select 1 from public.lobby_participants
-    where lobby_id = p_lobby_id and player_id = p_player_id and auth_uid = v_uid
+    where lobby_id = p_lobby_id and player_id = p_player_id and auth_uid = p_auth_uid
   ) then
     raise exception 'cannot submit as another player';
   end if;
 
-  select game_state into v_state from public.lobbies where id = p_lobby_id for update;
+  select game_state, status into v_state, v_status from public.lobbies where id = p_lobby_id for update;
   if v_state is null then raise exception 'lobby not found'; end if;
+  if v_status <> 'in_progress' or v_state->>'phase' <> 'PLANNING' then
+    raise exception 'lobby not accepting submissions';
+  end if;
 
   -- Merge this player into the AUTHORITATIVE submittedPlayers array server-side
   -- (under the row lock above) instead of trusting the client-supplied list.
-  -- A client's p_submitted_list is computed from its own local snapshot, which
-  -- is frequently stale (it hasn't yet received the other players' Realtime
-  -- submission events). Overwriting with it let a late/concurrent submit clobber
-  -- earlier submitters, so resolve-turn would see "not all submitted" and the
-  -- turn never resolved — every player stuck on "Thinking…". Appending by player
-  -- id makes concurrent submits commutative and idempotent.
+  -- Appending by player id makes concurrent submits commutative and idempotent.
   v_submitted := coalesce(v_state -> 'submittedPlayers', '[]'::jsonb);
   if not (v_submitted @> to_jsonb(p_player_id)) then
     v_submitted := v_submitted || to_jsonb(p_player_id);
@@ -388,14 +543,30 @@ begin
 end;
 $$;
 
--- ── Grants: RPCs callable by anon + authenticated; tables NOT directly writable ─
-grant execute on function public.create_lobby(text, boolean, integer, jsonb)      to anon, authenticated;
-grant execute on function public.join_lobby_player(uuid, jsonb)                    to anon, authenticated;
-grant execute on function public.start_game(uuid, jsonb)                           to anon, authenticated;
-grant execute on function public.submit_turn_pending(uuid, text, jsonb, jsonb)     to anon, authenticated;
-grant execute on function public.ensure_participant(uuid, text)                    to anon, authenticated;
-grant execute on function public.set_lobby_status(uuid, text)                      to anon, authenticated;
+-- ── Grants: authenticated clients use narrow RPCs; service_role performs
+--    authoritative Edge Function writes. Tables are not directly writable. ─────
+revoke execute on function public.is_known_candidate(text) from public, anon, authenticated;
+revoke execute on function public.is_free_candidate(text) from public, anon, authenticated;
+revoke execute on function public.caller_can_use_candidate(text) from public, anon, authenticated;
+revoke execute on function public.normalize_waiting_player(jsonb, boolean) from public, anon, authenticated;
+revoke execute on function public.find_lobby_by_code(text) from public, anon;
+grant execute on function public.find_lobby_by_code(text)                         to authenticated;
+revoke execute on function public.list_public_lobbies() from public, anon;
+grant execute on function public.list_public_lobbies()                            to authenticated;
+revoke execute on function public.create_lobby(text, boolean, integer, jsonb) from public, anon;
+grant execute on function public.create_lobby(text, boolean, integer, jsonb)      to authenticated;
+revoke execute on function public.join_lobby_player(uuid, jsonb) from public, anon;
+grant execute on function public.join_lobby_player(uuid, jsonb)                   to authenticated;
+revoke execute on function public.start_game(uuid, jsonb) from public, anon, authenticated;
+revoke execute on function public.submit_turn_pending(uuid, text, jsonb, uuid) from public, anon, authenticated;
+grant execute on function public.submit_turn_pending(uuid, text, jsonb, uuid)     to service_role;
+revoke execute on function public.ensure_participant(uuid, text) from public, anon;
+grant execute on function public.ensure_participant(uuid, text)                   to authenticated;
+revoke execute on function public.set_lobby_status(uuid, text) from public, anon;
+grant execute on function public.set_lobby_status(uuid, text)                     to authenticated;
 -- push_game_state is deprecated/disabled — revoke so no client can call it.
 revoke execute on function public.push_game_state(uuid, jsonb) from public, anon, authenticated;
-grant execute on function public.is_lobby_participant(uuid)                        to anon, authenticated;
-grant execute on function public.is_lobby_host(uuid)                               to anon, authenticated;
+revoke execute on function public.is_lobby_participant(uuid) from public, anon;
+grant execute on function public.is_lobby_participant(uuid)                       to authenticated;
+revoke execute on function public.is_lobby_host(uuid) from public, anon;
+grant execute on function public.is_lobby_host(uuid)                              to authenticated;

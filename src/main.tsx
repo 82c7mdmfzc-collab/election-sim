@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastHost } from './components/ToastHost'
+import { OrientationGate } from './components/OrientationGate'
 import { AudioManager } from './utils/audioManager'
 import { isMuted } from './utils/localPrefs'
 
@@ -33,6 +34,7 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <App />
       <ToastHost />
+      <OrientationGate />
     </ErrorBoundary>
   </StrictMode>,
 )

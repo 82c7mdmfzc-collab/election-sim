@@ -241,6 +241,34 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Environmental': -0.20,
     },
   },
+  // ── Limited-time promo (free for July signups; purchasable for Funds after) ──
+  {
+    id: 'washington',
+    name: 'George Washington',
+    portrait: 'GW',
+    portraitUrl: '/assets/portraits/washington.png',
+    tokenUrl: '/assets/tokens/washington_token.png',
+    startingCash: 250,
+    party: 'independent',
+    color: 'green',
+    tagline: 'The Nonpartisan Founder — a balanced sidegrade.',
+    unlockCost: 1500,
+    // ⚖️ Cosmetic/sidegrade ONLY. A free (July-grant) character must not hand out a
+    // concentrated economic edge, so these modifiers are deliberately small and sum
+    // to ZERO on each axis: every perk is offset by an equal penalty. Net-neutral.
+    affinities: {
+      'Agriculture': 0.05,
+      'Swing States': 0.05,
+      'High Tech': -0.05,
+      'Big Conservative': -0.05,
+    },
+    payoutModifiers: {
+      'Swing States': 0.10,
+      'Export Driven': 0.05,
+      'Old South': -0.05,
+      'Environmental': -0.10,
+    },
+  },
 ];
 
 export const CANDIDATE_MAP: Record<string, CandidateDef> = Object.fromEntries(

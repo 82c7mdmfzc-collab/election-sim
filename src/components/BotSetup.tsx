@@ -1,9 +1,9 @@
 /**
- * BotSetup — the "vs Bot" pre-game screen (single-player).
+ * BotSetup — the Solo pre-game screen.
  *
  * The human picks their candidate (from the roster they own), a difficulty, and
- * 1–3 AI opponents. Bots are auto-assigned distinct candidates (they may use
- * premium characters — a nice preview) and all share the chosen difficulty.
+ * 1–3 computer opponents. Opponents are auto-assigned distinct candidates and
+ * all share the chosen difficulty.
  * Seat 0 is always the human, so progression/rewards track their result.
  */
 
@@ -18,14 +18,15 @@ import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import type { BotDifficulty } from '../game/types';
-import { ModifierSheet } from './ModifierSheet';
+import type { CandidateDef } from '../game/candidates';
 import { Portrait } from './Portrait';
 import { PartyBadge } from './PartyBadge';
+import { NextChallengeHint } from './ProgressPanel';
 
 const DIFFICULTIES: { id: BotDifficulty; label: string; blurb: string }[] = [
-  { id: 'easy',   label: 'Easy',   blurb: 'Campaigns at random. A gentle warm-up.' },
-  { id: 'medium', label: 'Medium', blurb: 'Plays for value and builds real leads.' },
-  { id: 'hard',   label: 'Hard',   blurb: 'Contests coalitions, denies, and secures.' },
+  { id: 'easy',   label: 'Easy',   blurb: 'Loose, low-pressure decisions.' },
+  { id: 'medium', label: 'Medium', blurb: 'Balanced map control and steady pressure.' },
+  { id: 'hard',   label: 'Hard',   blurb: 'Sharper denial, coalition pushes, and secure finishes.' },
 ];
 
 const TIME_OPTIONS: { label: string; value: number | null }[] = [
@@ -37,6 +38,22 @@ const TIME_OPTIONS: { label: string; value: number | null }[] = [
 
 interface BotSetupProps {
   onBack: () => void;
+}
+
+function perkSummary(candidate: CandidateDef): { label: string; tone: 'good' | 'mixed' | 'flat' }[] {
+  const cost = Object.values(candidate.affinities);
+  const income = Object.values(candidate.payoutModifiers);
+  const costUpside = cost.filter((v) => v > 0).length;
+  const incomeUpside = income.filter((v) => v > 0).length;
+  const tradeoffs = [...cost, ...income].filter((v) => v < 0).length;
+  const chips: { label: string; tone: 'good' | 'mixed' | 'flat' }[] = [];
+
+  if (costUpside > 0) chips.push({ label: `${costUpside} cost perk${costUpside === 1 ? '' : 's'}`, tone: 'good' });
+  if (incomeUpside > 0) chips.push({ label: `${incomeUpside} income perk${incomeUpside === 1 ? '' : 's'}`, tone: 'good' });
+  if (tradeoffs > 0) chips.push({ label: `${tradeoffs} tradeoff${tradeoffs === 1 ? '' : 's'}`, tone: 'mixed' });
+  if (chips.length === 0) chips.push({ label: 'Neutral build', tone: 'flat' });
+
+  return chips;
 }
 
 export function BotSetup({ onBack }: BotSetupProps) {
@@ -69,7 +86,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
   return (
     <div className="setup">
       <div className="setup__header">
-        <h1 className="setup__title">Play vs the Machine</h1>
+        <h1 className="setup__title">Solo Campaign</h1>
 
         <div className="setup__count">
           <span>Opponents:</span>
@@ -116,12 +133,14 @@ export function BotSetup({ onBack }: BotSetupProps) {
         <p className="setup__sub" style={{ marginTop: '0.5rem' }}>
           {DIFFICULTIES.find((d) => d.id === difficulty)?.blurb}
         </p>
+        <NextChallengeHint context="solo" />
       </div>
 
-      <p className="mp-hint">Choose your candidate:</p>
+      <p className="mp-hint">Candidate</p>
       <div className="setup__roster">
         {ownedCandidates.map((c) => {
           const chosen = c.id === myId;
+          const chips = perkSummary(c);
           return (
             <button
               key={c.id}
@@ -142,7 +161,13 @@ export function BotSetup({ onBack }: BotSetupProps) {
                 {chosen && <span className="cand-card__seat">You</span>}
               </div>
               <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-              <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+              <div className="cand-card__perks" aria-label={`${c.name} perk summary`}>
+                {chips.map((chip) => (
+                  <span key={chip.label} className={`perk-chip perk-chip--${chip.tone}`}>
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
             </button>
           );
         })}
@@ -150,13 +175,13 @@ export function BotSetup({ onBack }: BotSetupProps) {
 
       <div className="setup__seats" style={{ marginTop: '0.75rem' }}>
         <span className="setup__seat is-filled">
-          Facing: <strong>{botRoster.map((b) => `${b.name} (${difficulty})`).join(', ')}</strong>
+          Opposition: <strong>{botRoster.map((b) => `${b.name} (${difficulty})`).join(', ')}</strong>
         </span>
       </div>
 
       <div className="setup__foot">
         <button type="button" className="setup__start" onClick={start}>
-          Start Game →
+          Start Campaign →
         </button>
         <button type="button" className="mp-back" onClick={onBack} style={{ marginTop: '0.5rem' }}>
           ← Back

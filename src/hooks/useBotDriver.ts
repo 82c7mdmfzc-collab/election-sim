@@ -1,10 +1,10 @@
 /**
- * useBotDriver — drives AI seats in single-player "vs Bot" mode.
+ * useBotDriver — drives computer-controlled seats in Solo mode.
  *
  * Mounted once in GameShell. When it's a bot seat's turn during PLANNING, it
  * waits a short "thinking" beat, asks bot.ts for a plan, and applies it through
  * the SAME store actions a human uses (allocate → submitTurn). No special
- * resolution path — bots play by the identical rules.
+ * resolution path — computer opponents play by the identical rules.
  *
  * The per-seat key (`turn:index`) plus setting the guard inside the timeout makes
  * this fire exactly once per bot turn, even under React StrictMode double-invoke.

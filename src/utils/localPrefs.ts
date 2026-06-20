@@ -13,12 +13,18 @@ export interface LocalPrefs {
   muted: boolean;
   /** gameId of the most recent game whose reward was already granted (idempotency). */
   lastAwardedGameId: string | null;
+  /** Equipped victory-message cosmetic id (see game/victoryMessages.ts). */
+  selectedVictoryMessage: string;
+  /** Referral code captured from a ?ref= invite link, pending set_referrer after sign-in. */
+  pendingReferralCode: string | null;
 }
 
 const DEFAULTS: LocalPrefs = {
   tutorialSeen: false,
   muted: false,
   lastAwardedGameId: null,
+  selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
+  pendingReferralCode: null,
 };
 
 export function getPrefs(): LocalPrefs {
@@ -47,3 +53,8 @@ export const isMuted = () => getPrefs().muted;
 export const setMuted = (muted: boolean) => setPrefs({ muted });
 export const getLastAwardedGameId = () => getPrefs().lastAwardedGameId;
 export const setLastAwardedGameId = (lastAwardedGameId: string) => setPrefs({ lastAwardedGameId });
+export const getSelectedVictoryMessage = () => getPrefs().selectedVictoryMessage;
+export const setSelectedVictoryMessage = (selectedVictoryMessage: string) => setPrefs({ selectedVictoryMessage });
+export const getPendingReferralCode = () => getPrefs().pendingReferralCode;
+export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs({ pendingReferralCode });
+export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });

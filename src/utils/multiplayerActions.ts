@@ -7,7 +7,7 @@
 
 import { supabase } from './supabaseClient';
 import { notifyError } from './toast';
-import type { LobbyGameState } from '../game/types';
+import type { LobbyGameState, PurchaseIntent } from '../game/types';
 
 /** Build the JSONB payload for the lobbies.game_state column from current store state. */
 export function buildLobbyPayload(
@@ -42,9 +42,8 @@ async function invokeResolveTurn(
 }
 
 /**
- * Atomically merge a player's pending purchases into the lobby row via the
- * `submit_turn_pending` Postgres function. This prevents race conditions when
- * two players submit simultaneously.
+ * Submit a player's purchase intents to the Edge Function. The server recomputes
+ * costs/wallet draws and then atomically merges validated pending purchases.
  *
  * Returns true on success, false on failure so the caller can roll back its
  * optimistic "submitted" state and let the player retry.
@@ -52,17 +51,18 @@ async function invokeResolveTurn(
 export async function pushMySubmission(
   lobbyId: string,
   playerId: string,
-  pending: LobbyGameState['pendingSubmissions'][string],
-  submittedList: string[],
+  intents: PurchaseIntent[],
 ): Promise<boolean> {
-  const { error } = await supabase.rpc('submit_turn_pending', {
-    p_lobby_id: lobbyId,
-    p_player_id: playerId,
-    p_pending: pending,
-    p_submitted_list: submittedList,
+  const { error } = await supabase.functions.invoke('resolve-turn', {
+    body: {
+      lobbyId,
+      action: 'submitTurn',
+      playerId,
+      intents,
+    },
   });
   if (error) {
-    console.error('[multiplayer] submit_turn_pending failed:', error);
+    console.error('[multiplayer] submitTurn failed:', error);
     notifyError('Could not submit your turn. Check your connection and try again.');
     return false;
   }

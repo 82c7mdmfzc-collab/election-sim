@@ -2,7 +2,7 @@
  * PlayerProfileModal — overlay showing a player's candidate perks and profile stats.
  *
  * Triggered by clicking any player name in the HUD or sidebar.
- * - For bot players: shows perks + bot badge, no profile stats.
+ * - For computer-controlled players: shows perks + difficulty badge, no profile stats.
  * - For human players: shows perks + lifetime stats from useProfile().
  * Badges section is a placeholder for a future feature.
  */
@@ -64,7 +64,7 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
             )}
             {isBot && (
               <div className="profile-bot-badge">
-                Bot{player.botDifficulty ? ` — ${player.botDifficulty}` : ''}
+                Computer{player.botDifficulty ? ` — ${player.botDifficulty}` : ''}
               </div>
             )}
           </div>

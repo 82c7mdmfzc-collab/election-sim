@@ -126,8 +126,8 @@ Add these to **Authentication → URL Configuration → Redirect URLs**:
 
 ### Pre-ship gate
 ```
-npm run test     # Vitest — engine, rewards, bot, sanitize
+npm run test     # Vitest — engine, rewards, Solo opponent, sanitize
 npm run lint     # ESLint clean
 npm run build    # tsc -b + vite build
 ```
-Update `test_puppeteer.js` for the new menu flow (mode-select → vs Bot / Shop) and smoke it.
+Run `node test_vsbot_smoke.mjs` for the current menu flow (mode-select → Solo / Shop).

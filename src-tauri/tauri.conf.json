@@ -37,9 +37,7 @@
 
       "dangerousDisableAssetCspModification": false,
 
-      "freezePrototype": true,
-
-      "devmodeUrl": "http://localhost:5174"
+      "freezePrototype": true
     }
   },
 
@@ -61,7 +59,7 @@
     "copyright": "© 2026 Elector",
     "category": "Game",
     "shortDescription": "Win the Electoral College.",
-    "longDescription": "Elector — the strategy game of winning the US Electoral College. Campaign across the states, build coalitions, and race to 270 against bots or friends online.",
+    "longDescription": "Elector — the strategy game of winning the US Electoral College. Campaign across the states, build coalitions, and race to 270 in Solo, pass-and-play, or online.",
 
     "macOS": {
       "entitlements": null,
