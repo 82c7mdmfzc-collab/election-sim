@@ -158,7 +158,7 @@ function chooseStateRungs(state: GameState, sim: Sim, stateId: string, preferred
   );
   if (room <= 0) return 0;
 
-  let rungs = Math.min(preferred, room);
+  const rungs = Math.min(preferred, room);
   const endRung = startRung + pending + rungs;
   if (!wouldMatchVisiblePending(state, sim.player.id, 'state', stateId, endRung)) return rungs;
 

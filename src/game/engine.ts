@@ -759,4 +759,3 @@ export function resolveElection(state: GameState): ElectionOutcome {
 
 // ── Re-exports for convenience ────────────────────────────────────────────────
 export { maxRungsFor, maxBuyableThisTurn as gatekeeperCap, WIN_THRESHOLD };
-export const TOTAL_ELECTORAL_VOTES = 538;
