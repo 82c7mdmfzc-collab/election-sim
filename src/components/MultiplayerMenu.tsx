@@ -54,6 +54,17 @@ function generateRoomCode(): string {
   return Math.floor(1000 + Math.random() * 9000).toString();
 }
 
+/**
+ * A unique-enough player id. Avoids `crypto.randomUUID()`, which only exists in
+ * Safari 15.4+ and throws in the iOS 14.0–15.3 WKWebView this app still targets.
+ * Uses the random UUID when available, otherwise a timestamp + random fallback.
+ */
+function randomId(): string {
+  const c = typeof crypto !== 'undefined' ? crypto : undefined;
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 // ── Waiting-room player list (host + guest share this) ───────────────────
 function WaitingRoomPlayerList({
   hostId,
@@ -188,7 +199,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     setLoading(true);
     setErrorMsg(null);
 
-    const hostId = crypto.randomUUID();
+    const hostId = randomId();
     const hostPlayer: WaitingPlayer = {
       id: hostId,
       candidateId: myCandidate.id,
@@ -322,7 +333,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     setLoading(true);
     setErrorMsg(null);
 
-    const guestId = crypto.randomUUID();
+    const guestId = randomId();
     const hostPlayerId =
       (foundLobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
     const guestPlayer: WaitingPlayer = {

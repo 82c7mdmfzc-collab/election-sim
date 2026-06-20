@@ -42,7 +42,7 @@ import {
 } from '../utils/localPrefs';
 import { clearSession } from '../utils/sessionStore';
 import {
-  getUser,
+  getSession,
   onAuthChange,
   sendEmailCode as authSendEmailCode,
   verifyEmailCode as authVerifyEmailCode,
@@ -111,6 +111,36 @@ interface ProfileStore {
 
 let initialized = false;
 
+/**
+ * A fresh copy of the default profile.
+ *
+ * NB: we deliberately do NOT use `structuredClone` here. It was added in Safari
+ * 15.4, but this app ships to iOS with an `IPHONEOS_DEPLOYMENT_TARGET` of 14.0,
+ * whose WKWebView (iOS 14.0–15.3) lacks it. Calling it at module-eval time threw
+ * before React mounted, leaving a blank screen on those devices. The Profile is
+ * plain JSON data, so a JSON round-trip is a correct, universally-supported clone.
+ */
+function freshProfile(): Profile {
+  return JSON.parse(JSON.stringify(DEFAULT_PROFILE)) as Profile;
+}
+
+/** Reject after `ms` so a hung network call can never trap the app on boot. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 const EMPTY_REWARD: ProgressRewardBreakdown = {
   base: 0,
   winBonus: 0,
@@ -125,7 +155,7 @@ const EMPTY_REWARD: ProgressRewardBreakdown = {
 };
 
 export const useProfile = create<ProfileStore>((set, get) => ({
-  profile: structuredClone(DEFAULT_PROFILE),
+  profile: freshProfile(),
   userId: null,
   guest: true,
   displayName: null,
@@ -145,8 +175,21 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       void hydrateForUser(user, set);
     });
 
-    const user = await getUser();
-    await hydrateForUser(user, set);
+    // Boot is gated on `ready`; it must NEVER hang. Read the session from local
+    // storage (no mandatory network round-trip) and bound both the session read
+    // and the account hydration with a timeout. If anything stalls or throws —
+    // e.g. flaky cell signal on a phone — the `finally` forces a guest boot so the
+    // app always leaves the splash instead of sitting on a blank screen.
+    try {
+      const session = await withTimeout(getSession(), 5000);
+      await withTimeout(hydrateForUser(session?.user ?? null, set), 5000);
+    } catch {
+      /* auth/network unavailable or timed out — fall through to the guest guard */
+    } finally {
+      if (!get().ready) {
+        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true });
+      }
+    }
   },
 
   async applyGameResult(result) {
@@ -319,7 +362,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       await authSignOut();
     } finally {
       clearSession();
-      set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
+      set({ userId: null, guest: true, displayName: null, profile: freshProfile() });
     }
   },
 
@@ -332,7 +375,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       await authSignOut();
     } finally {
       clearSession();
-      set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
+      set({ userId: null, guest: true, displayName: null, profile: freshProfile() });
     }
     return true;
   },
@@ -397,16 +440,22 @@ async function hydrateForUser(
   set: (p: Partial<ProfileStore>) => void,
 ): Promise<void> {
   if (!user) {
-    set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE), ready: true });
+    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true });
     return;
   }
-  const account = await fetchRemoteAccount(user.id);
+  // Mark signed-in and ready up front so the UI boots even if the account fetch
+  // is slow; funds/stats/displayName fill in when it returns. A failed/hung fetch
+  // leaves a default profile rather than trapping the app on the splash.
+  set({ userId: user.id, guest: false, ready: true });
+  let account: Awaited<ReturnType<typeof fetchRemoteAccount>> = null;
+  try {
+    account = await fetchRemoteAccount(user.id);
+  } catch {
+    /* account fetch failed — keep the default profile, stay signed in */
+  }
   set({
-    userId: user.id,
-    guest: false,
     displayName: account?.displayName ?? null,
-    profile: account?.profile ?? structuredClone(DEFAULT_PROFILE),
-    ready: true,
+    profile: account?.profile ?? freshProfile(),
   });
 
   // If this account arrived via an invite link, record the referrer once. The
