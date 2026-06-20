@@ -44,7 +44,7 @@ interface PlayerHudCardProps {
 
 function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displayCash, color, borderId, walletOpen, onToggleWallet, onClickName }: PlayerHudCardProps) {
   const securedEV = useSecuredEVs(player.id);
-  const tokenUrl = CANDIDATE_MAP[player.candidateId]?.tokenUrl ?? '';
+  const portraitUrl = CANDIDATE_MAP[player.candidateId]?.portraitUrl ?? '';
   const fallback = player.name.slice(0, 2).toUpperCase();
   const animatedCash = useAnimatedNumber(displayCash);
 
@@ -73,7 +73,7 @@ function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displa
       style={{ ['--p-color' as string]: color?.hex ?? '#64748b' }}
     >
       <div className="hud-card__portrait">
-        <Avatar src={tokenUrl} initials={fallback} name={player.name} borderId={borderId} className="cand-token" />
+        <Avatar src={portraitUrl} initials={fallback} name={player.name} borderId={borderId} className="cand-token" />
       </div>
       <div className="hud-card__body">
         <div

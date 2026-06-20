@@ -51,7 +51,7 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
         <div className="profile-modal__head">
           <div className="profile-modal__portrait">
             <Avatar
-              src={cand?.tokenUrl ?? ''}
+              src={cand?.portraitUrl ?? ''}
               initials={player.name.slice(0, 2).toUpperCase()}
               name={player.name}
               className="cand-token"

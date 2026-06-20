@@ -83,7 +83,7 @@ function WaitingRoomPlayerList({
           <div key={p.id} className="mp-player-row">
             <span className="mp-player-token">
               <Avatar
-                src={cand?.tokenUrl ?? ''}
+                src={cand?.portraitUrl ?? ''}
                 initials={p.name.slice(0, 2).toUpperCase()}
                 name={cand?.name ?? p.name}
                 className="cand-token"
@@ -634,8 +634,8 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
               const c = CANDIDATE_MAP[p.candidateId];
               return (
                 <div key={p.id} className="mp-player-row">
-                  {c?.tokenUrl && (
-                    <img src={c.tokenUrl} className="cand-token mp-player-token" alt={c.name} loading="lazy" decoding="async" />
+                  {c?.portraitUrl && (
+                    <img src={c.portraitUrl} className="cand-token mp-player-token" alt={c.name} loading="lazy" decoding="async" />
                   )}
                   <span className="mp-player-name">{p.name}</span>
                   <span className="mp-player-cand">{c?.name ?? p.candidateId}</span>

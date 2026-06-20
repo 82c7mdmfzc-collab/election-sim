@@ -46,10 +46,10 @@ export function VersusScreen() {
               className="versus__seat"
               style={{ left: `${ring.x}%`, top: `${ring.y}%`, width: `${ring.s}%` }}
             >
-              {c?.tokenUrl && (
+              {c?.portraitUrl && (
                 <img
                   className="versus__avatar"
-                  src={c.tokenUrl}
+                  src={c.portraitUrl}
                   alt=""
                   draggable={false}
                   onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}

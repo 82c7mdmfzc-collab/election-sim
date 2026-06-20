@@ -227,7 +227,7 @@ export function VictoryPodium() {
         <div className="victory-portrait">
           {winner ? (
             <Avatar
-              src={CANDIDATE_MAP[winner.candidateId]?.tokenUrl ?? ''}
+              src={CANDIDATE_MAP[winner.candidateId]?.portraitUrl ?? ''}
               initials={winner.name.slice(0, 2).toUpperCase()}
               name={winner.name}
               className="cand-token"
@@ -275,7 +275,7 @@ export function VictoryPodium() {
               <span className="victory-rank">{RANK_LABELS[i] ?? `#${i + 1}`}</span>
               <div className="victory-portrait-sm">
                 <Avatar
-                  src={CANDIDATE_MAP[p.candidateId]?.tokenUrl ?? ''}
+                  src={CANDIDATE_MAP[p.candidateId]?.portraitUrl ?? ''}
                   initials={p.name.slice(0, 2).toUpperCase()}
                   name={p.name}
                   className="cand-token"

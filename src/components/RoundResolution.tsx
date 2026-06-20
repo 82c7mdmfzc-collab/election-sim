@@ -96,7 +96,7 @@ export function RoundResolution() {
             >
               <span className="res-card__token">
                 <Avatar
-                  src={cand?.tokenUrl ?? ''}
+                  src={cand?.portraitUrl ?? ''}
                   initials={(player?.name ?? '?')[0]}
                   name={player?.name ?? p.playerId}
                   className="cand-token"
