@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CandidateSelect } from './components/CandidateSelect';
 import { MultiplayerMenu } from './components/MultiplayerMenu';
 import { GameShell } from './components/GameShell';
+import { VersusScreen } from './components/VersusScreen';
 import { ElectionTallyView } from './components/ElectionTallyView';
 import { VictoryPodium } from './components/VictoryPodium';
 import { Tutorial } from './components/Tutorial';
@@ -134,6 +135,7 @@ function App() {
   useSessionRestore();
   useGameRewards();
   const phase = useGameStore((s) => s.phase);
+  const versusPending = useGameStore((s) => s.versusPending);
   const initProfile = useProfile((s) => s.init);
   const ready = useProfile((s) => s.ready);
   const signedIn = useProfile(selectIsSignedIn);
@@ -210,7 +212,11 @@ function App() {
   // Once a game is running, route to the correct view regardless of appMode
   if (phase === 'ELECTION_TALLY') return <ElectionTallyView />;
   if (phase === 'GAME_OVER') return <VictoryPodium />;
-  if (phase !== 'SETUP' && phase !== 'MENU') return <GameShell />;
+  if (phase !== 'SETUP' && phase !== 'MENU') {
+    // Show the matchup intro once at the start of a game, before the board.
+    if (versusPending) return <VersusScreen />;
+    return <GameShell />;
+  }
 
   // Wait for the auth/profile check before deciding, so a signed-in user never
   // flashes the landing page on load.

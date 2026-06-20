@@ -18,13 +18,18 @@ export interface FundsBundle {
   /** Display-only USD price (final price strings live in each store console). */
   priceLabel: string;
   badge?: string;
+  /** Per-bundle coin artwork served from /assets/coins/. */
+  imageUrl: string;
 }
 
-/** Consumable Campaign Funds bundles shown in the Shop (grants owned by SQL). */
+/** Consumable Campaign Funds bundles shown in the Shop (grants owned by SQL).
+ *  Amounts/SKUs MUST match supabase/iap.sql (fulfill_purchase) and the web price
+ *  catalog in supabase/functions/stripe-checkout/index.ts. */
 export const FUNDS_BUNDLES: readonly FundsBundle[] = [
-  { sku: 'funds_small', funds: 1200, priceLabel: '$0.99' },
-  { sku: 'funds_medium', funds: 7000, priceLabel: '$4.99', badge: 'Most popular' },
-  { sku: 'funds_large', funds: 16000, priceLabel: '$9.99', badge: 'Best value' },
+  { sku: 'funds_1500', funds: 1500, priceLabel: '$0.99', imageUrl: '/assets/coins/funds_1500.png' },
+  { sku: 'funds_4000', funds: 4000, priceLabel: '$1.99', imageUrl: '/assets/coins/funds_4000.png' },
+  { sku: 'funds_8000', funds: 8000, priceLabel: '$3.99', badge: 'Most popular', imageUrl: '/assets/coins/funds_8000.png' },
+  { sku: 'funds_12000', funds: 12000, priceLabel: '$5.99', badge: 'Best value', imageUrl: '/assets/coins/funds_12000.png' },
 ];
 
 export type IapPlatform = 'web' | 'ios' | 'android' | 'unsupported';

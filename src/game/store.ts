@@ -79,6 +79,8 @@ interface GameStore extends GameState {
   electionTallyProgress: number;
   resolutionTickerDone: boolean;
   hasSubmittedLocalTurn: boolean;
+  /** True right after a game starts, until the VS matchup intro is dismissed. */
+  versusPending: boolean;
 
   /** Unique id for the current game, set at start. Keys the once-per-game reward. */
   gameId: string | null;
@@ -102,6 +104,8 @@ interface GameStore extends GameState {
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   initOnlineGame(players: PlayerState[]): void;
+  /** Dismiss the VS matchup intro and drop into the board. */
+  clearVersus(): void;
   /**
    * Start a hot-seat / Solo game. `botSeats` maps a chosen candidate's id to a
    * difficulty; those seats become computer-controlled (single-player only).
@@ -265,6 +269,7 @@ export const useGameStore = create<GameStore>()(
         electionTallyProgress: 0,
         resolutionTickerDone: false,
         hasSubmittedLocalTurn: false,
+        versusPending: false,
         gameId: null,
         multiplayerMode: 'single',
         localPlayerId: null,
@@ -309,7 +314,13 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: nextTurnTimeLimit,
             turnDeadline: null,
             handoffAckKey: '1:0',
+            versusPending: true,
           });
+        },
+
+        // ── clearVersus ───────────────────────────────────────────────────────
+        clearVersus() {
+          set({ versusPending: false });
         },
 
         // ── allocate ──────────────────────────────────────────────────────────
@@ -862,6 +873,7 @@ export const useGameStore = create<GameStore>()(
             hasSubmittedLocalTurn: false,
             turnDeadline: newDeadline,
             handoffAckKey: '1:0',
+            versusPending: true,
           });
         },
 
@@ -903,6 +915,7 @@ export const useGameStore = create<GameStore>()(
               k !== 'handoffAckKey' &&
               k !== 'resolutionTickerDone' &&
               k !== 'hasSubmittedLocalTurn' &&
+              k !== 'versusPending' &&
               k !== 'localPlayerId' &&
               k !== 'lobbyId' &&
               k !== 'hostPlayerId' &&

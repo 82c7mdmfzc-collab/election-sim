@@ -31,8 +31,9 @@ const FALLBACK_ORIGIN = 'https://playelector.com';
 
 // SKUs the native rails may grant (the authoritative grant amounts live in SQL).
 const KNOWN_SKUS = new Set<string>([
-  'funds_small', 'funds_medium', 'funds_large',
+  'funds_1500', 'funds_4000', 'funds_8000', 'funds_12000',
   'unlock_washington', 'unlock_joe_biden', 'unlock_ronald_reagan',
+  'unlock_starmer', 'unlock_farage',
 ]);
 
 function corsFor(req: Request): Record<string, string> {

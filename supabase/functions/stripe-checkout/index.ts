@@ -23,12 +23,15 @@ const FALLBACK_ORIGIN = 'https://playelector.com';
 // USD price (in cents) per SKU on the WEB rail. The funds/characters granted are
 // owned by the DB (fulfill_purchase); this is only what Stripe charges.
 const WEB_PRICE_CENTS: Record<string, { cents: number; label: string }> = {
-  funds_small: { cents: 99, label: '1,200 Campaign Funds' },
-  funds_medium: { cents: 499, label: '7,000 Campaign Funds' },
-  funds_large: { cents: 999, label: '16,000 Campaign Funds' },
+  funds_1500: { cents: 99, label: '1,500 Campaign Funds' },
+  funds_4000: { cents: 199, label: '4,000 Campaign Funds' },
+  funds_8000: { cents: 399, label: '8,000 Campaign Funds' },
+  funds_12000: { cents: 599, label: '12,000 Campaign Funds' },
   unlock_washington: { cents: 299, label: 'George Washington (character)' },
   unlock_joe_biden: { cents: 299, label: 'Joe Biden (character)' },
   unlock_ronald_reagan: { cents: 299, label: 'Ronald Reagan (character)' },
+  unlock_starmer: { cents: 299, label: 'Keir Starmer (character)' },
+  unlock_farage: { cents: 299, label: 'Nigel Farage (character)' },
 };
 
 function corsFor(req: Request): Record<string, string> {

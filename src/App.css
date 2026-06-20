@@ -2499,7 +2499,45 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
     radial-gradient(1200px 600px at 50% -10%, var(--brand-soft), transparent 60%),
     var(--bg);
 }
-.landing--splash { gap: 0; }
+.landing--splash {
+  gap: 0;
+  background: var(--bg) url('/assets/backgrounds/loading_screen.jpg') center / cover no-repeat;
+}
+/* The loading art is self-branded; hide the duplicate wordmark over it. */
+.landing--splash > * { visibility: hidden; }
+
+/* ── Versus matchup intro ───────────────────────────────────────────────────── */
+.versus {
+  position: fixed; inset: 0; z-index: 200; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: #070b16; animation: versus-fade-in 0.35s ease;
+}
+.versus__stage {
+  position: relative; aspect-ratio: 16 / 9;
+  width: min(100vw, 177.78vh); height: min(56.25vw, 100vh);
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+.versus__seat { position: absolute; transform: translate(-50%, -50%); }
+.versus__avatar {
+  display: block; width: 100%; aspect-ratio: 1; object-fit: contain;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+  animation: versus-pop 0.4s cubic-bezier(0.2, 1.3, 0.5, 1) both;
+}
+.versus__name {
+  position: absolute; top: 104%; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-display); font-weight: 800; white-space: nowrap;
+  font-size: clamp(0.6rem, 1.7vw, 1.15rem); letter-spacing: 0.02em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+}
+.versus__hint {
+  position: absolute; bottom: 4%; left: 50%; transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.7); font-size: clamp(0.6rem, 1.3vw, 0.8rem);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  animation: versus-pulse 1.4s ease-in-out infinite;
+}
+@keyframes versus-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes versus-pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes versus-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.95; } }
 .landing__hero {
   width: min(460px, 92vw);
   display: flex;
@@ -3033,8 +3071,12 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   border-radius: var(--r-md); color: var(--text); font-size: 0.85rem;
 }
 .funds-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.75rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem;
   margin-bottom: 0.5rem;
+  /* Decorative coin-shop frame (9-slice). Falls back to plain padding if absent. */
+  padding: 1rem;
+  border: 16px solid transparent;
+  border-image: url('/assets/backgrounds/shop_frame.png') 13 fill / 16px / 0 stretch;
 }
 .funds-card {
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
@@ -3045,6 +3087,10 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   position: absolute; top: -0.6rem; left: 50%; transform: translateX(-50%);
   padding: 0.15rem 0.6rem; font-size: 0.65rem; font-weight: 700; white-space: nowrap;
   background: var(--brand); color: #fff6ea; border-radius: 999px;
+}
+.funds-card__img {
+  height: 88px; width: auto; max-width: 100%; object-fit: contain;
+  margin-top: 0.2rem; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
 }
 .funds-card__amount {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;

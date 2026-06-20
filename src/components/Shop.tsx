@@ -168,6 +168,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
           {FUNDS_BUNDLES.map((b) => (
             <div key={b.sku} className="funds-card">
               {b.badge && <span className="funds-card__badge">{b.badge}</span>}
+              <img
+                className="funds-card__img"
+                src={b.imageUrl}
+                alt=""
+                draggable={false}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
               <div className="funds-card__amount">
                 <span className="coin-inline coin-inline--large" aria-hidden />
                 {b.funds.toLocaleString()}

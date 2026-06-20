@@ -145,7 +145,7 @@ export function VictoryPodium() {
   // and the equipped victory-message cosmetic shown in the speech box.
   const winnerCand = winner ? CANDIDATE_MAP[winner.candidateId] : null;
   const victorySlug = winnerCand?.portraitUrl.split('/').pop()?.replace(/\.\w+$/, '') ?? '';
-  const victoryBg = victorySlug ? `/assets/victory/${victorySlug}.png` : '';
+  const victoryBg = victorySlug ? `/assets/victory/${victorySlug}.jpg` : '';
   const victorySpeech = victoryMessageText(getSelectedVictoryMessage());
 
   // Rank players by EVs descending
