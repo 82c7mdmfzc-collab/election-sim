@@ -40,6 +40,7 @@ import {
   setPendingReferralCode,
   clearPendingReferralCode,
 } from '../utils/localPrefs';
+import { clearSession } from '../utils/sessionStore';
 import {
   getUser,
   onAuthChange,
@@ -311,8 +312,15 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   },
 
   async signOut() {
-    await authSignOut();
-    set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
+    // Always clear local state, even if the network sign-out throws — otherwise a
+    // failed call would leave the user stuck "signed in". Also drop any online-lobby
+    // session so a stale lobby binding doesn't linger into the next account.
+    try {
+      await authSignOut();
+    } finally {
+      clearSession();
+      set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
+    }
   },
 
   async deleteAccount() {
@@ -320,8 +328,12 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     const ok = await deleteAccountRemote();
     if (!ok) return false;
     // Server row + auth user are gone — tear down the local session + state.
-    await authSignOut();
-    set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
+    try {
+      await authSignOut();
+    } finally {
+      clearSession();
+      set({ userId: null, guest: true, displayName: null, profile: structuredClone(DEFAULT_PROFILE) });
+    }
     return true;
   },
 }));

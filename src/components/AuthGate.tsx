@@ -77,6 +77,14 @@ export function AuthGate({ onClose }: AuthGateProps) {
               <span className="auth-gate__funds-label">Campaign Funds</span>
             </div>
 
+            <button
+              type="button"
+              className="auth-gate__signout"
+              onClick={async () => { await signOut(); close(); }}
+            >
+              Sign out
+            </button>
+
             <div className="auth-gate__stats">
               <Stat label="Games" value={stats.gamesPlayed} />
               <Stat label="Wins" value={stats.gamesWon} />
@@ -85,10 +93,6 @@ export function AuthGate({ onClose }: AuthGateProps) {
             </div>
 
             <ProgressPanel />
-
-            <button type="button" className="tutorial__btn tutorial__btn--ghost" onClick={() => signOut()}>
-              Sign out
-            </button>
 
             {!confirmDelete ? (
               <button

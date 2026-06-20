@@ -134,7 +134,11 @@ export async function claimDisplayName(name: string): Promise<ClaimNameResult> {
 
 export async function signOut(): Promise<void> {
   if (!isSupabaseConfigured) return;
-  await supabase.auth.signOut();
+  // Local scope: clear THIS device's persisted session without a server round-trip.
+  // A global sign-out can reject on a stale/expired token or offline, which would
+  // otherwise leave the user stuck "signed in" — logging out should never depend on
+  // the network succeeding.
+  await supabase.auth.signOut({ scope: 'local' });
 }
 
 /** Subscribe to auth state changes. Returns an unsubscribe function. */
