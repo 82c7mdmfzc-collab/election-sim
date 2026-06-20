@@ -69,9 +69,12 @@ Open `src-tauri/gen/apple` after `npm run tauri:ios:init`.
 - Signing Team: your Apple Developer team
 - Signing: automatically manage signing
 - Deployment target: iOS `15.0` or newer
-- Device orientation:
-  - iPhone: Landscape Left, Landscape Right only
-  - iPad: Landscape Left, Landscape Right only
+- Device orientation: handled in version control via `src-tauri/Info.ios.plist`
+  (landscape-only on iPhone **and** iPad, plus `UIRequiresFullScreen = true`).
+  Tauri merges that file into the generated Info.plist on every `ios build`, so
+  do **not** set orientation manually in Xcode — and do **not** restrict iPad to
+  landscape-only without `UIRequiresFullScreen = true`, or App Store validation
+  rejects the bundle ("must include all four orientations for iPad multitasking").
 - App icon:
   - Source icons are generated in `src-tauri/icons/ios/`
   - Xcode asset catalog is generated under `src-tauri/gen/apple` during init

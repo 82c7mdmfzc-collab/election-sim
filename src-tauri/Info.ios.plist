@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Elector is a landscape-only game (enforced in-app by OrientationGate).
+	  Restricting a Universal app's iPad orientations to landscape-only is
+	  rejected at App Store validation unless the app opts OUT of iPad
+	  multitasking (Split View / Slide Over), which requires all four
+	  orientations. UIRequiresFullScreen = true opts out, so the
+	  landscape-only orientation lists below are accepted.
+
+	  Tauri merges this file on top of the generated gen/apple Info.plist on
+	  every `tauri ios build`, so keep the native orientation policy here
+	  rather than as a manual Xcode target edit.
+	-->
+	<key>UIRequiresFullScreen</key>
+	<true/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+</dict>
+</plist>
