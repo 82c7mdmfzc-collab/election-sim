@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { getMyReferralCode, referralLink, REFERRAL_BONUS } from '../game/referral';
 import { AudioManager } from '../utils/audioManager';
+import { track } from '../utils/analytics';
 
 export function InviteFriend() {
   const guest = useProfile((s) => s.guest);
@@ -34,12 +35,14 @@ export function InviteFriend() {
   async function copy() {
     if (!link) return;
     AudioManager.play('click');
+    track('share_started', { surface: 'referral', share_type: 'invite', method: 'copy_link' });
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
+      track('share_completed', { surface: 'referral', share_type: 'invite', method: 'copy_link' });
     } catch {
-      /* clipboard unavailable — ignore */
+      track('share_failed', { surface: 'referral', share_type: 'invite', method: 'copy_link', reason_category: 'clipboard_unavailable' });
     }
   }
 
@@ -49,11 +52,13 @@ export function InviteFriend() {
     const text = `Play Elector with me — we both earn ${REFERRAL_BONUS} Campaign Funds when you finish your first game!`;
     const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
     if (typeof nav.share === 'function') {
+      track('share_started', { surface: 'referral', share_type: 'invite', method: 'native_share' });
       try {
         await nav.share({ title: 'Elector', text, url: link });
+        track('share_completed', { surface: 'referral', share_type: 'invite', method: 'native_share' });
         return;
       } catch {
-        /* dismissed or unsupported — fall back to copy */
+        track('share_failed', { surface: 'referral', share_type: 'invite', method: 'native_share', reason_category: 'dismissed_or_unavailable' });
       }
     }
     void copy();

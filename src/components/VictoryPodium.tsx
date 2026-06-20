@@ -6,6 +6,7 @@ import { CANDIDATE_MAP } from '../game/candidates';
 import { victoryMessageText } from '../game/victoryMessages';
 import { getSelectedVictoryMessage } from '../utils/localPrefs';
 import { renderShareCardSvg, svgToPngBlob, sharePng, shareLine } from '../utils/shareImage';
+import { track } from '../utils/analytics';
 import { RewardReveal } from './RewardReveal';
 import { Avatar } from './Avatar';
 import { NextChallengeHint, ProgressPanel } from './ProgressPanel';
@@ -44,7 +45,9 @@ export function VictoryPodium() {
   const stateGroupDominance = useGameStore((s) => s.stateGroupDominance);
   const reset = useGameStore((s) => s.reset);
   const returnToMenu = useGameStore((s) => s.returnToMenu);
+  const startGame = useGameStore((s) => s.startGame);
   const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const turnTimeLimit = useGameStore((s) => s.turnTimeLimit);
   const colors = usePlayerColors();
 
   useEffect(() => {
@@ -65,6 +68,11 @@ export function VictoryPodium() {
     setSharing(true);
     try {
       AudioManager.play('click');
+      track('share_started', {
+        surface: 'victory',
+        share_type: 'result_card',
+        result: winner ? 'win' : 'hung',
+      });
       const stateColors: Record<string, string> = {};
       for (const st of ALL_STATES) {
         const pid = securedBy[st.id];
@@ -77,7 +85,7 @@ export function VictoryPodium() {
         stateColors,
       });
       const blob = await svgToPngBlob(svg);
-      await sharePng({
+      const outcome = await sharePng({
         blob,
         filename: 'elector-result.png',
         title: 'Elector',
@@ -86,11 +94,51 @@ export function VictoryPodium() {
           : 'My Elector game ended in a hung Electoral College!',
         url: 'https://playelector.com',
       });
+      track('share_completed', {
+        surface: 'victory',
+        share_type: 'result_card',
+        method: outcome === 'shared' ? 'native_share' : 'download',
+        result: winner ? 'win' : 'hung',
+      });
     } catch (err) {
       console.error('share-card failed', err);
+      track('share_failed', {
+        surface: 'victory',
+        share_type: 'result_card',
+        reason_category: 'render_or_share_error',
+      });
     } finally {
       setSharing(false);
     }
+  }
+
+  function runItBack() {
+    AudioManager.play('confirm');
+    if (multiplayerMode === 'online') {
+      returnToMenu();
+      return;
+    }
+
+    const chosen = players.map((p) => CANDIDATE_MAP[p.candidateId]).filter(Boolean);
+    if (chosen.length < 2) {
+      reset();
+      return;
+    }
+
+    const botSeats: Record<string, NonNullable<(typeof players)[number]['botDifficulty']>> = {};
+    for (const p of players) {
+      if (p.isBot && p.botDifficulty) botSeats[p.candidateId] = p.botDifficulty;
+    }
+    startGame(chosen, turnTimeLimit, botSeats);
+  }
+
+  function tryNextChallenge() {
+    AudioManager.play('click');
+    if (multiplayerMode === 'online') {
+      returnToMenu();
+      return;
+    }
+    reset();
   }
 
   // Per-winner background art (slug derived from the candidate's portrait file)
@@ -255,8 +303,11 @@ export function VictoryPodium() {
       </div>
 
       <div className="victory-cta">
-        <button type="button" onClick={() => { AudioManager.play('click'); reset(); }}>
-          Play Again
+        <button type="button" onClick={runItBack}>
+          {multiplayerMode === 'online' ? 'New Lobby' : 'Run It Back'}
+        </button>
+        <button type="button" className="victory-challenge-btn" onClick={tryNextChallenge}>
+          Try Next Challenge
         </button>
         <button
           type="button"

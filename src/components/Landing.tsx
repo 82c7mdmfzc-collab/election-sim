@@ -8,20 +8,21 @@ import { SignInButtons } from './SignInButtons';
 
 interface LandingProps {
   onContinueAsGuest: () => void;
+  primaryLabel?: string;
 }
 
-export function Landing({ onContinueAsGuest }: LandingProps) {
+export function Landing({ onContinueAsGuest, primaryLabel = 'Start Solo' }: LandingProps) {
   return (
     <div className="landing">
       <BrandMark />
 
       <div className="landing__hero">
-        <p className="landing__eyebrow">Strategy • Solo • Online</p>
+        <p className="landing__eyebrow">Guided Solo • Pass-and-Play • Online</p>
         <p className="landing__pitch">
-          Campaign across the map, build coalitions, and race to 270 electoral votes.
+          Start with a practice campaign, learn the map as you play, and race to 270 electoral votes.
         </p>
         <button type="button" className="landing__guest" onClick={onContinueAsGuest}>
-          Start Solo →
+          {primaryLabel} →
         </button>
       </div>
 

@@ -85,12 +85,12 @@ Open `src-tauri/gen/apple` after `npm run tauri:ios:init`.
 - Privacy Policy URL: `https://playelector.com/privacy`
 - Account deletion URL: `https://playelector.com/delete-account`
 - Age rating: complete from gameplay content; no real-money gambling.
-- App Privacy: declare account identifiers, gameplay/profile data, purchases if native IAP is later enabled, and analytics only if added.
+- App Privacy: declare account identifiers, gameplay/profile data, product analytics, and purchases if native IAP is later enabled.
 
 Reviewer note:
 
 ```text
-Elector can be played in Solo and pass-and-play without an account. Online play, roster sync, Campaign Funds, and the shop require a free account via Apple, Google, or email sign-in.
+Elector can be played in Solo and pass-and-play without an account. Online play, roster sync, Campaign Funds, and the shop require a free account. This iOS build uses email-code account sign-in; Google/Apple OAuth is disabled in the native app until the app-return deep-link flow is wired and reviewed.
 
 This iOS build does not use Stripe inside the native app. Paid Campaign Funds bundles are hidden unless native StoreKit support is present and verified. Players can still earn Campaign Funds through gameplay and use earned funds for unlocks.
 ```
@@ -101,7 +101,7 @@ This iOS build does not use Stripe inside the native app. Paid Campaign Funds bu
 - Portrait rotation shows the landscape orientation gate; landscape unlocks the game.
 - Home, Solo setup, gameplay shell, account/progression, shop, and victory all fit phone landscape.
 - Guest Solo game completes with no sign-in requirement.
-- Sign-in/account panel opens and shows progression, streak, achievements, support/privacy/delete-account links.
+- Sign-in/account panel opens, uses email-code auth, and shows progression, streak, achievements, support/privacy/delete-account links.
 - Shop hides paid Campaign Funds on iOS unless native billing is wired; earned-fund unlocks remain available.
 - Support URL, privacy URL, and delete-account URL open from the live domain.
 - Capture iPhone landscape screenshots for Home, Solo setup, gameplay, account/progression, shop, and victory.

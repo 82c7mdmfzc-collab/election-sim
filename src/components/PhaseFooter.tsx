@@ -20,6 +20,7 @@ import {
   useGameStore,
   usePlayerColors,
 } from '../game/store';
+import { CampaignCoach } from './CampaignCoach';
 
 // ── Host-only resolution continue button ─────────────────────────────────────
 // In online mode, only the host drives the phase transition out of RESOLUTION.
@@ -201,6 +202,7 @@ function PlanningControls() {
 
   return (
     <div className="planning">
+      <CampaignCoach />
       <div className="planning__head">
         <span className="planning__who">{activePlayer.name}&apos;s turn</span>
         <span className="planning__budget">National ${cash.toFixed(0)}k</span>

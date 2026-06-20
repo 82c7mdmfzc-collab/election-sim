@@ -1,8 +1,9 @@
 /**
  * AuthGate — the account panel.
  *
- * Signed out: the shared SignInButtons (Apple/Google/email). An account is
- * required to earn Campaign Funds, unlock characters, and play online.
+ * Signed out: the shared SignInButtons. Web can show OAuth providers; native
+ * iOS currently uses email-code auth. An account is required to earn Campaign
+ * Funds, unlock characters, and play online.
  * Signed in without a username: claim the one-time permanent username.
  * Signed in with a username: show username, Campaign Funds, lifetime record, and
  * a sign-out button.

@@ -17,6 +17,8 @@ export interface LocalPrefs {
   selectedVictoryMessage: string;
   /** Referral code captured from a ?ref= invite link, pending set_referrer after sign-in. */
   pendingReferralCode: string | null;
+  /** Whether the live first-campaign coach has been dismissed on this device. */
+  firstRunCoachDismissed: boolean;
 }
 
 const DEFAULTS: LocalPrefs = {
@@ -25,6 +27,7 @@ const DEFAULTS: LocalPrefs = {
   lastAwardedGameId: null,
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
   pendingReferralCode: null,
+  firstRunCoachDismissed: false,
 };
 
 export function getPrefs(): LocalPrefs {
@@ -58,3 +61,5 @@ export const setSelectedVictoryMessage = (selectedVictoryMessage: string) => set
 export const getPendingReferralCode = () => getPrefs().pendingReferralCode;
 export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs({ pendingReferralCode });
 export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });
+export const isFirstRunCoachDismissed = () => getPrefs().firstRunCoachDismissed;
+export const markFirstRunCoachDismissed = () => setPrefs({ firstRunCoachDismissed: true });

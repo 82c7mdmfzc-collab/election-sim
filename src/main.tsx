@@ -7,9 +7,11 @@ import { ToastHost } from './components/ToastHost'
 import { OrientationGate } from './components/OrientationGate'
 import { AudioManager } from './utils/audioManager'
 import { isMuted } from './utils/localPrefs'
+import { initAnalytics } from './utils/analytics'
 
 AudioManager.init();
 AudioManager.setMuted(isMuted());
+initAnalytics();
 
 // Global UI click sound. Any <button>/[role=button] plays a click on press,
 // unless an ancestor opts out with data-sfx="none" (e.g. the in-game shell,

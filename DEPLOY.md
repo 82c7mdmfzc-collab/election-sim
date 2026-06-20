@@ -89,9 +89,9 @@ Add these to **Authentication → URL Configuration → Redirect URLs**:
 `http://localhost:5174`, and the Tauri deep link `com.playelector.app://auth-callback`
 (see `oauthRedirectTo()` in `src/utils/authClient.ts`).
 
-> **Native (Tauri) note:** web OAuth works via `detectSessionInUrl`. Desktop/mobile additionally
-> need the deep-link scheme registered and the returned URL fed back to `supabase.auth` on app open
-> — wire this when shipping the native builds (web is unaffected).
+> **Native (Tauri) note:** web OAuth works via `detectSessionInUrl`. Native OAuth is hidden in the
+> app until the deep-link scheme is registered and the returned URL is fed back to `supabase.auth`
+> on app open. The native app uses email-code auth in the meantime; web is unaffected.
 
 ### Verify (re-run after applying both files)
 - `GET /rest/v1/profiles` with the anon key → **must NOT return rows** (owner-only RLS).
@@ -108,14 +108,15 @@ Add these to **Authentication → URL Configuration → Redirect URLs**:
 - Display names are length-capped and run through `sanitizeName` (`src/utils/sanitize.ts`)
   before entering shared state (strips control chars + angle brackets). React escapes on render.
 - Auth tokens use Supabase's own storage; `sessionStore` only holds non-secret lobby/player ids.
-- **Tauri CSP** (`src-tauri/tauri.conf.json`) `connect-src` allows `https://*.supabase.co` +
-  `wss://*.supabase.co` (realtime) and nothing broader.
+- **Tauri CSP** (`src-tauri/tauri.conf.json`) `connect-src` allows `https://*.supabase.co`,
+  `wss://*.supabase.co` (realtime), and `https://eu.i.posthog.com` for product analytics.
 
 ## 3. Ship
 
 ### Web (Vercel)
-1. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel → Settings → Environment Variables
-   (do **not** commit `.env.local`).
+1. Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_POSTHOG_KEY`,
+   `VITE_POSTHOG_HOST=https://eu.i.posthog.com`, and `VITE_APP_VERSION` in Vercel →
+   Settings → Environment Variables (do **not** commit `.env.local`).
 2. `npm run build` → deploy. SPA rewrite is already in [`vercel.json`](vercel.json).
 
 ### Desktop / mobile (Tauri)

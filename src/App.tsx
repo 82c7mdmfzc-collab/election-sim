@@ -1,5 +1,5 @@
 import './App.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CandidateSelect } from './components/CandidateSelect';
 import { MultiplayerMenu } from './components/MultiplayerMenu';
 import { GameShell } from './components/GameShell';
@@ -13,13 +13,25 @@ import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
 import { useGameStore } from './game/store';
+import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
 import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon } from './components/icons';
+import { isTutorialSeen } from './utils/localPrefs';
+import { NextChallengeHint, ProgressPanel } from './components/ProgressPanel';
+import {
+  identifyAccount,
+  resetAnalyticsIdentity,
+  setAnalyticsAccountState,
+  track,
+} from './utils/analytics';
 import type { ComponentType } from 'react';
+import type { BotDifficulty } from './game/types';
 
 type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot';
+type TutorialSource = 'menu' | 'onboarding';
+type ShopSource = 'menu' | 'locked_candidate' | 'account';
 
 interface ModeDef {
   mode: AppMode;
@@ -30,13 +42,21 @@ interface ModeDef {
 }
 
 const MODES: ModeDef[] = [
-  { mode: 'single', label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
-  { mode: 'bot',    label: 'Solo',        Icon: MonitorIcon, chip: 'blue' },
+  { mode: 'bot',    label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
+  { mode: 'single', label: 'Pass & Play', Icon: MonitorIcon, chip: 'blue' },
   { mode: 'online', label: 'Online',      Icon: GlobeIcon,   chip: 'orange' },
   { mode: 'shop',   label: 'Shop',        Icon: CartIcon,    chip: 'blue' },
 ];
 
-function ModeSelect({ onSelect, onAccount }: { onSelect: (mode: AppMode) => void; onAccount: () => void }) {
+function appModeToShopSource(mode: AppMode): ShopSource {
+  return mode === 'single' ? 'locked_candidate' : 'menu';
+}
+
+function ModeSelect({ onSelect, onTutorial, onAccount }: {
+  onSelect: (mode: AppMode) => void;
+  onTutorial: () => void;
+  onAccount: () => void;
+}) {
   const funds = useProfile(selectFunds);
   const signedIn = useProfile(selectIsSignedIn);
   return (
@@ -78,7 +98,14 @@ function ModeSelect({ onSelect, onAccount }: { onSelect: (mode: AppMode) => void
         ))}
       </div>
 
-      <button type="button" className="home__link" onClick={() => onSelect('tutorial')}>
+      {signedIn && (
+        <div className="home__progress">
+          <ProgressPanel compact showAll={false} />
+          <NextChallengeHint />
+        </div>
+      )}
+
+      <button type="button" className="home__link" onClick={onTutorial}>
         How to Play
       </button>
     </div>
@@ -110,14 +137,75 @@ function App() {
   const initProfile = useProfile((s) => s.init);
   const ready = useProfile((s) => s.ready);
   const signedIn = useProfile(selectIsSignedIn);
+  const userId = useProfile((s) => s.userId);
   const displayName = useProfile((s) => s.displayName);
+  const startGame = useGameStore((s) => s.startGame);
   const [showAccount, setShowAccount] = useState(false);
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
   // can choose to continue as a guest for the rest of this session.
   const [guestContinued, setGuestContinued] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('mode-select');
+  const [tutorialSource, setTutorialSource] = useState<TutorialSource>('menu');
+  const [shopSource, setShopSource] = useState<ShopSource>('menu');
+  const appOpenTracked = useRef(false);
 
   useEffect(() => { void initProfile(); }, [initProfile]);
+
+  useEffect(() => {
+    setAnalyticsAccountState(signedIn);
+    if (signedIn && userId) {
+      identifyAccount(userId);
+      const pendingMethod = window.sessionStorage.getItem('elector.pendingAuthMethod');
+      if (pendingMethod === 'apple' || pendingMethod === 'google') {
+        track('auth_completed', { method: pendingMethod, mode: 'signin' });
+        window.sessionStorage.removeItem('elector.pendingAuthMethod');
+      }
+    }
+    if (!signedIn) resetAnalyticsIdentity();
+  }, [signedIn, userId]);
+
+  useEffect(() => {
+    if (!ready || appOpenTracked.current) return;
+    appOpenTracked.current = true;
+    track('app_opened', {
+      entry_surface: signedIn ? 'menu' : 'landing',
+      has_saved_session: signedIn,
+    });
+  }, [ready, signedIn]);
+
+  function selectMode(mode: AppMode) {
+    if (mode === 'shop') setShopSource(appModeToShopSource(appMode));
+    setAppMode(mode);
+  }
+
+  function openAccount(trigger: 'account_button' | 'shop_gate' | 'online_gate' | 'other' = 'account_button') {
+    track('account_prompt_opened', { trigger });
+    setShowAccount(true);
+  }
+
+  function startPracticeGame() {
+    const human = CANDIDATE_MAP.tooley;
+    const opponent = CANDIDATE_MAP.trump;
+    const botSeats: Record<string, BotDifficulty> = { [opponent.id]: 'easy' };
+    setGuestContinued(true);
+    setAppMode('bot');
+    startGame([human, opponent], null, botSeats);
+  }
+
+  function continueAsGuest() {
+    setGuestContinued(true);
+    if (isTutorialSeen()) {
+      startPracticeGame();
+      return;
+    }
+    setTutorialSource('onboarding');
+    setAppMode('tutorial');
+  }
+
+  function openTutorial() {
+    setTutorialSource('menu');
+    setAppMode('tutorial');
+  }
 
   // Once a game is running, route to the correct view regardless of appMode
   if (phase === 'ELECTION_TALLY') return <ElectionTallyView />;
@@ -132,7 +220,12 @@ function App() {
 
   // Signed-out front door — shown on every fresh load until "Continue as Guest".
   if (!signedIn && !guestContinued) {
-    return <Landing onContinueAsGuest={() => { setGuestContinued(true); setAppMode('bot'); }} />;
+    return (
+      <Landing
+        onContinueAsGuest={continueAsGuest}
+        primaryLabel={isTutorialSeen() ? 'Start Solo' : 'Learn & Start'}
+      />
+    );
   }
 
   // One-time, mandatory username claim immediately after a new account signs in.
@@ -152,8 +245,15 @@ function App() {
   if (appMode === 'tutorial') {
     return (
       <Tutorial
-        onFinish={() => setAppMode('single')}
-        onSkip={() => setAppMode('mode-select')}
+        source={tutorialSource}
+        onFinish={() => {
+          if (tutorialSource === 'onboarding') startPracticeGame();
+          else setAppMode('bot');
+        }}
+        onSkip={() => {
+          if (tutorialSource === 'onboarding') startPracticeGame();
+          else setAppMode('mode-select');
+        }}
       />
     );
   }
@@ -162,30 +262,33 @@ function App() {
 
   if (appMode === 'shop') {
     return signedIn ? (
-      <Shop onBack={() => setAppMode('mode-select')} />
+      <Shop source={shopSource} onBack={() => setAppMode('mode-select')} />
     ) : (
       <>
         <GuestGate
           title="Campaign Shop"
           message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
           onBack={() => setAppMode('mode-select')}
-          onSignIn={() => setShowAccount(true)}
+          onSignIn={() => openAccount('shop_gate')}
         />
         {account}
       </>
     );
   }
   if (appMode === 'bot') return <BotSetup onBack={() => setAppMode('mode-select')} />;
-  if (appMode === 'online') return <><MultiplayerMenu onBack={() => setAppMode('mode-select')} onOpenAccount={() => setShowAccount(true)} />{account}</>;
+  if (appMode === 'online') return <><MultiplayerMenu onBack={() => setAppMode('mode-select')} onOpenAccount={() => openAccount('online_gate')} />{account}</>;
   if (appMode === 'single') {
     return (
       <>
-        <CandidateSelect onBack={() => setAppMode('mode-select')} onOpenShop={() => setAppMode('shop')} />
+        <CandidateSelect onBack={() => setAppMode('mode-select')} onOpenShop={() => {
+          setShopSource('locked_candidate');
+          setAppMode('shop');
+        }} />
         {account}
       </>
     );
   }
-  return <><ModeSelect onSelect={setAppMode} onAccount={() => setShowAccount(true)} />{account}</>;
+  return <><ModeSelect onSelect={selectMode} onTutorial={openTutorial} onAccount={() => openAccount('account_button')} />{account}</>;
 }
 
 export default App;

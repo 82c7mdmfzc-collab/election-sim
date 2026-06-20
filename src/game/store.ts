@@ -40,6 +40,7 @@ import { rpcSetLobbyStatus } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
 import { saveSession, clearSession } from '../utils/sessionStore';
+import { clearGameTiming, gameDurationSeconds, markGameStarted, track } from '../utils/analytics';
 import type { CandidateDef } from './candidates';
 import type {
   BotDifficulty,
@@ -180,6 +181,40 @@ function activePlayers(players: PlayerState[]): PlayerState[] {
   return players.filter((p) => !p.eliminated);
 }
 
+function trackStartedGame(
+  gameId: string,
+  mode: 'single' | 'bot' | 'online',
+  players: PlayerState[],
+  turnTimeLimit: number | null,
+) {
+  markGameStarted(gameId);
+  const bots = players.filter((p) => p.isBot);
+  track('game_started', {
+    game_id: gameId,
+    game_mode: mode,
+    candidate_id: players[0]?.candidateId ?? 'unknown',
+    opponent_count: Math.max(0, players.length - 1),
+    player_count: players.length,
+    bot_count: bots.length,
+    difficulty: bots[0]?.botDifficulty ?? null,
+    turn_timer_seconds: turnTimeLimit,
+  });
+}
+
+function trackAbandonedGame(s: GameStore, reason: 'abort' | 'return_to_menu') {
+  if (!s.gameId || s.phase === 'SETUP' || s.phase === 'MENU' || s.phase === 'GAME_OVER') return;
+  const bots = s.players.filter((p) => p.isBot);
+  track('game_abandoned', {
+    game_id: s.gameId,
+    game_mode: s.multiplayerMode === 'online' ? 'online' : bots.length > 0 ? 'bot' : 'single',
+    phase: s.phase,
+    turn_number: s.turn,
+    duration_seconds: gameDurationSeconds(s.gameId),
+    reason,
+  });
+  clearGameTiming(s.gameId);
+}
+
 /** Returns the player this device should operate as (local in online; activeIndex in hot-seat). */
 function localPlayer(s: GameStore): PlayerState | null {
   if (s.multiplayerMode === 'online' && s.localPlayerId) {
@@ -243,6 +278,7 @@ export const useGameStore = create<GameStore>()(
         // ── startGame ─────────────────────────────────────────────────────────
         startGame(chosen, turnTimeLimit, botSeats) {
           const fresh = createInitialGameState(chosen);
+          const gameId = newGameId();
           // Tag computer-controlled seats (Solo). Player ids equal candidate ids
           // here, and every other map keys by id, so this is a safe overlay.
           const players = botSeats
@@ -252,10 +288,12 @@ export const useGameStore = create<GameStore>()(
                   : p,
               )
             : fresh.players;
+          const nextTurnTimeLimit = turnTimeLimit ?? get().turnTimeLimit ?? null;
+          trackStartedGame(gameId, players.some((p) => p.isBot) ? 'bot' : 'single', players, nextTurnTimeLimit);
           set({
             ...fresh,
             players,
-            gameId: newGameId(),
+            gameId,
             phase: 'PLANNING',
             activePlayerIndex: 0,
             pendingByPlayer: emptyPending(fresh.players),
@@ -268,7 +306,7 @@ export const useGameStore = create<GameStore>()(
             prevDominance: Object.fromEntries(STATE_GROUPS.map((g) => [g.id, null])),
             resolutionTickerDone: false,
             hasSubmittedLocalTurn: false,
-            turnTimeLimit: turnTimeLimit ?? get().turnTimeLimit ?? null,
+            turnTimeLimit: nextTurnTimeLimit,
             turnDeadline: null,
             handoffAckKey: '1:0',
           });
@@ -630,6 +668,7 @@ export const useGameStore = create<GameStore>()(
             electionTallyProgress: 0,
             resolutionTickerDone: false,
             hasSubmittedLocalTurn: false,
+            gameId: null,
             multiplayerMode: 'single',
             localPlayerId: null,
             lobbyId: null,
@@ -646,6 +685,7 @@ export const useGameStore = create<GameStore>()(
           AudioManager.stop('tick');
           clearSession();
           const snap = get();
+          trackAbandonedGame(snap, 'abort');
           // Mark the online lobby as finished before leaving (host-only, server-enforced)
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
             void rpcSetLobbyStatus(snap.lobbyId, 'finished');
@@ -666,6 +706,7 @@ export const useGameStore = create<GameStore>()(
             electionTallyProgress: 0,
             resolutionTickerDone: false,
             hasSubmittedLocalTurn: false,
+            gameId: null,
             multiplayerMode: 'single',
             localPlayerId: null,
             lobbyId: null,
@@ -682,6 +723,7 @@ export const useGameStore = create<GameStore>()(
         returnToMenu() {
           AudioManager.stop('tick');
           const snap = get();
+          trackAbandonedGame(snap, 'return_to_menu');
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
             void rpcSetLobbyStatus(snap.lobbyId, 'finished');
           }
@@ -702,6 +744,7 @@ export const useGameStore = create<GameStore>()(
             electionTallyProgress: 0,
             resolutionTickerDone: false,
             hasSubmittedLocalTurn: false,
+            gameId: null,
             multiplayerMode: 'single',
             localPlayerId: null,
             lobbyId: null,
@@ -797,11 +840,13 @@ export const useGameStore = create<GameStore>()(
 
         initOnlineGame(players) {
           const fresh = createInitialGameStateFromPlayers(players);
+          const gameId = newGameId();
           const tl = get().turnTimeLimit;
           const newDeadline = tl != null ? Date.now() + tl * 1000 : null;
+          trackStartedGame(gameId, 'online', fresh.players, tl);
           set({
             ...fresh,
-            gameId: newGameId(),
+            gameId,
             phase: 'PLANNING',
             activePlayerIndex: 0,
             pendingByPlayer: emptyPending(fresh.players),

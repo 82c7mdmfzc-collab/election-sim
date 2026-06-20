@@ -5,17 +5,14 @@
  * Passwordless with two clear modes:
  *   • Sign In       — rejects an unknown email (prompts to create instead)
  *   • Create Account — makes a new account
- * Apple / Google work in both modes. The email path is two-step: send an 8-digit
- * code (also delivered as a magic link), then verify the code — so a player can
- * read the email on one device and type the code on the device they're playing on.
- *
- * The Apple button is always rendered; until APPLE_SIGNIN_ENABLED is flipped on
- * it responds with a friendly "coming soon" message instead of an OAuth error.
+ * Web OAuth is available where configured. Native iOS uses the email-code path
+ * until OAuth deep links are wired, which avoids broken app-return flows.
  */
 
 import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
-import { APPLE_SIGNIN_ENABLED } from '../utils/authClient';
+import { APPLE_SIGNIN_ENABLED, NATIVE_OAUTH_ENABLED, isNativeRuntime } from '../utils/authClient';
+import { track } from '../utils/analytics';
 
 // Seconds to disable re-sending after a code is emailed. Supabase enforces a
 // per-email cooldown (~60s) server-side; mirroring it here stops users from
@@ -25,6 +22,16 @@ const RESEND_COOLDOWN_S = 60;
 type Mode = 'signin' | 'signup';
 type Step = 'email' | 'code';
 type Status = 'idle' | 'sending' | 'verifying' | 'sent' | 'error';
+type AuthMethod = 'apple' | 'google' | 'email';
+
+function authFailureReason(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes('no account')) return 'unknown_account';
+  if (lower.includes('invalid') || lower.includes('expired') || lower.includes('code')) return 'invalid_code';
+  if (lower.includes('rate') || lower.includes('too many')) return 'rate_limited';
+  if (lower.includes('network') || lower.includes('fetch')) return 'network';
+  return 'provider_error';
+}
 
 export function SignInButtons() {
   const sendEmailCode = useProfile((s) => s.sendEmailCode);
@@ -39,6 +46,7 @@ export function SignInButtons() {
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const showOauth = !isNativeRuntime() || NATIVE_OAUTH_ENABLED;
 
   // Tick the resend cooldown down to zero.
   useEffect(() => {
@@ -55,28 +63,44 @@ export function SignInButtons() {
     setCode('');
   }
 
-  async function oauth(fn: () => Promise<{ error?: string }>) {
+  async function oauth(method: AuthMethod, fn: () => Promise<{ error?: string }>) {
     setStatus('idle');
     setMessage('');
+    track('auth_started', { method, mode });
+    if (method === 'apple' || method === 'google') {
+      window.sessionStorage.setItem('elector.pendingAuthMethod', method);
+    }
     const { error } = await fn();
-    if (error) { setStatus('error'); setMessage(error); }
+    if (error) {
+      window.sessionStorage.removeItem('elector.pendingAuthMethod');
+      track('auth_failed', { method, mode, reason_category: authFailureReason(error) });
+      setStatus('error');
+      setMessage(error);
+    }
   }
 
   function onApple() {
     if (!APPLE_SIGNIN_ENABLED) {
       setStatus('error');
       setMessage('Sign in with Apple is coming soon — use Google or email for now.');
+      track('auth_failed', { method: 'apple', mode, reason_category: 'provider_unavailable' });
       return;
     }
-    void oauth(signInWithApple);
+    void oauth('apple', signInWithApple);
   }
 
   async function sendCode() {
     if (!email.trim() || status === 'sending' || cooldown > 0) return;
     setStatus('sending');
     setMessage('');
+    track('auth_started', { method: 'email', mode });
     const { error } = await sendEmailCode(email.trim(), mode === 'signup');
-    if (error) { setStatus('error'); setMessage(error); return; }
+    if (error) {
+      track('auth_failed', { method: 'email', mode, reason_category: authFailureReason(error) });
+      setStatus('error');
+      setMessage(error);
+      return;
+    }
     setStep('code');
     setStatus('sent');
     setCooldown(RESEND_COOLDOWN_S);
@@ -88,7 +112,13 @@ export function SignInButtons() {
     setMessage('');
     const { error } = await verifyEmailCode(email.trim(), code.trim());
     // On success, auth state flips guest→false and the app re-routes; no callback needed.
-    if (error) { setStatus('error'); setMessage(error); }
+    if (error) {
+      track('auth_failed', { method: 'email', mode, reason_category: authFailureReason(error) });
+      setStatus('error');
+      setMessage(error);
+      return;
+    }
+    track('auth_completed', { method: 'email', mode });
   }
 
   return (
@@ -114,16 +144,20 @@ export function SignInButtons() {
         </button>
       </div>
 
-      <div className="signin__providers">
-        <button type="button" className="signin__provider" onClick={onApple}>
-           Continue with Apple
-        </button>
-        <button type="button" className="signin__provider" onClick={() => void oauth(signInWithGoogle)}>
-          Continue with Google
-        </button>
-      </div>
+      {showOauth && (
+        <>
+          <div className="signin__providers">
+            <button type="button" className="signin__provider" onClick={onApple}>
+              Continue with Apple
+            </button>
+            <button type="button" className="signin__provider" onClick={() => void oauth('google', signInWithGoogle)}>
+              Continue with Google
+            </button>
+          </div>
 
-      <div className="signin__divider"><span>or use email</span></div>
+          <div className="signin__divider"><span>or use email</span></div>
+        </>
+      )}
 
       {step === 'email' ? (
         <div className="auth-gate__row">

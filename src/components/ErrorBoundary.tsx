@@ -5,6 +5,7 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { track } from '../utils/analytics';
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,11 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Keep a console trail for dev/crash reports; no PII is logged.
     console.error('Unhandled UI error:', error, info.componentStack);
+    track('runtime_error', {
+      surface: 'react_boundary',
+      reason_category: 'render_error',
+      has_component_stack: Boolean(info.componentStack),
+    });
   }
 
   render() {

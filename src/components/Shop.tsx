@@ -16,15 +16,22 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { FUNDS_BUNDLES, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage } from '../utils/localPrefs';
+import { track } from '../utils/analytics';
 import { InviteFriend } from './InviteFriend';
 import { ModifierSheet } from './ModifierSheet';
 import { Portrait } from './Portrait';
 
 interface ShopProps {
+  source?: 'menu' | 'locked_candidate' | 'victory' | 'account';
   onBack: () => void;
 }
 
-export function Shop({ onBack }: ShopProps) {
+function priceValue(priceLabel: string): number {
+  const n = Number(priceLabel.replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function Shop({ source = 'menu', onBack }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
   const unlock = useProfile((s) => s.unlock);
@@ -46,6 +53,14 @@ export function Shop({ onBack }: ShopProps) {
   const showPaidFunds = billingPlatform === 'web' || hasNativeBilling;
   const nativeBillingHeld = (billingPlatform === 'ios' || billingPlatform === 'android') && !hasNativeBilling;
 
+  useEffect(() => {
+    track('shop_opened', {
+      source,
+      platform: billingPlatform,
+      native_billing_available: hasNativeBilling,
+    });
+  }, [billingPlatform, hasNativeBilling, source]);
+
   // On open, refresh the balance (picks up funds the Stripe webhook credited
   // after returning from checkout) and strip the ?purchase marker from the URL.
   useEffect(() => {
@@ -58,27 +73,73 @@ export function Shop({ onBack }: ShopProps) {
   }, [refresh]);
 
   async function buy(id: string) {
+    const candidate = PREMIUM_CANDIDATES.find((c) => c.id === id);
     setBusy(id);
     AudioManager.play('click');
     const ok = await unlock(id);
-    if (ok) AudioManager.play('victory');
+    if (ok) {
+      AudioManager.play('victory');
+      track('item_unlocked', {
+        item_id: id,
+        item_type: 'candidate',
+        price_funds: candidate?.unlockCost ?? 0,
+      });
+    }
     setBusy(null);
   }
 
   async function buyFunds(sku: string) {
+    const bundle = FUNDS_BUNDLES.find((b) => b.sku === sku);
     if (guest) { setPurchaseMsg('Sign in to buy Campaign Funds.'); return; }
     if (nativeBillingHeld) { setPurchaseMsg('Campaign Funds purchases are not available in this build.'); return; }
     setBuyingSku(sku);
     AudioManager.play('click');
+    track('checkout_started', {
+      product_id: sku,
+      product_type: 'funds',
+      value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
+      platform: billingPlatform,
+    });
     const result = await purchase(sku);
     if (result.status === 'fulfilled') {
       AudioManager.play('victory');
       setPurchaseMsg('Purchase complete — Campaign Funds added.');
+      track('checkout_result', {
+        product_id: sku,
+        product_type: 'funds',
+        status: 'completed',
+        value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
+        platform: billingPlatform,
+      });
       await refresh();
     } else if (result.status === 'unsupported') {
       setPurchaseMsg('Purchases aren’t available on this device yet.');
+      track('checkout_result', {
+        product_id: sku,
+        product_type: 'funds',
+        status: 'failed',
+        reason_category: 'unsupported',
+        value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
+        platform: billingPlatform,
+      });
     } else if (result.status === 'error') {
       setPurchaseMsg(result.message);
+      track('checkout_result', {
+        product_id: sku,
+        product_type: 'funds',
+        status: 'failed',
+        reason_category: 'provider_error',
+        value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
+        platform: billingPlatform,
+      });
+    } else {
+      track('checkout_result', {
+        product_id: sku,
+        product_type: 'funds',
+        status: 'redirected',
+        value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
+        platform: billingPlatform,
+      });
     }
     // 'redirect' → the browser is navigating to Stripe; leave state as-is.
     setBuyingSku(null);

@@ -14,9 +14,12 @@ import { useEffect } from 'react';
 import { useGameStore } from '../game/store';
 import { useProfile } from './useProfile';
 import { getLastAwardedGameId, setLastAwardedGameId } from '../utils/localPrefs';
+import { clearGameTiming, gameDurationSeconds, track } from '../utils/analytics';
+import { NATIONAL_GROUPS } from '../game/config';
 import type { BotDifficulty } from '../game/types';
 
 const inflightClaims = new Set<string>();
+const finishedTracked = new Set<string>();
 const DIFFICULTY_RANK: Record<BotDifficulty, number> = { easy: 1, medium: 2, hard: 3 };
 
 export function useGameRewards(): void {
@@ -43,8 +46,36 @@ export function useGameRewards(): void {
     const electoralVotes = s.electionResult?.evByPlayer[ownerId] ?? 0;
     const securedStates = Object.values(s.securedBy).filter((pid) => pid === ownerId).length;
     const coalitionsDominated = Object.values(s.stateGroupDominance).filter((pid) => pid === ownerId).length;
+    const nationalGroupsLed = NATIONAL_GROUPS.filter((g) => {
+      const rungs = s.natRungs[g.id] ?? {};
+      const myRungs = rungs[ownerId] ?? 0;
+      const topRungs = Math.max(0, ...Object.values(rungs));
+      return myRungs > 0 && myRungs === topRungs;
+    });
+    const nationalGroupsEarning = nationalGroupsLed.filter((g) => (s.natRungs[g.id]?.[ownerId] ?? 0) >= 4);
     const mode = s.multiplayerMode === 'online' ? 'online' : bots.length > 0 ? 'bot' : 'single';
     const botDifficulty = strongestDifficulty(bots.map((b) => b.botDifficulty).filter(Boolean) as BotDifficulty[]);
+
+    if (!finishedTracked.has(gameId)) {
+      finishedTracked.add(gameId);
+      track('game_finished', {
+        game_id: gameId,
+        game_mode: mode,
+        result: s.electionResult?.winner ? (won ? 'win' : 'loss') : 'hung',
+        candidate_id: owner?.candidateId ?? 'unknown',
+        final_ev_self: electoralVotes,
+        final_ev_winner: s.electionResult?.winner ? (s.electionResult.evByPlayer[s.electionResult.winner] ?? 0) : 0,
+        duration_seconds: gameDurationSeconds(gameId),
+        turn_number: s.turn,
+        secured_states: securedStates,
+        state_groups_dominated: coalitionsDominated,
+        national_groups_led: nationalGroupsLed.length,
+        national_groups_earning: nationalGroupsEarning.length,
+        bot_difficulty: botDifficulty,
+        opponent_count: Math.max(0, s.players.length - 1),
+      });
+      clearGameTiming(gameId);
+    }
 
     void useProfile.getState().applyGameResult({
       gameId,
@@ -58,8 +89,16 @@ export function useGameRewards(): void {
       electoralVotes,
       candidateId: owner?.candidateId ?? null,
       opponentCount: Math.max(0, s.players.length - 1),
-    }).then(({ claimed }) => {
+    }).then(({ breakdown, claimed }) => {
       if (claimed) setLastAwardedGameId(gameId);
+      if (breakdown.total > 0) {
+        track('funds_earned', {
+          amount: breakdown.total,
+          source: 'game_finish',
+          claimed,
+          game_mode: mode,
+        });
+      }
     }).finally(() => {
       inflightClaims.delete(gameId);
     });

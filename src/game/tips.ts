@@ -82,12 +82,16 @@ export const HOW_TO_PLAY: readonly HelpSection[] = [
     body: 'On your turn, click a state or a national ladder to buy rungs. Rungs cost cash and rise in price as you climb. Whoever leads a state on election day takes its EV; lead it alone to the top and you SECURE it permanently.',
   },
   {
-    title: 'Coalitions & income',
-    body: 'States belong to coalition groups. Control over half of a group’s EV and you DOMINATE it, earning that group’s payout every turn. National ladders (Gun Lobby, Women’s Vote…) pay flexible cash. This income funds your next push.',
+    title: 'State groups & income',
+    body: 'States belong to groups such as Swing States, High Tech, and Agriculture. Control over half of a group’s EV and you DOMINATE it, earning that group’s wallet every turn.',
+  },
+  {
+    title: 'National groups',
+    body: 'National ladders such as Gun Lobby, Youth Vote, and Women’s Vote are side battles. Lead one with 4+ rungs to earn flexible national cash that can be spent anywhere.',
   },
   {
     title: 'Wallets',
-    body: 'You hold a flexible national cash pool plus earmarked group wallets. Group wallets can only be spent on states inside that group — national cash spends anywhere.',
+    body: 'You hold flexible national cash plus earmarked state-group wallets. Group wallets can only be spent on states inside that group — national cash spends anywhere.',
   },
   {
     title: 'Clashes',

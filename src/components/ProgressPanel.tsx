@@ -10,6 +10,7 @@ import {
 } from '../game/achievements';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
+import { track } from '../utils/analytics';
 
 interface ProgressPanelProps {
   compact?: boolean;
@@ -61,10 +62,24 @@ export function ProgressPanel({ compact = false, showAll = true }: ProgressPanel
   const claimable = claimableAchievements(counters, profile.claimedAchievements);
 
   async function claim(id: string) {
+    const achievement = ACHIEVEMENTS.find((a) => a.id === id);
     setBusy(id);
     AudioManager.play('click');
     const ok = await claimAchievement(id);
-    if (ok) AudioManager.play('confirm');
+    if (ok) {
+      AudioManager.play('confirm');
+      track('achievement_claimed', {
+        achievement_id: id,
+        achievement_tree: achievement?.tree ?? 'unknown',
+        reward_amount: achievement?.reward ?? 0,
+      });
+      if ((achievement?.reward ?? 0) > 0) {
+        track('funds_earned', {
+          amount: achievement?.reward ?? 0,
+          source: 'achievement',
+        });
+      }
+    }
     setBusy(null);
   }
 

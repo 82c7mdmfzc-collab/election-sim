@@ -123,12 +123,6 @@ export async function fetchRemoteAccount(userId: string): Promise<RemoteAccount 
   return { profile: rowToProfile(row, claimedAchievements), displayName: row.display_name ?? null };
 }
 
-/** Persist non-sensitive fields (stats) to the owner row. Funds/unlocks use RPCs. */
-export async function pushRemoteStats(userId: string, stats: ProfileStats): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  await supabase.rpc('update_profile_stats', { p_stats: stats, p_user_id: userId });
-}
-
 /**
  * Server-authoritative reward claim. The SERVER computes the amount from the
  * (range-checked) game outcome and dedups by game_id, so the client can neither

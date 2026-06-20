@@ -5,9 +5,8 @@
  *   • There is NO anonymous/guest economy. Campaign Funds, unlocks, stats, the
  *     shop, and online play exist ONLY for a signed-in account. A "guest" is
  *     simply someone with no session — they may still play Solo and pass-and-play.
- *   • Sign-in is via Apple, Google, or an email magic link. All three resolve to a
- *     durable Supabase auth.uid() that is stable across refreshes and devices,
- *     which is what keeps online lobby participation valid.
+ *   • Web sign-in supports Google, Apple (once enabled), and email code. Native
+ *     iOS currently uses email code only until OAuth deep links are wired.
  *   • Each account claims ONE permanent username (see claimDisplayName), used as
  *     their display name in online lobbies.
  *   • If Supabase isn't configured (e.g. unit tests, offline), auth calls no-op.
@@ -24,12 +23,22 @@ export type { Session, User };
 // email work today.
 export const APPLE_SIGNIN_ENABLED = false;
 
+/** True inside a Tauri native webview. */
+export function isNativeRuntime(): boolean {
+  return typeof window !== 'undefined' && window.location.protocol.startsWith('tauri');
+}
+
+// Native OAuth requires a registered deep-link plugin/handler to feed the
+// callback URL back to Supabase. Until that exists, hide OAuth buttons natively
+// and use email-code auth, which works without leaving the webview flow.
+export const NATIVE_OAUTH_ENABLED = false;
+
 /** Where OAuth should send the user back. Web uses the current origin; native
  *  (Tauri) uses a registered deep-link scheme handled on app open. */
 function oauthRedirectTo(): string {
   // In a Tauri webview the origin is tauri://localhost; route back through the
   // deep-link scheme the app registers. On the web, return to the current origin.
-  if (typeof window !== 'undefined' && window.location.protocol.startsWith('tauri')) {
+  if (isNativeRuntime()) {
     return 'com.playelector.app://auth-callback';
   }
   return typeof window !== 'undefined' ? window.location.origin : 'https://playelector.com';

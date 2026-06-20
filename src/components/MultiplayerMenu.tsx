@@ -26,6 +26,7 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { notifyError } from '../utils/toast';
 import { sanitizeName } from '../utils/sanitize';
+import { track } from '../utils/analytics';
 import { Portrait } from './Portrait';
 import { Avatar } from './Avatar';
 import { PartyBadge } from './PartyBadge';
@@ -211,12 +212,18 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     } catch (e) {
       setLoading(false);
       setErrorMsg(`Could not create room: ${(e as Error)?.message ?? 'unknown error'}`);
+      track('online_match_failed', { reason: 'create_lobby', visibility: isPublic ? 'public' : 'private' });
       return;
     }
 
     setLoading(false);
 
     AudioManager.play('confirm');
+    track('lobby_created', {
+      visibility: isPublic ? 'public' : 'private',
+      player_count: playerCount,
+      candidate_id: myCandidate.id,
+    });
     setMyPlayerId(hostId);
     setLobby(data);
     setWaitingPlayers([hostPlayer]);
@@ -240,6 +247,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     } catch (e) {
       setLoading(false);
       setErrorMsg(`Could not start game: ${(e as Error).message}`);
+      track('online_match_failed', { reason: 'start_game' });
       return;
     }
 
@@ -261,12 +269,14 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     } catch {
       setLoading(false);
       setErrorMsg('Room not found or game already started.');
+      track('online_match_failed', { reason: 'find_lobby' });
       return;
     }
     setLoading(false);
 
     if (!data) {
       setErrorMsg('Room not found or game already started.');
+      track('online_match_failed', { reason: 'find_lobby_empty' });
       return;
     }
 
@@ -282,6 +292,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       const data = await rpcListPublicLobbies();
       setPublicLobbies(data);
     } catch {
+      track('online_match_failed', { reason: 'list_public_lobbies' });
       notifyError('Could not load public games. Check your connection and try again.');
     } finally {
       setLoadingPublic(false);
@@ -326,11 +337,18 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     } catch (e) {
       setLoading(false);
       setErrorMsg(`Could not join: ${(e as Error).message}`);
+      track('online_match_failed', { reason: 'join_lobby', visibility: foundLobby.is_public ? 'public' : 'private' });
       return;
     }
 
     setLoading(false);
     AudioManager.play('confirm');
+    track('lobby_joined', {
+      visibility: foundLobby.is_public ? 'public' : 'private',
+      candidate_id: guestCandidate.id,
+      occupied_seats: ((foundLobby.game_state as WaitingLobbyState)?.players?.length ?? 0) + 1,
+      player_count: (foundLobby.game_state as WaitingLobbyState)?.playerCount ?? 0,
+    });
 
     setMyPlayerId(guestId);
     setLobby(foundLobby);

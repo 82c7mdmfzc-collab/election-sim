@@ -10,27 +10,34 @@
  * again; the parent decides where to route next.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TUTORIAL_STEPS } from '../game/tutorial';
 import { markTutorialSeen } from '../utils/localPrefs';
 import { AudioManager } from '../utils/audioManager';
+import { track } from '../utils/analytics';
 
 interface TutorialProps {
+  source: 'menu' | 'onboarding';
   /** Called when the user finishes via the final CTA (e.g. route to candidate select). */
   onFinish: () => void;
   /** Called when the user skips/exits without finishing (e.g. back to menu). */
   onSkip: () => void;
 }
 
-export function Tutorial({ onFinish, onSkip }: TutorialProps) {
+export function Tutorial({ source, onFinish, onSkip }: TutorialProps) {
   const [i, setI] = useState(0);
   const step = TUTORIAL_STEPS[i];
   const isLast = i === TUTORIAL_STEPS.length - 1;
+
+  useEffect(() => {
+    track('tutorial_started', { source, step_count: TUTORIAL_STEPS.length });
+  }, [source]);
 
   function next() {
     AudioManager.play('click');
     if (isLast) {
       markTutorialSeen();
+      track('tutorial_completed', { source, step_count: TUTORIAL_STEPS.length });
       onFinish();
     } else {
       setI((n) => n + 1);
@@ -45,6 +52,7 @@ export function Tutorial({ onFinish, onSkip }: TutorialProps) {
   function skip() {
     AudioManager.play('quit');
     markTutorialSeen();
+    track('tutorial_skipped', { source, step_index: i + 1, step_count: TUTORIAL_STEPS.length });
     onSkip();
   }
 
