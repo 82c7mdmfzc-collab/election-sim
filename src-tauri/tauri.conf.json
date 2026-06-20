@@ -70,6 +70,10 @@
       "minimumSystemVersion": "11.0"
     },
 
+    "iOS": {
+      "bundleVersion": "1.0.1"
+    },
+
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
