@@ -81,7 +81,7 @@
     },
 
     "iOS": {
-      "minimumSystemVersion": "14.0",
+      "minimumSystemVersion": "15.0",
       "bundleVersion": "7",
       "infoPlist": "Info.ios.plist"
     },

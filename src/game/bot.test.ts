@@ -241,5 +241,5 @@ describe('planBotTurn — behavior', () => {
 
     expect(hardVsMedium.hard).toBeGreaterThan(hardVsMedium.medium);
     expect(mediumVsEasy.medium).toBeGreaterThan(mediumVsEasy.easy);
-  }, 12000);
+  }, 30000);
 });

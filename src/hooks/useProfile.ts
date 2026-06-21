@@ -24,9 +24,13 @@ import {
   fetchRemoteAccount,
   completeGameResultRemote,
   claimAchievementRewardRemote,
+  fetchAdRewardStatusRemote,
+  claimAdRewardRemote,
   unlockCharacterRemote,
   deleteAccountRemote,
+  type AdRewardClaimRemote,
 } from '../game/profile';
+import type { AdRewardStatus } from '../utils/rewardedAds';
 import { computeReward, type RewardBreakdown } from '../game/rewards';
 import {
   ACHIEVEMENTS,
@@ -91,6 +95,8 @@ interface ProfileStore {
   ready: boolean;
   /** The most recent award breakdown, for the victory-screen reveal. */
   lastReward: ProgressRewardBreakdown | null;
+  /** Rewarded-ad quota for the signed-in account. Null until fetched. */
+  adRewardStatus: AdRewardStatus | null;
 
   init(): Promise<void>;
   applyGameResult(result: GameResult): Promise<{ breakdown: ProgressRewardBreakdown; claimed: boolean }>;
@@ -98,6 +104,8 @@ interface ProfileStore {
   refresh(): Promise<void>;
   clearLastReward(): void;
   claimAchievement(achievementId: string): Promise<boolean>;
+  refreshAdRewardStatus(): Promise<AdRewardStatus | null>;
+  claimAdReward(args: { placement: string; provider?: string | null; adUnit?: string | null }): Promise<AdRewardClaimResult>;
   unlock(characterId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
   sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
@@ -111,6 +119,12 @@ interface ProfileStore {
 }
 
 let initialized = false;
+
+export type AdRewardClaimResult =
+  | { status: 'claimed'; amount: number; balance: number; adStatus: AdRewardStatus }
+  | { status: 'limit'; adStatus: AdRewardStatus }
+  | { status: 'auth_required' }
+  | { status: 'error'; message: string };
 
 /**
  * A fresh copy of the default profile.
@@ -162,6 +176,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   displayName: null,
   ready: false,
   lastReward: null,
+  adRewardStatus: null,
 
   async init() {
     if (initialized) return;
@@ -193,7 +208,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       /* auth/network unavailable or timed out — fall through to the guest guard */
     } finally {
       if (!get().ready) {
-        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true });
+        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, adRewardStatus: null });
       }
     }
   },
@@ -321,6 +336,36 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     return result.amount > 0;
   },
 
+  async refreshAdRewardStatus() {
+    if (!get().userId) {
+      set({ adRewardStatus: null });
+      return null;
+    }
+    const status = await fetchAdRewardStatusRemote();
+    if (status) set({ adRewardStatus: status });
+    return status;
+  },
+
+  async claimAdReward(args) {
+    if (!get().userId) return { status: 'auth_required' };
+    const result = await claimAdRewardRemote(args);
+    if (!result) return { status: 'error', message: 'Ad rewards are not configured yet.' };
+
+    const adStatus = adStatusFromClaim(result);
+    set({
+      profile: {
+        ...get().profile,
+        campaignFunds: result.balance,
+      },
+      adRewardStatus: adStatus,
+    });
+
+    if (result.status === 'claimed') {
+      return { status: 'claimed', amount: result.amount, balance: result.balance, adStatus };
+    }
+    return { status: 'limit', adStatus };
+  },
+
   async unlock(characterId) {
     const { profile, userId } = get();
     if (profile.unlockedCharacters.includes(characterId)) return true;
@@ -368,7 +413,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       await authSignOut();
     } finally {
       clearSession();
-      set({ userId: null, guest: true, displayName: null, profile: freshProfile() });
+      set({ userId: null, guest: true, displayName: null, profile: freshProfile(), adRewardStatus: null });
     }
   },
 
@@ -381,11 +426,21 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       await authSignOut();
     } finally {
       clearSession();
-      set({ userId: null, guest: true, displayName: null, profile: freshProfile() });
+      set({ userId: null, guest: true, displayName: null, profile: freshProfile(), adRewardStatus: null });
     }
     return true;
   },
 }));
+
+function adStatusFromClaim(result: AdRewardClaimRemote): AdRewardStatus {
+  return {
+    watched: result.watched,
+    remaining: result.remaining,
+    limit: result.limit,
+    windowHours: result.windowHours,
+    nextResetAt: result.nextResetAt,
+  };
+}
 
 function advanceCounters(
   current: AchievementCounters,
@@ -446,13 +501,13 @@ async function hydrateForUser(
   set: (p: Partial<ProfileStore>) => void,
 ): Promise<void> {
   if (!user) {
-    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true });
+    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, adRewardStatus: null });
     return;
   }
   // Mark signed-in and ready up front so the UI boots even if the account fetch
   // is slow; funds/stats/displayName fill in when it returns. A failed/hung fetch
   // leaves a default profile rather than trapping the app on the splash.
-  set({ userId: user.id, guest: false, ready: true });
+  set({ userId: user.id, guest: false, ready: true, adRewardStatus: null });
   let account: Awaited<ReturnType<typeof fetchRemoteAccount>> = null;
   try {
     account = await fetchRemoteAccount(user.id);

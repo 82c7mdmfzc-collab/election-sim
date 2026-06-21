@@ -56,6 +56,9 @@ for parody and commentary.
   needed for online play and to sync unlocks.
 • NO IN-APP PURCHASES in this build. Campaign Funds are earned by playing; there
   is no purchase flow or external purchase link in the app.
+• OPTIONAL REWARDED ADS: The Shop includes an opt-in rewarded ad button. Ads are
+  never shown automatically; completing one grants a small random amount of
+  Campaign Funds, capped server-side.
 • PARODY/SATIRE: Names and likenesses of public figures are used for satire,
   parody, and political commentary. The app is not affiliated with or endorsed
   by anyone depicted; an in-app disclaimer states this.
@@ -65,8 +68,9 @@ for parody and commentary.
 ## Privacy ("App Privacy" questionnaire)
 Data collected:
 - **Identifiers / Usage Data** → product analytics (PostHog), **not** linked for tracking across other apps. Purpose: Analytics, App Functionality.
+- **Identifiers / Usage Data** → optional rewarded advertising (Google AdMob). Purpose: Third-Party Advertising, Analytics, App Functionality.
 - **Contact Info (email)** + **User Content (username, game stats)** → account (Supabase). Purpose: App Functionality. Linked to the user's account.
-- No third-party advertising; no tracking (ATT) prompt needed.
+- If personalized ads/IDFA are enabled, include the ATT prompt and `NSUserTrackingUsageDescription`.
 - Account deletion is available in-app (Your Account → Delete account) and satisfies 5.1.1(v).
 
 ## Assets you still need to produce

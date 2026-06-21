@@ -19,6 +19,7 @@
 //   Android  GOOGLE_SERVICE_ACCOUNT_JSON, ANDROID_PACKAGE_NAME (Play Developer API)
 // ════════════════════════════════════════════════════════════════════════════
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { SignJWT, importPKCS8, decodeJwt } from 'jsr:@panva/jose@6';
 
 const ALLOWED_ORIGINS = new Set<string>([
   'tauri://localhost',
@@ -29,12 +30,13 @@ const ALLOWED_ORIGINS = new Set<string>([
 ]);
 const FALLBACK_ORIGIN = 'https://playelector.com';
 
-// SKUs the native rails may grant (the authoritative grant amounts live in SQL).
+// SKUs the native IAP rail may grant (the authoritative grant amounts live in SQL).
+// Funds packs only — characters are unlocked with in-game funds, not real money.
 const KNOWN_SKUS = new Set<string>([
-  'funds_1500', 'funds_4000', 'funds_8000', 'funds_12000',
-  'unlock_washington', 'unlock_joe_biden', 'unlock_ronald_reagan',
-  'unlock_starmer', 'unlock_farage', 'unlock_jfk',
+  'funds_1500', 'funds_4000', 'funds_9000', 'funds_20000',
 ]);
+
+const APPLE_BUNDLE_ID = 'com.playelector.app';
 
 function corsFor(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') ?? '';
@@ -59,15 +61,11 @@ interface VerifiedPurchase {
 class VerificationUnavailable extends Error {}
 
 /**
- * Verify an Apple StoreKit 2 signed transaction (JWS) against the App Store
- * Server API and return the authoritative { transactionId, productId }.
- *
- * TODO(native): implement using APPLE_ISSUER_ID / APPLE_KEY_ID / APPLE_PRIVATE_KEY:
- *   1. mint an ES256 JWT (aud "appstoreconnect-v1", iss=issuer, kid=keyId),
- *   2. GET https://api.storekit.itunes.apple.com/inApps/v1/transactions/{id}
- *      (or .sandbox host in dev), with Authorization: Bearer <jwt>,
- *   3. decode the returned signedTransactionInfo JWS, confirm productId & bundleId.
- * Fail closed until configured.
+ * Verify an Apple StoreKit 2 signed transaction (JWS) and return the authoritative
+ * { transactionId, sku }. We re-fetch the transaction from the App Store Server API
+ * (the trust anchor) rather than trusting the client JWS: the client JWS is decoded
+ * only to learn the transaction id, then Apple's own signed response is the source of
+ * truth for productId/bundleId. Fail closed until the API key is configured.
  */
 async function verifyApple(jws: string): Promise<VerifiedPurchase> {
   const issuer = Deno.env.get('APPLE_ISSUER_ID');
@@ -77,8 +75,39 @@ async function verifyApple(jws: string): Promise<VerifiedPurchase> {
     throw new VerificationUnavailable('Apple verification not configured');
   }
   if (!jws) throw new VerificationUnavailable('Apple verification: empty receipt');
-  // TODO(native): mint the ES256 JWT and call the App Store Server API here.
-  throw new VerificationUnavailable('Apple verification not yet implemented');
+
+  // 1. Decode the client JWS payload (UNTRUSTED) just to read the transaction id.
+  const claimed = decodeJwt(jws) as { transactionId?: string };
+  const transactionId = claimed.transactionId;
+  if (!transactionId) throw new Error('Apple: missing transactionId in receipt');
+
+  // 2. Mint the App Store Server API bearer (ES256, aud appstoreconnect-v1, <=60-min life).
+  //    APPLE_PRIVATE_KEY is the .p8 (PKCS#8 PEM); normalize escaped newlines if single-line.
+  const signingKey = await importPKCS8(privateKey.replace(/\\n/g, '\n'), 'ES256');
+  const bearer = await new SignJWT({ bid: APPLE_BUNDLE_ID })
+    .setProtectedHeader({ alg: 'ES256', kid: keyId, typ: 'JWT' })
+    .setIssuer(issuer)
+    .setIssuedAt()
+    .setExpirationTime('10m')
+    .setAudience('appstoreconnect-v1')
+    .sign(signingKey);
+
+  // 3. Fetch the authoritative transaction — production first, sandbox on 404
+  //    (a sandbox receipt 404s on the prod host and vice-versa).
+  const path = `/inApps/v1/transactions/${encodeURIComponent(transactionId)}`;
+  const getTxn = (host: string) =>
+    fetch(`https://${host}${path}`, { headers: { Authorization: `Bearer ${bearer}` } });
+  let resp = await getTxn('api.storekit.itunes.apple.com');
+  if (resp.status === 404) resp = await getTxn('api.storekit-sandbox.itunes.apple.com');
+  if (!resp.ok) throw new Error(`Apple App Store Server API ${resp.status}`);
+
+  // 4. The response carries an Apple-signed transaction JWS; decode + validate it.
+  const { signedTransactionInfo } = (await resp.json()) as { signedTransactionInfo: string };
+  const txn = decodeJwt(signedTransactionInfo) as { bundleId?: string; productId?: string };
+  if (txn.bundleId !== APPLE_BUNDLE_ID) throw new Error('Apple: bundleId mismatch');
+  if (!txn.productId || !KNOWN_SKUS.has(txn.productId)) throw new Error('Apple: unknown productId');
+
+  return { transactionId, sku: txn.productId };
 }
 
 /**

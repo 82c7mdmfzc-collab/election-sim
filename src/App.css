@@ -3109,6 +3109,128 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .funds-card__buy:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
 .funds-card__buy:disabled { opacity: 0.6; cursor: default; }
 
+/* ── Rewarded Ads ─────────────────────────────────────────────────────────── */
+.rewarded-ad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0.85rem 0.95rem;
+  background: linear-gradient(180deg, rgba(27, 50, 88, 0.58), rgba(18, 36, 64, 0.76));
+  border: 1px solid rgba(245, 144, 34, 0.28);
+  border-radius: 8px;
+}
+.rewarded-ad__main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.rewarded-ad__title {
+  margin: 0 0 0.12rem;
+  font-size: 0.98rem;
+  font-weight: 850;
+}
+.rewarded-ad__copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.rewarded-ad__quota {
+  flex: 0 0 auto;
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--r-pill);
+  background: rgba(15, 29, 56, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--gold);
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.rewarded-ad__button {
+  min-width: 132px;
+  padding: 0.58rem 0.82rem;
+  border: none;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--brand-top) 0%, var(--brand) 48%, var(--brand-deep) 100%);
+  color: #fff6ea;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter 0.14s ease, transform 0.1s ease;
+}
+.rewarded-ad__button:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); }
+.rewarded-ad__button:disabled { opacity: 0.62; cursor: default; }
+.rewarded-ad__watch,
+.rewarded-ad__message,
+.rewarded-ad__meta {
+  grid-column: 1 / -1;
+}
+.rewarded-ad__watch {
+  padding: 0.7rem;
+  background: rgba(10, 22, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+.rewarded-ad__watch-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.rewarded-ad__bar {
+  height: 7px;
+  margin: 0.55rem 0 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rewarded-ad__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.2s ease;
+}
+.rewarded-ad__watch p {
+  margin: 0 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.rewarded-ad__cancel {
+  padding: 0.38rem 0.7rem;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-weight: 750;
+  cursor: pointer;
+}
+.rewarded-ad__message,
+.rewarded-ad__meta {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.rewarded-ad__message--success { color: var(--green); font-weight: 800; }
+
+@media (max-width: 560px) {
+  .rewarded-ad {
+    grid-template-columns: 1fr;
+  }
+  .rewarded-ad__main {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .rewarded-ad__button {
+    width: 100%;
+  }
+  .rewarded-ad__quota {
+    align-self: flex-start;
+  }
+}
+
 /* ── Invite Friends (referral) ─────────────────────────────────────────────── */
 .invite { margin-top: 0.5rem; }
 .invite__note { color: var(--muted); font-size: 0.85rem; padding: 0.5rem 0; }

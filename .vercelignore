@@ -1,0 +1,16 @@
+# The Vercel CLI does NOT honor .gitignore — only this file. Keep in sync with
+# the heavy/irrelevant paths so deploys upload source only (Vercel builds from it).
+
+# Native app build (Tauri iOS/Android) — ~5GB, not part of the web build
+src-tauri
+
+# Reinstalled / rebuilt by Vercel from package-lock.json + source
+node_modules
+dist
+dist-ssr
+
+# VCS, local tooling, OS cruft
+.git
+.claude
+.DS_Store
+*.log

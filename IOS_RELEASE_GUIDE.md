@@ -91,7 +91,7 @@ Open `src-tauri/gen/apple` after `npm run tauri:ios:init`.
 - Privacy Policy URL: `https://playelector.com/privacy`
 - Account deletion URL: `https://playelector.com/delete-account`
 - Age rating: complete from gameplay content; no real-money gambling.
-- App Privacy: declare account identifiers, gameplay/profile data, product analytics, and purchases if native IAP is later enabled.
+- App Privacy: declare account identifiers, gameplay/profile data, product analytics, optional rewarded ads/advertising identifiers, and purchases if native IAP is later enabled.
 
 Reviewer note:
 
@@ -99,6 +99,8 @@ Reviewer note:
 Elector can be played in Solo and pass-and-play without an account. Online play, roster sync, Campaign Funds, and the shop require a free account. This iOS build uses email-code account sign-in; Google/Apple OAuth is disabled in the native app until the app-return deep-link flow is wired and reviewed.
 
 This iOS build does not use Stripe inside the native app. Paid Campaign Funds bundles are hidden unless native StoreKit support is present and verified. Players can still earn Campaign Funds through gameplay and use earned funds for unlocks.
+
+This build includes optional rewarded ads in the Shop. Ads are user-initiated only, never automatic, and rewards are capped server-side.
 ```
 
 ## TestFlight Checklist

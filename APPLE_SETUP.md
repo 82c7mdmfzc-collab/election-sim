@@ -70,32 +70,46 @@ flow (no "coming soon") and return you signed in.
 
 ---
 
-## Part 2 — Apple in-app purchases (NOT yet — read this first)
+## Part 2 — Apple in-app purchases (BUILT — finish the manual setup)
 
-**Supplying an Apple purchase key today will not make iOS purchases work**, so don't bother yet.
-Three things are missing:
+Native StoreKit purchases are implemented: the app uses `tauri-plugin-iap` (StoreKit 2), the
+client forwards the signed-transaction JWS to `supabase/functions/fulfill-purchase`, and
+`verifyApple()` validates it against the App Store Server API before `fulfill_purchase` credits the
+funds. **Web purchasing (Stripe) has been removed** — funds are bought only in the iOS app.
 
-1. **No native iOS app exists.** Purchases on iOS require a built native app (StoreKit). The live
-   product is a website; web purchases run on **Stripe**, not Apple. There is no shipping iOS build.
-2. **No StoreKit bridge.** The purchase code (`src/utils/iap.ts`) expects a native plugin to inject
-   `window.__ELECTOR_IAP__`; that plugin doesn't exist.
-3. **Server verification is a stub.** `supabase/functions/fulfill-purchase/index.ts` → `verifyApple()`
-   currently throws `Apple verification not yet implemented`, so no purchase would ever be credited.
+Four manual steps remain (none are code):
 
-### When the native iOS app IS built, here's where the key goes
-You'll create an **In-App Purchase key** in **App Store Connect → Users and Access → Integrations
-→ In-App Purchase** (gives you an **Issuer ID**, **Key ID**, and a `.p8`). Those go into **Supabase
-Edge Function secrets** (server-side only — never in the client bundle):
+1. **Paid Apps Agreement** — App Store Connect → Business (Agreements, Tax, and Banking): accept
+   the Paid Apps agreement and complete tax + banking. IAP will not function (even in sandbox)
+   until this shows **Active**.
 
-```bash
-supabase secrets set APPLE_ISSUER_ID=...      # from App Store Connect
-supabase secrets set APPLE_KEY_ID=...         # the IAP key's Key ID
-supabase secrets set APPLE_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)"
-```
+2. **Create the 4 Consumable products** (Monetization → In-App Purchases). Product IDs must match
+   the app's SKUs **exactly**, with per-territory prices:
 
-You'll also need to: create the consumable products (`funds_small`, `funds_medium`, `funds_large`)
-in App Store Connect, build the native app with an IAP plugin, and implement the `verifyApple()`
-App Store Server API call. That's a separate project — flag it when you're ready and we'll scope it.
+   | Product ID | Type | USD | GBP |
+   | --- | --- | --- | --- |
+   | `funds_1500` | Consumable | $2.99 | £1.99 |
+   | `funds_4000` | Consumable | $4.99 | £3.99 |
+   | `funds_9000` | Consumable | $8.99 | £7.99 |
+   | `funds_20000` | Consumable | $14.99 | £14.99 |
 
-> Note: the Sign-in `.p8` (Part 1) and the IAP `.p8` (Part 2) are **different keys** for different
-> purposes. Don't reuse one for the other.
+   Other territories take Apple's auto price matrix from the USD tier. Characters are unlocked with
+   in-game funds, so they need **no** App Store products.
+
+3. **App Store Connect API key (In-App Purchase)** — Users and Access → Integrations → In-App
+   Purchase → generate a key. Note the **Issuer ID** + **Key ID** and download the `.p8` (once).
+   Set them as Supabase Edge Function secrets (server-side only — never in the client bundle):
+
+   ```bash
+   supabase secrets set APPLE_ISSUER_ID=...      # from App Store Connect
+   supabase secrets set APPLE_KEY_ID=...         # the IAP key's Key ID
+   supabase secrets set APPLE_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)"
+   ```
+
+   Until these are set, `verifyApple()` fails closed (503) and no purchase is credited.
+
+4. **Sandbox test** — create a Sandbox Apple ID (Users and Access → Sandbox), or add a local
+   `.storekit` config in Xcode for the Simulator. Buy each pack and confirm the balance updates.
+
+> Note: the Sign-in `.p8` (Part 1) and the IAP `.p8` (this part) are **different keys** for
+> different purposes. Don't reuse one for the other.

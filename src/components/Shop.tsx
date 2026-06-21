@@ -9,13 +9,26 @@
  * owns the price) and falls back to a local check when offline/guest.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PREMIUM_CANDIDATES, PLAYER_COLORS } from '../game/candidates';
 import { VICTORY_MESSAGES } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
-import { FUNDS_BUNDLES, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
+import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage } from '../utils/localPrefs';
+import {
+  AD_REWARD_LIMIT,
+  AD_REWARD_MAX,
+  AD_REWARD_MIN,
+  INLINE_AD_SECONDS,
+  getLocalAdRewardStatus,
+  inlineRewardedAdsEnabled,
+  mergeAdRewardStatus,
+  recordLocalAdReward,
+  rewardedAdBridgeAvailable,
+  showRewardedAd,
+  type AdRewardStatus,
+} from '../utils/rewardedAds';
 import { track } from '../utils/analytics';
 import { InviteFriend } from './InviteFriend';
 import { ModifierSheet } from './ModifierSheet';
@@ -31,6 +44,224 @@ function priceValue(priceLabel: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function formatReset(nextResetAt: string | null): string {
+  if (!nextResetAt) return 'soon';
+  const ms = Date.parse(nextResetAt) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 'soon';
+  const totalMinutes = Math.ceil(ms / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours <= 0) return `${minutes}m`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}m`;
+}
+
+function RewardedAdCard() {
+  const userId = useProfile((s) => s.userId);
+  const guest = useProfile((s) => s.guest);
+  const remoteStatus = useProfile((s) => s.adRewardStatus);
+  const refreshAdRewardStatus = useProfile((s) => s.refreshAdRewardStatus);
+  const claimAdReward = useProfile((s) => s.claimAdReward);
+  const [localSnapshot, setLocalSnapshot] = useState<{ userId: string | null; status: AdRewardStatus } | null>(null);
+  const [phase, setPhase] = useState<'idle' | 'watching' | 'claiming'>('idle');
+  const [secondsLeft, setSecondsLeft] = useState(INLINE_AD_SECONDS);
+  const [message, setMessage] = useState<string | null>(null);
+  const [lastReward, setLastReward] = useState<number | null>(null);
+  const claimStarted = useRef(false);
+  const watchedMeta = useRef<{ provider?: string | null; adUnit?: string | null }>({});
+
+  const localStatus = localSnapshot?.userId === userId
+    ? localSnapshot.status
+    : getLocalAdRewardStatus(userId);
+  const status = useMemo(
+    () => mergeAdRewardStatus(remoteStatus, localStatus),
+    [localStatus, remoteStatus],
+  );
+  const bridgeReady = rewardedAdBridgeAvailable();
+  const inlineReady = inlineRewardedAdsEnabled();
+  const unavailable = !bridgeReady && !inlineReady;
+  const limitReached = !guest && status.remaining <= 0;
+  const progress = phase === 'watching'
+    ? Math.round(((INLINE_AD_SECONDS - secondsLeft) / INLINE_AD_SECONDS) * 100)
+    : 0;
+
+  useEffect(() => {
+    if (guest) return;
+    void refreshAdRewardStatus().then((next) => {
+      if (next) setLocalSnapshot({ userId, status: next });
+    });
+  }, [guest, refreshAdRewardStatus, userId]);
+
+  const claimWatchedAd = useCallback(async (provider?: string | null, adUnit?: string | null) => {
+    setPhase('claiming');
+    const result = await claimAdReward({ placement: 'shop', provider, adUnit });
+    if (result.status === 'claimed') {
+      if (userId) recordLocalAdReward(userId);
+      setLocalSnapshot({ userId, status: result.adStatus });
+      setLastReward(result.amount);
+      setMessage(`+${result.amount} Funds added.`);
+      AudioManager.play('victory');
+      track('rewarded_ad_claimed', {
+        placement: 'shop',
+        amount: result.amount,
+        remaining: result.adStatus.remaining,
+        provider: provider ?? 'unknown',
+      });
+    } else if (result.status === 'limit') {
+      setLocalSnapshot({ userId, status: result.adStatus });
+      setLastReward(null);
+      setMessage(`Ad limit reached. Next ad in ${formatReset(result.adStatus.nextResetAt)}.`);
+      track('rewarded_ad_limited', {
+        placement: 'shop',
+        remaining: result.adStatus.remaining,
+      });
+    } else if (result.status === 'auth_required') {
+      setLastReward(null);
+      setMessage('Sign in to earn Campaign Funds from ads.');
+    } else {
+      setLastReward(null);
+      setMessage(result.message);
+      track('rewarded_ad_claim_failed', {
+        placement: 'shop',
+        reason_category: 'claim_error',
+      });
+    }
+    claimStarted.current = false;
+    watchedMeta.current = {};
+    setPhase('idle');
+  }, [claimAdReward, userId]);
+
+  useEffect(() => {
+    if (phase !== 'watching') return;
+    if (secondsLeft > 0) {
+      const timer = window.setTimeout(() => {
+        setSecondsLeft((s) => Math.max(0, s - 1));
+      }, 1000);
+      return () => window.clearTimeout(timer);
+    }
+    if (claimStarted.current) return;
+    claimStarted.current = true;
+    void claimWatchedAd(
+      watchedMeta.current.provider ?? 'inline_sponsor',
+      watchedMeta.current.adUnit ?? 'shop-inline',
+    );
+  }, [claimWatchedAd, phase, secondsLeft]);
+
+  async function beginAd() {
+    if (guest || !userId) {
+      setMessage('Sign in to earn Campaign Funds from ads.');
+      return;
+    }
+    if (limitReached) {
+      setMessage(`Ad limit reached. Next ad in ${formatReset(status.nextResetAt)}.`);
+      return;
+    }
+    if (unavailable) {
+      setMessage('Rewarded ads are not available in this build.');
+      return;
+    }
+
+    AudioManager.play('click');
+    setMessage(null);
+    setLastReward(null);
+    track('rewarded_ad_started', {
+      placement: 'shop',
+      provider: bridgeReady ? 'bridge' : 'inline_sponsor',
+    });
+
+    if (bridgeReady) {
+      setPhase('claiming');
+      const result = await showRewardedAd('shop');
+      if (!result.completed) {
+        setPhase('idle');
+        setMessage(result.error ?? 'Ad closed before the reward.');
+        track('rewarded_ad_cancelled', {
+          placement: 'shop',
+          provider: result.provider ?? 'bridge',
+        });
+        return;
+      }
+      await claimWatchedAd(result.provider ?? 'bridge', result.adUnit ?? null);
+      return;
+    }
+
+    watchedMeta.current = { provider: 'inline_sponsor', adUnit: 'shop-inline' };
+    claimStarted.current = false;
+    setSecondsLeft(INLINE_AD_SECONDS);
+    setPhase('watching');
+  }
+
+  function cancelInlineAd() {
+    claimStarted.current = false;
+    watchedMeta.current = {};
+    setPhase('idle');
+    setMessage('Ad cancelled. No Funds claimed.');
+    track('rewarded_ad_cancelled', {
+      placement: 'shop',
+      provider: 'inline_sponsor',
+    });
+  }
+
+  const buttonLabel = phase === 'watching'
+    ? `Watching ${secondsLeft}s`
+    : phase === 'claiming'
+      ? 'Claiming...'
+      : guest
+        ? 'Sign in to earn'
+        : limitReached
+          ? 'Ad limit reached'
+          : 'Watch ad';
+
+  return (
+    <div className={`rewarded-ad${phase !== 'idle' ? ' is-active' : ''}`}>
+      <div className="rewarded-ad__main">
+        <div>
+          <h3 className="rewarded-ad__title">Watch an ad</h3>
+          <p className="rewarded-ad__copy">
+            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Funds.
+          </p>
+        </div>
+        <span className="rewarded-ad__quota">
+          {guest ? `${AD_REWARD_LIMIT}/${AD_REWARD_LIMIT} left` : `${status.remaining}/${status.limit} left`}
+        </span>
+      </div>
+
+      {phase === 'watching' && (
+        <div className="rewarded-ad__watch">
+          <div className="rewarded-ad__watch-head">
+            <span>Sponsored message</span>
+            <span>{secondsLeft}s</span>
+          </div>
+          <div className="rewarded-ad__bar" aria-hidden>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <p>Campaign ads keep fresh challengers on the trail.</p>
+          <button type="button" className="rewarded-ad__cancel" onClick={cancelInlineAd}>
+            Cancel
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className="rewarded-ad__button"
+        disabled={phase !== 'idle' || limitReached}
+        onClick={beginAd}
+      >
+        {buttonLabel}
+      </button>
+      {limitReached && status.nextResetAt && (
+        <div className="rewarded-ad__meta">Next ad in {formatReset(status.nextResetAt)}</div>
+      )}
+      {message && (
+        <div className={`rewarded-ad__message${lastReward != null ? ' rewarded-ad__message--success' : ''}`}>
+          {message}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Shop({ source = 'menu', onBack }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
@@ -40,18 +271,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [buyingSku, setBuyingSku] = useState<string | null>(null);
   const [equippedVM, setEquippedVM] = useState(getSelectedVictoryMessage);
-  // Initial purchase status is read from the Stripe return URL (?purchase=…).
-  const [purchaseMsg, setPurchaseMsg] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null;
-    const p = new URLSearchParams(window.location.search).get('purchase');
-    return p === 'success' ? 'Purchase complete — Campaign Funds added.'
-      : p === 'cancel' ? 'Checkout cancelled.'
-        : null;
-  });
+  const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
+  const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
   const billingPlatform = iapPlatform();
   const hasNativeBilling = nativeIapAvailable();
-  const showPaidFunds = billingPlatform === 'web' || hasNativeBilling;
+  const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
   const nativeBillingHeld = (billingPlatform === 'ios' || billingPlatform === 'android') && !hasNativeBilling;
+  const showAdRewards = rewardedAdBridgeAvailable() || inlineRewardedAdsEnabled();
 
   useEffect(() => {
     track('shop_opened', {
@@ -61,16 +287,15 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     });
   }, [billingPlatform, hasNativeBilling, source]);
 
-  // On open, refresh the balance (picks up funds the Stripe webhook credited
-  // after returning from checkout) and strip the ?purchase marker from the URL.
+  // On open, refresh the balance (picks up funds credited by a recent purchase).
   useEffect(() => {
     void refresh();
-    const params = new URLSearchParams(window.location.search);
-    if (!params.get('purchase')) return;
-    params.delete('purchase');
-    const qs = params.toString();
-    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
   }, [refresh]);
+
+  // Native (iOS): load StoreKit's localized prices for the funds packs.
+  useEffect(() => {
+    void getFundsPrices().then(setNativePrices);
+  }, []);
 
   async function buy(id: string) {
     const candidate = PREMIUM_CANDIDATES.find((c) => c.id === id);
@@ -132,16 +357,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
         platform: billingPlatform,
       });
-    } else {
-      track('checkout_result', {
-        product_id: sku,
-        product_type: 'funds',
-        status: 'redirected',
-        value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
-        platform: billingPlatform,
-      });
     }
-    // 'redirect' → the browser is navigating to Stripe; leave state as-is.
     setBuyingSku(null);
   }
 
@@ -186,12 +402,19 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                 disabled={buyingSku === b.sku}
                 onClick={() => buyFunds(b.sku)}
               >
-                {buyingSku === b.sku ? 'Processing…' : b.priceLabel}
+                {buyingSku === b.sku ? 'Processing…' : (nativePrices[b.sku] ?? b.priceLabel)}
               </button>
             </div>
           ))}
         </div>
       ) : nativeBillingHeld ? null : null}
+
+      {showAdRewards && (
+        <>
+          <h2 className="shop__section">Earn Campaign Funds</h2>
+          <RewardedAdCard />
+        </>
+      )}
 
       <h2 className="shop__section">Recruit Candidates</h2>
       <div className="shop__grid">

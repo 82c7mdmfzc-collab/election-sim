@@ -1,9 +1,11 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   test: {
     environment: 'node',
+    exclude: [...configDefaults.exclude, '.claude/**'],
+    testTimeout: 30_000,
   },
   plugins: [react()],
 

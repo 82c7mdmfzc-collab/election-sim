@@ -12,6 +12,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import type { AdRewardStatus } from '../utils/rewardedAds';
 import {
   type AchievementCounters,
   type DailyStreakState,
@@ -257,6 +258,67 @@ export async function claimAchievementRewardRemote(achievementId: string): Promi
     amount: jsonNumber(row, 'amount'),
     claimedAchievements: jsonStringArray(row, 'claimedAchievements'),
   };
+}
+
+function jsonStringOrNull(obj: Record<string, unknown>, key: string): string | null {
+  const val = obj[key];
+  return typeof val === 'string' && val.length > 0 ? val : null;
+}
+
+function parseAdRewardStatus(data: unknown): AdRewardStatus | null {
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  const limit = jsonNumber(row, 'limit') || 5;
+  const watched = Math.max(0, Math.min(limit, jsonNumber(row, 'watched')));
+  const remaining = Math.max(0, Math.min(limit, jsonNumber(row, 'remaining')));
+  return {
+    watched,
+    remaining,
+    limit,
+    windowHours: jsonNumber(row, 'windowHours') || 12,
+    nextResetAt: jsonStringOrNull(row, 'nextResetAt'),
+  };
+}
+
+export async function fetchAdRewardStatusRemote(): Promise<AdRewardStatus | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('get_ad_reward_status');
+  if (error) {
+    console.warn('fetchAdRewardStatusRemote failed:', error.message);
+    return null;
+  }
+  return parseAdRewardStatus(data);
+}
+
+export type AdRewardClaimRemote =
+  | ({ status: 'claimed'; amount: number; balance: number } & AdRewardStatus)
+  | ({ status: 'limit'; amount: 0; balance: number } & AdRewardStatus);
+
+export async function claimAdRewardRemote(args: {
+  placement: string;
+  provider?: string | null;
+  adUnit?: string | null;
+}): Promise<AdRewardClaimRemote | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('claim_ad_reward', {
+    p_placement: args.placement,
+    p_provider: args.provider ?? null,
+    p_ad_unit: args.adUnit ?? null,
+  });
+  if (error) {
+    console.warn('claimAdRewardRemote failed:', error.message);
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  const status = row.status === 'claimed' ? 'claimed' : row.status === 'limit' ? 'limit' : null;
+  const rewardStatus = parseAdRewardStatus(data);
+  if (!status || !rewardStatus) return null;
+  const balance = jsonNumber(row, 'balance');
+  if (status === 'claimed') {
+    return { ...rewardStatus, status, amount: jsonNumber(row, 'amount'), balance };
+  }
+  return { ...rewardStatus, status, amount: 0, balance };
 }
 
 async function fetchClaimedAchievements(): Promise<string[]> {

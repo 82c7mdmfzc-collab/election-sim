@@ -1,9 +1,9 @@
 -- iap.sql — server-authoritative purchase fulfillment.
 --
--- Called by the edge functions stripe-webhook (web) and fulfill-purchase (native)
--- AFTER the payment/receipt has been verified. The SERVER owns the SKU catalog so
--- the client can never pick the amount. Idempotent on the transaction id, so Stripe
--- webhook retries / duplicate receipts never double-credit.
+-- Called by the fulfill-purchase edge function (native Apple/Google IAP) AFTER the
+-- receipt has been verified. The SERVER owns the SKU catalog so the client can never
+-- pick the amount. Idempotent on the transaction id, so a duplicate / replayed
+-- receipt never double-credits.
 --
 -- Contract (must match the edge callers):
 --   fulfill_purchase(p_user uuid, p_platform text, p_transaction_id text, p_sku text)
@@ -31,8 +31,8 @@ declare
   v_balance integer;
   v_fresh   integer := 0;
 begin
-  -- Idempotency: record the transaction once. A repeat (Stripe retry, replayed
-  -- receipt) hits the conflict and credits nothing — we just return the balance.
+  -- Idempotency: record the transaction once. A replayed receipt hits the conflict
+  -- and credits nothing — we just return the balance.
   insert into public.purchases (transaction_id, user_id, sku, platform)
   values (p_transaction_id, p_user, p_sku, p_platform)
   on conflict (transaction_id) do nothing;
@@ -43,8 +43,8 @@ begin
     v_funds := case p_sku
       when 'funds_1500'  then 1500
       when 'funds_4000'  then 4000
-      when 'funds_8000'  then 8000
-      when 'funds_12000' then 12000
+      when 'funds_9000'  then 9000
+      when 'funds_20000' then 20000
       else null end;
 
     if v_funds is not null then
