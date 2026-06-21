@@ -33,7 +33,8 @@
     "core:window:allow-set-min-size",
 
     "deep-link:default",
-    "opener:allow-open-url"
+    "opener:allow-open-url",
+    "elector-admob:default"
 
   ]
 }

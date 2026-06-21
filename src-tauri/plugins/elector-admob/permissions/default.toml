@@ -1,0 +1,3 @@
+[default]
+description = "Default permissions for the Elector AdMob bridge"
+permissions = ["allow-show-rewarded-ad"]

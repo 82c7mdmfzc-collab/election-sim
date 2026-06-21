@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-show-rewarded-ad"
+description = "Enables the show_rewarded_ad command without any pre-configured scope."
+commands.allow = ["show_rewarded_ad"]
+
+[[permission]]
+identifier = "deny-show-rewarded-ad"
+description = "Denies the show_rewarded_ad command without any pre-configured scope."
+commands.deny = ["show_rewarded_ad"]

@@ -42,6 +42,9 @@
   },
 
   "plugins": {
+    "elector-admob": {
+      "iosRewardedAdUnitId": "ca-app-pub-5364561069734393/7845987969"
+    },
     "deep-link": {
       "mobile":  [{ "scheme": ["com.playelector.app"] }],
       "desktop": { "schemes": ["com.playelector.app"] }
@@ -79,7 +82,8 @@
 
     "iOS": {
       "minimumSystemVersion": "14.0",
-      "bundleVersion": "7"
+      "bundleVersion": "7",
+      "infoPlist": "Info.ios.plist"
     },
 
     "windows": {
