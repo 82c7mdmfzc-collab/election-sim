@@ -17,11 +17,10 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export type { Session, User };
 
-// Flip to true once the Apple provider is configured in Supabase
-// (Authentication → Providers → Apple). Until then the Apple button is shown but
-// responds with a friendly "coming soon" instead of an OAuth error. Google +
-// email work today.
-export const APPLE_SIGNIN_ENABLED = false;
+// Apple provider is configured in Supabase (Authentication → Providers → Apple),
+// so the Apple button now runs a real OAuth flow. Set back to false to fall back to
+// the friendly "coming soon" message (no OAuth error) if the provider is ever removed.
+export const APPLE_SIGNIN_ENABLED = true;
 
 /** True inside a Tauri native webview. */
 export function isNativeRuntime(): boolean {
