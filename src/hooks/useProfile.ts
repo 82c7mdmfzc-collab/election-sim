@@ -53,6 +53,7 @@ import {
   signOut as authSignOut,
   type User,
 } from '../utils/authClient';
+import { initNativeAuthCallback } from '../utils/nativeAuthCallback';
 
 export interface GameResult {
   /** Unique id of the finished game — used for server-side reward dedup. */
@@ -174,6 +175,11 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     onAuthChange((user: User | null) => {
       void hydrateForUser(user, set);
     });
+
+    // Native only: catch the OAuth deep-link callback (cold + warm start) and set
+    // the session, which fires onAuthChange above. Dynamically imports the plugin;
+    // a no-op on web. Runs in init() so cold-start (app launched by the link) works.
+    void initNativeAuthCallback();
 
     // Boot is gated on `ready`; it must NEVER hang. Read the session from local
     // storage (no mandatory network round-trip) and bound both the session read

@@ -38,3 +38,39 @@ body::before {
   min-height: 100vh;
   min-height: 100dvh; /* dynamic viewport — avoids the mobile-Safari toolbar overflow/scroll */
 }
+
+/* ── Native app feel ───────────────────────────────────────────────────────────
+   Applied only inside the Tauri webview. `html.native` is set before first paint by
+   the shim in index.html, which also forbids pinch-zoom via the viewport. The live
+   website keeps its normal scroll/zoom/selection behavior (these rules don't match). */
+html.native,
+html.native body {
+  height: 100%;
+  overflow: hidden;            /* the document itself never scrolls… */
+  overscroll-behavior: none;   /* …and never rubber-band bounces */
+}
+
+html.native body {
+  position: fixed;             /* pin the document so nothing can scroll it */
+  inset: 0;
+  width: 100%;
+  -webkit-user-select: none;   /* no web-style long-press text selection… */
+  user-select: none;
+  -webkit-touch-callout: none; /* …and no iOS callout / share menu */
+}
+
+/* Inputs stay selectable & editable (email + verification-code fields). */
+html.native input,
+html.native textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* With the document pinned, #root is the scroll container so tall menu screens
+   (e.g. the sign-in form in landscape) stay reachable. The in-game .shell is exactly
+   100dvh and owns its own internal scroll regions, so it never page-scrolls. */
+html.native #root {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

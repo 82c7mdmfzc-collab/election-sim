@@ -30,7 +30,10 @@
     "core:window:allow-set-size",
     "core:window:allow-inner-size",
     "core:window:allow-outer-size",
-    "core:window:allow-set-min-size"
+    "core:window:allow-set-min-size",
+
+    "deep-link:default",
+    "opener:allow-open-url"
 
   ]
 }

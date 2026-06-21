@@ -6,7 +6,11 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Build output / generated dirs that must never be linted: 'dist' (web bundle),
+  // 'src-tauri/target' (Cargo output) and 'src-tauri/gen' (generated mobile projects)
+  // contain binary/codegen assets; '.claude' holds agent worktrees (full repo copies
+  // with their own tsconfig) — linting into them breaks typed-lint root detection.
+  globalIgnores(['dist', '.claude', 'src-tauri/target', 'src-tauri/gen']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
