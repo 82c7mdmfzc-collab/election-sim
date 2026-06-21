@@ -5,6 +5,30 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <!--
+      Native-runtime shim. In the Tauri iOS webview the page must feel like an app,
+      not a website: no pinch-zoom, no document scroll/rubber-band, no long-press
+      selection. Detect the custom protocol (tauri:) BEFORE first paint, tag <html>
+      so the CSS lockdown (src/index.css `html.native`) applies with no flash, and
+      tighten the viewport to forbid zoom. The web build keeps the permissive meta
+      above (zoom allowed for accessibility). ES5-safe — runs un-transpiled on old
+      WebViews; must not block boot.
+    -->
+    <script>
+      (function () {
+        try {
+          if (String(window.location.protocol).indexOf('tauri') !== 0) return;
+          document.documentElement.classList.add('native');
+          var vp = document.querySelector('meta[name="viewport"]');
+          if (vp) {
+            vp.setAttribute(
+              'content',
+              'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no',
+            );
+          }
+        } catch (e) { /* never block boot on this */ }
+      })();
+    </script>
     <meta name="theme-color" content="#0b1426" />
     <title>Elector — Win the Electoral College</title>
     <meta name="description" content="Elector — a satirical strategy game about winning the US Electoral College. Campaign, build coalitions, and race to 270. A parody; not affiliated with or endorsed by anyone depicted." />

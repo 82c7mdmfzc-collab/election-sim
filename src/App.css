@@ -939,6 +939,7 @@ button, a, [role="button"] {
   min-height: 0;
   overflow-y: auto;   /* the ladders/dominance panels scroll within the column */
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;  /* don't chain the scroll into a page bounce */
 }
 .sidebar__section {
   background: var(--panel);
@@ -2848,7 +2849,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 }
 
 /* ── Auth gate ─────────────────────────────────────────────────────────────── */
-.auth-gate { max-height: min(86vh, 760px); overflow-y: auto; }
+.auth-gate { max-height: min(86vh, 760px); overflow-y: auto; overscroll-behavior: contain; }
 .auth-gate__funds { text-align: center; margin: 0.5rem 0 1rem; }
 .auth-gate__funds-amt {
   display: block; font-family: var(--font-display);

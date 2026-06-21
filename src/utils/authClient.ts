@@ -17,21 +17,22 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 export type { Session, User };
 
-// Flip to true once the Apple provider is configured in Supabase
-// (Authentication → Providers → Apple). Until then the Apple button is shown but
-// responds with a friendly "coming soon" instead of an OAuth error. Google +
-// email work today.
-export const APPLE_SIGNIN_ENABLED = false;
+// Apple provider is configured in Supabase (Authentication → Providers → Apple),
+// so the Apple button now runs a real OAuth flow. Set back to false to fall back to
+// the friendly "coming soon" message (no OAuth error) if the provider is ever removed.
+export const APPLE_SIGNIN_ENABLED = true;
 
 /** True inside a Tauri native webview. */
 export function isNativeRuntime(): boolean {
   return typeof window !== 'undefined' && window.location.protocol.startsWith('tauri');
 }
 
-// Native OAuth requires a registered deep-link plugin/handler to feed the
-// callback URL back to Supabase. Until that exists, hide OAuth buttons natively
-// and use email-code auth, which works without leaving the webview flow.
-export const NATIVE_OAUTH_ENABLED = false;
+// Native OAuth is wired: the deep-link plugin (registered in src-tauri/src/lib.rs)
+// catches the com.playelector.app://auth-callback return and src/utils/nativeAuthCallback
+// feeds the tokens to supabase.auth.setSession. With that in place the OAuth buttons
+// are shown natively. (Google works once the deep link is allow-listed in Supabase →
+// URL Configuration; Apple additionally needs APPLE_SIGNIN_ENABLED — see above.)
+export const NATIVE_OAUTH_ENABLED = true;
 
 /** Where OAuth should send the user back. Web uses the current origin; native
  *  (Tauri) uses a registered deep-link scheme handled on app open. */
@@ -58,24 +59,49 @@ export async function getUser(): Promise<User | null> {
   return data.user ?? null;
 }
 
-/** Begin the Google OAuth flow (redirects the browser). */
-export async function signInWithGoogle(): Promise<{ error?: string }> {
+/**
+ * Begin an OAuth flow.
+ *  • Web: signInWithOAuth performs the full-page browser redirect; detectSessionInUrl
+ *    finishes sign-in on return.
+ *  • Native (Tauri): there is no page redirect, so we request the authorize URL
+ *    (skipBrowserRedirect) and open it in the system browser. The provider returns to
+ *    com.playelector.app://auth-callback, handled by utils/nativeAuthCallback.ts.
+ */
+async function startOAuth(provider: 'google' | 'apple'): Promise<{ error?: string }> {
   if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
+
+  if (isNativeRuntime()) {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: oauthRedirectTo(), skipBrowserRedirect: true },
+      });
+      if (error) return { error: error.message };
+      if (!data?.url) return { error: 'Could not start sign-in. Please try again.' };
+      // Dynamic import keeps the opener plugin out of the web / iOS-14 module-eval path.
+      const { openUrl } = await import('@tauri-apps/plugin-opener');
+      await openUrl(data.url);
+      return {};
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Could not open the sign-in page.' };
+    }
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: { redirectTo: oauthRedirectTo() },
   });
   return error ? { error: error.message } : {};
 }
 
-/** Begin the Apple OAuth flow (redirects the browser). */
-export async function signInWithApple(): Promise<{ error?: string }> {
-  if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'apple',
-    options: { redirectTo: oauthRedirectTo() },
-  });
-  return error ? { error: error.message } : {};
+/** Begin the Google OAuth flow. */
+export function signInWithGoogle(): Promise<{ error?: string }> {
+  return startOAuth('google');
+}
+
+/** Begin the Apple OAuth flow. */
+export function signInWithApple(): Promise<{ error?: string }> {
+  return startOAuth('apple');
 }
 
 /**

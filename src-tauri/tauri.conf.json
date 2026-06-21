@@ -41,6 +41,13 @@
     }
   },
 
+  "plugins": {
+    "deep-link": {
+      "mobile":  [{ "scheme": ["com.playelector.app"] }],
+      "desktop": { "schemes": ["com.playelector.app"] }
+    }
+  },
+
   "bundle": {
     "active": true,
     "targets": "all",
