@@ -7,6 +7,16 @@ export default defineConfig({
   },
   plugins: [react()],
 
+  // Lock the production bundle to a Safari-14 syntax baseline. Our iOS
+  // IPHONEOS_DEPLOYMENT_TARGET is 14.0, whose WKWebView runs an old
+  // JavaScriptCore. Without this, a dependency shipping newer syntax could
+  // reintroduce a parse-time launch crash. (Runtime API gaps — structuredClone,
+  // .at, randomUUID, etc. — are handled by the boot polyfill in index.html;
+  // build targets only lower syntax, they never add API polyfills.)
+  build: {
+    target: ['es2020', 'safari14'],
+  },
+
   // Prevent host resolution in Tauri's webview from using node APIs.
   // 'browser' ensures Vite resolves the "browser" field in package.json,
   // which is the correct target for webview environments.

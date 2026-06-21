@@ -72,7 +72,7 @@
 
     "iOS": {
       "minimumSystemVersion": "14.0",
-      "bundleVersion": "6"
+      "bundleVersion": "7"
     },
 
     "windows": {
