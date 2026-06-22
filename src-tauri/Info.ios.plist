@@ -28,5 +28,13 @@
       <string>cstr6suwn9.skadnetwork</string>
     </dict>
   </array>
+  <!-- Native chrome: force a light status bar (white glyphs) so it reads over the
+       dark navy theme rather than the default dark-on-light. VC-based appearance is
+       disabled so this global style wins (the app has a single dark theme). On
+       landscape iPhone the status bar is hidden anyway; this mainly affects iPad. -->
+  <key>UIStatusBarStyle</key>
+  <string>UIStatusBarStyleLightContent</string>
+  <key>UIViewControllerBasedStatusBarAppearance</key>
+  <false/>
 </dict>
 </plist>
