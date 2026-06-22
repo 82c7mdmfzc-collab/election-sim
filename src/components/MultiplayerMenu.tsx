@@ -381,7 +381,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   // Gate: online play requires a signed-in account with a claimed username.
   if (guest || !displayName) {
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--gate">
         <div className="setup__header">
           <h1 className="setup__title">Play Online</h1>
         </div>
@@ -402,14 +402,11 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
 
   if (screen === 'main') {
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--main">
         <div className="setup__header">
           <h1 className="setup__title">Play Online</h1>
         </div>
-        <div
-          className="setup__foot"
-          style={{ gap: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-        >
+        <div className="mp-choice">
           <button type="button" className="setup__start" onClick={() => setScreen('creating')}>
             Host a Game
           </button>
@@ -421,15 +418,15 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           >
             Join a Game
           </button>
-          <button type="button" className="mp-back" onClick={onBack}>← Back</button>
         </div>
+        <div className="setup__foot"><button type="button" className="mp-back" onClick={onBack}>← Back</button></div>
       </div>
     );
   }
 
   if (screen === 'creating') {
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--creating">
         <div className="setup__header">
           <h1 className="setup__title">Host a Game</h1>
           <div className="setup__count">
@@ -447,9 +444,41 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           </div>
         </div>
 
-        <p className="mp-hint">Choose your candidate</p>
+        <div className="native-select">
+          {myCandidate && (
+            <div className="native-select__spotlight native-only">
+              <div
+                className="native-candidate"
+                style={{ ['--p-color' as string]: PLAYER_COLORS[myCandidate.color] }}
+              >
+                <div className="native-candidate__portrait">
+                  <Portrait className="cand-portrait" src={myCandidate.portraitUrl} initials={myCandidate.portrait} name={myCandidate.name} />
+                </div>
+                <div className="native-candidate__body">
+                  <div className="native-candidate__name">{myCandidate.name}</div>
+                  <div className="native-candidate__tag">{myCandidate.tagline}</div>
+                  <div className="native-candidate__meta">
+                    <PartyBadge party={myCandidate.party} />
+                    <span>${myCandidate.startingCash}k starting cash</span>
+                  </div>
+                  <ModifierSheet affinities={myCandidate.affinities} payoutModifiers={myCandidate.payoutModifiers} compact />
+                </div>
+              </div>
+              <div className="native-select__summary">
+                <div className="native-select__summary-card">
+                  <p className="native-select__summary-title">Lobby</p>
+                  <p className="mp-hint">Playing as <strong>@{displayName}</strong></p>
+                </div>
+                <div className="native-select__summary-card">
+                  <p className="native-select__summary-title">Seats</p>
+                  <p className="mp-hint">{playerCount} player game</p>
+                </div>
+              </div>
+            </div>
+          )}
 
-        <div className="setup__roster">
+          <p className="mp-hint">Choose your candidate</p>
+          <div className="setup__roster candidate-rail">
           {availableCandidates.map((c) => {
             const chosen = myCandidate?.id === c.id;
             return (
@@ -476,6 +505,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
               </button>
             );
           })}
+          </div>
         </div>
 
         <p className="mp-hint">Playing as <strong>@{displayName}</strong></p>
@@ -511,7 +541,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     const canStart = waitingPlayers.length >= playerCount;
 
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--waiting">
         <div className="setup__header">
           <h1 className="setup__title">Waiting for players to join…</h1>
         </div>
@@ -542,7 +572,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
 
   if (screen === 'joining') {
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--joining">
         <div className="setup__header">
           <h1 className="setup__title">Join a Game</h1>
         </div>
@@ -623,10 +653,11 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       (foundLobby.game_state as WaitingLobbyState)?.players ?? [];
 
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--picking">
         <div className="setup__header">
           <h1 className="setup__title">Room {foundLobby.room_code}</h1>
         </div>
+        <div className="native-select">
         {existingPlayers.length > 0 && (
           <div className="mp-wait" style={{ marginBottom: '1rem' }}>
             <p className="mp-wait__hint" style={{ marginBottom: '0.5rem' }}>Already here:</p>
@@ -646,8 +677,36 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           </div>
         )}
 
+        {guestCandidate && (
+          <div className="native-select__spotlight native-only">
+            <div
+              className="native-candidate"
+              style={{ ['--p-color' as string]: PLAYER_COLORS[guestCandidate.color] }}
+            >
+              <div className="native-candidate__portrait">
+                <Portrait className="cand-portrait" src={guestCandidate.portraitUrl} initials={guestCandidate.portrait} name={guestCandidate.name} />
+              </div>
+              <div className="native-candidate__body">
+                <div className="native-candidate__name">{guestCandidate.name}</div>
+                <div className="native-candidate__tag">{guestCandidate.tagline}</div>
+                <div className="native-candidate__meta">
+                  <PartyBadge party={guestCandidate.party} />
+                  <span>${guestCandidate.startingCash}k starting cash</span>
+                </div>
+                <ModifierSheet affinities={guestCandidate.affinities} payoutModifiers={guestCandidate.payoutModifiers} compact />
+              </div>
+            </div>
+            <div className="native-select__summary">
+              <div className="native-select__summary-card">
+                <p className="native-select__summary-title">Room</p>
+                <p className="mp-hint">{foundLobby.room_code} · Playing as <strong>@{displayName}</strong></p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <p className="mp-hint">Choose your candidate</p>
-        <div className="setup__roster">
+        <div className="setup__roster candidate-rail">
           {availableCandidates.map((c) => {
             const taken  = claimedCandidateIds.has(c.id);
             const chosen = guestCandidate?.id === c.id;
@@ -676,6 +735,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
               </button>
             );
           })}
+        </div>
         </div>
 
         <p className="mp-hint">Playing as <strong>@{displayName}</strong></p>
@@ -710,7 +770,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   if (screen === 'waiting-guest' && lobby) {
     const hostId = (lobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
     return (
-      <div className="setup">
+      <div className="setup native-screen mp-screen mp-screen--waiting">
         <div className="setup__header">
           <h1 className="setup__title">Waiting for the host…</h1>
         </div>

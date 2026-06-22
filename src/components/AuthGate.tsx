@@ -29,6 +29,7 @@ export function AuthGate({ onClose }: AuthGateProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState('');
+  const [tab, setTab] = useState<'profile' | 'progress' | 'danger'>('profile');
 
   function close() {
     AudioManager.play('quit');
@@ -70,65 +71,90 @@ export function AuthGate({ onClose }: AuthGateProps) {
           <UsernameClaim />
         ) : (
           <>
-            <div className="auth-gate__username">@{displayName}</div>
-
-            <div className="auth-gate__funds">
-              <span className="auth-gate__funds-amt">{profile.campaignFunds.toLocaleString()}</span>
-              <span className="auth-gate__funds-label">Campaign Funds</span>
+            <div className="auth-tabs native-only" role="tablist" aria-label="Account sections">
+              {[
+                ['profile', 'Profile'],
+                ['progress', 'Progress'],
+                ['danger', 'Account'],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`auth-tabs__tab${tab === id ? ' is-active' : ''}`}
+                  role="tab"
+                  aria-selected={tab === id}
+                  onClick={() => setTab(id as 'profile' | 'progress' | 'danger')}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            <button
-              type="button"
-              className="auth-gate__signout"
-              onClick={async () => { await signOut(); close(); }}
-            >
-              Sign out
-            </button>
+            <div className={`auth-pane auth-pane--profile${tab === 'profile' ? ' is-active' : ''}`}>
+              <div className="auth-gate__username">@{displayName}</div>
 
-            <div className="auth-gate__stats">
-              <Stat label="Games" value={stats.gamesPlayed} />
-              <Stat label="Wins" value={stats.gamesWon} />
-              <Stat label="Streak" value={stats.winStreak} />
-              <Stat label="Best streak" value={stats.bestWinStreak} />
-            </div>
+              <div className="auth-gate__funds">
+                <span className="auth-gate__funds-amt">{profile.campaignFunds.toLocaleString()}</span>
+                <span className="auth-gate__funds-label">Campaign Funds</span>
+              </div>
 
-            <ProgressPanel />
-
-            {!confirmDelete ? (
               <button
                 type="button"
-                className="auth-gate__delete-link"
-                onClick={() => { AudioManager.play('click'); setConfirmDelete(true); }}
+                className="auth-gate__signout"
+                onClick={async () => { await signOut(); close(); }}
               >
-                Delete account
+                Sign out
               </button>
-            ) : (
-              <div className="auth-gate__delete">
-                <p className="auth-gate__delete-warn">
-                  Permanently delete your account and all associated data — Campaign Funds,
-                  unlocks, stats, and username? This cannot be undone.
-                </p>
-                {deleteErr && <p className="auth-gate__delete-err">{deleteErr}</p>}
-                <div className="auth-gate__delete-actions">
-                  <button
-                    type="button"
-                    className="auth-gate__delete-confirm"
-                    disabled={deleting}
-                    onClick={handleDelete}
-                  >
-                    {deleting ? 'Deleting…' : 'Delete forever'}
-                  </button>
-                  <button
-                    type="button"
-                    className="tutorial__btn tutorial__btn--ghost"
-                    disabled={deleting}
-                    onClick={() => { AudioManager.play('quit'); setConfirmDelete(false); setDeleteErr(''); }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+
+              <div className="auth-gate__stats">
+                <Stat label="Games" value={stats.gamesPlayed} />
+                <Stat label="Wins" value={stats.gamesWon} />
+                <Stat label="Streak" value={stats.winStreak} />
+                <Stat label="Best streak" value={stats.bestWinStreak} />
               </div>
-            )}
+            </div>
+
+            <div className={`auth-pane auth-pane--progress${tab === 'progress' ? ' is-active' : ''}`}>
+              <ProgressPanel />
+            </div>
+
+            <div className={`auth-pane auth-pane--danger${tab === 'danger' ? ' is-active' : ''}`}>
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  className="auth-gate__delete-link"
+                  onClick={() => { AudioManager.play('click'); setConfirmDelete(true); }}
+                >
+                  Delete account
+                </button>
+              ) : (
+                <div className="auth-gate__delete">
+                  <p className="auth-gate__delete-warn">
+                    Permanently delete your account and all associated data — Campaign Funds,
+                    unlocks, stats, and username? This cannot be undone.
+                  </p>
+                  {deleteErr && <p className="auth-gate__delete-err">{deleteErr}</p>}
+                  <div className="auth-gate__delete-actions">
+                    <button
+                      type="button"
+                      className="auth-gate__delete-confirm"
+                      disabled={deleting}
+                      onClick={handleDelete}
+                    >
+                      {deleting ? 'Deleting…' : 'Delete forever'}
+                    </button>
+                    <button
+                      type="button"
+                      className="tutorial__btn tutorial__btn--ghost"
+                      disabled={deleting}
+                      onClick={() => { AudioManager.play('quit'); setConfirmDelete(false); setDeleteErr(''); }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         )}
 

@@ -52,8 +52,11 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   }, [seats]);
 
   const filled = seats.filter(Boolean).length;
+  const [activeCandidateId, setActiveCandidateId] = useState(CANDIDATES[0].id);
+  const activeCandidate = CANDIDATES.find((c) => c.id === activeCandidateId) ?? CANDIDATES[0];
 
   function toggleCandidate(id: string) {
+    setActiveCandidateId(id);
     setSeats((cur) => {
       const idx = cur.indexOf(id);
       if (idx >= 0) {
@@ -77,7 +80,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   }
 
   return (
-    <div className="setup">
+    <div className="setup native-screen setup--candidate-select">
       <div className="setup__header">
         <h1 className="setup__title">Choose Your Coalition</h1>
         <div className="setup__count">
@@ -108,53 +111,102 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
         </div>
       </div>
 
-      <div className="setup__seats">
-        {seats.map((id, i) => (
-          <span key={i} className={`setup__seat${id ? ' is-filled' : ''}`}>
-            Player {i + 1}: <strong>{id ? CANDIDATES.find((c) => c.id === id)?.name : '—'}</strong>
-          </span>
-        ))}
-      </div>
-
-      <div className="setup__roster">
-        {CANDIDATES.map((c) => {
-          const seat = assignedSeat[c.id];
-          const isAssigned = seat !== undefined;
-          const locked = !isCandidateAvailable(c, unlocked);
-          return (
-            <button
-              key={c.id}
-              type="button"
-              className={`cand-card${isAssigned ? ' is-assigned' : ''}${locked ? ' is-locked' : ''}`}
-              style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-              onClick={() => {
-                if (locked) { AudioManager.play('click'); onOpenShop?.(); return; }
-                toggleCandidate(c.id);
-              }}
-            >
-              <div className="cand-card__top">
-                <div className="cand-portrait-wrap">
-                  <Portrait
-                    className="cand-portrait"
-                    src={c.portraitUrl}
-                    initials={c.portrait}
-                    name={c.name}
-                  />
-                </div>
-                <div className="cand-card__id">
-                  <span className="cand-card__name">{c.name}</span>
-                  <span className="cand-card__tag">{c.tagline}</span>
-                  <PartyBadge party={c.party} className="cand-card__party" />
-                </div>
-                {isAssigned && <span className="cand-card__seat">P{seat + 1}</span>}
-                {locked && <span className="cand-card__lock"><LockIcon size={14} /></span>}
+      <div className="native-select">
+        <div className="native-select__spotlight native-only">
+          <div
+            className="native-candidate"
+            style={{ ['--p-color' as string]: PLAYER_COLORS[activeCandidate.color] }}
+          >
+            <div className="native-candidate__portrait">
+              <Portrait
+                className="cand-portrait"
+                src={activeCandidate.portraitUrl}
+                initials={activeCandidate.portrait}
+                name={activeCandidate.name}
+              />
+            </div>
+            <div className="native-candidate__body">
+              <div className="native-candidate__name">{activeCandidate.name}</div>
+              <div className="native-candidate__tag">{activeCandidate.tagline}</div>
+              <div className="native-candidate__meta">
+                <PartyBadge party={activeCandidate.party} />
+                <span>${activeCandidate.startingCash}k starting cash</span>
               </div>
-              <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-              <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
-              {locked && <div className="cand-card__unlock-hint">Unlock in Shop →</div>}
-            </button>
-          );
-        })}
+              <ModifierSheet
+                affinities={activeCandidate.affinities}
+                payoutModifiers={activeCandidate.payoutModifiers}
+                compact
+              />
+            </div>
+          </div>
+          <div className="native-select__summary">
+            <div className="native-select__summary-card">
+              <p className="native-select__summary-title">Seats</p>
+              <div className="setup__seats">
+                {seats.map((id, i) => (
+                  <span key={i} className={`setup__seat${id ? ' is-filled' : ''}`}>
+                    P{i + 1}: <strong>{id ? CANDIDATES.find((c) => c.id === id)?.name : 'Open'}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="native-select__summary-card">
+              <p className="native-select__summary-title">Selection</p>
+              <p className="mp-hint">{filled === count ? 'Ready to start' : `Assign ${count - filled} more candidate(s)`}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="setup__seats">
+          {seats.map((id, i) => (
+            <span key={i} className={`setup__seat${id ? ' is-filled' : ''}`}>
+              Player {i + 1}: <strong>{id ? CANDIDATES.find((c) => c.id === id)?.name : '—'}</strong>
+            </span>
+          ))}
+        </div>
+
+        <div className="native-select__rail-label native-only">Swipe candidates</div>
+        <div className="setup__roster candidate-rail">
+          {CANDIDATES.map((c) => {
+            const seat = assignedSeat[c.id];
+            const isAssigned = seat !== undefined;
+            const locked = !isCandidateAvailable(c, unlocked);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`cand-card${isAssigned ? ' is-assigned' : ''}${activeCandidateId === c.id ? ' is-active' : ''}${locked ? ' is-locked' : ''}`}
+                style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                onClick={() => {
+                  setActiveCandidateId(c.id);
+                  if (locked) { AudioManager.play('click'); onOpenShop?.(); return; }
+                  toggleCandidate(c.id);
+                }}
+              >
+                <div className="cand-card__top">
+                  <div className="cand-portrait-wrap">
+                    <Portrait
+                      className="cand-portrait"
+                      src={c.portraitUrl}
+                      initials={c.portrait}
+                      name={c.name}
+                    />
+                  </div>
+                  <div className="cand-card__id">
+                    <span className="cand-card__name">{c.name}</span>
+                    <span className="cand-card__tag">{c.tagline}</span>
+                    <PartyBadge party={c.party} className="cand-card__party" />
+                  </div>
+                  {isAssigned && <span className="cand-card__seat">P{seat + 1}</span>}
+                  {locked && <span className="cand-card__lock"><LockIcon size={14} /></span>}
+                </div>
+                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
+                <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+                {locked && <div className="cand-card__unlock-hint">Unlock in Shop →</div>}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="setup__foot">

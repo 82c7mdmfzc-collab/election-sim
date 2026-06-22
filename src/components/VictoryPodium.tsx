@@ -247,85 +247,89 @@ export function VictoryPodium() {
         )}
       </div>
 
-      {/* Campaign Funds payout */}
-      <RewardReveal />
-      <ProgressPanel compact showAll={false} />
-      <NextChallengeHint context="victory" />
+      <div className="victory-side">
+        {/* Campaign Funds payout */}
+        <div className="victory-rewards">
+          <RewardReveal />
+          <ProgressPanel compact showAll={false} />
+          <NextChallengeHint context="victory" />
+        </div>
 
-      {/* Leaderboard */}
-      <div className="victory-board">
-        {ranked.map((p, i) => {
-          const ev = electionResult?.evByPlayer[p.id] ?? 0;
-          const securedStates = securedCountByPlayer[p.id] ?? 0;
-          const securedEV = securedEVByPlayer[p.id] ?? 0;
-          const groupsWon = dominanceCountByPlayer[p.id] ?? 0;
-          const isWinner = p.id === winner?.id;
-          const color = colors[p.id];
+        {/* Leaderboard */}
+        <div className="victory-board">
+          {ranked.map((p, i) => {
+            const ev = electionResult?.evByPlayer[p.id] ?? 0;
+            const securedStates = securedCountByPlayer[p.id] ?? 0;
+            const securedEV = securedEVByPlayer[p.id] ?? 0;
+            const groupsWon = dominanceCountByPlayer[p.id] ?? 0;
+            const isWinner = p.id === winner?.id;
+            const color = colors[p.id];
 
-          return (
-            <div
-              key={p.id}
-              className={[
-                'victory-row',
-                isWinner ? 'victory-row--winner' : '',
-                p.eliminated ? 'victory-row--eliminated' : '',
-              ].filter(Boolean).join(' ')}
-              style={{ ['--p-color' as string]: color?.hex ?? '#888' }}
-            >
-              <span className="victory-rank">{RANK_LABELS[i] ?? `#${i + 1}`}</span>
-              <div className="victory-portrait-sm">
-                <Avatar
-                  src={CANDIDATE_MAP[p.candidateId]?.portraitUrl ?? ''}
-                  initials={p.name.slice(0, 2).toUpperCase()}
-                  name={p.name}
-                  className="cand-token"
-                />
-              </div>
-              <div className="victory-info">
-                <span className="victory-row-name">
-                  {p.name}
-                  {p.eliminated && <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: '0.7rem' }}> — eliminated</span>}
-                </span>
-                <div className="victory-stats">
-                  <span><strong>{ev}</strong> EV total</span>
-                  {securedStates > 0 && (
-                    <span><strong>{securedStates}</strong> states locked ({securedEV} EV)</span>
-                  )}
-                  <span><strong>${p.nationalCash.toFixed(0)}k</strong> cash remaining</span>
-                  {groupsWon > 0 && (
-                    <span><strong>{groupsWon}</strong> group{groupsWon !== 1 ? 's' : ''} dominant</span>
-                  )}
+            return (
+              <div
+                key={p.id}
+                className={[
+                  'victory-row',
+                  isWinner ? 'victory-row--winner' : '',
+                  p.eliminated ? 'victory-row--eliminated' : '',
+                ].filter(Boolean).join(' ')}
+                style={{ ['--p-color' as string]: color?.hex ?? '#888' }}
+              >
+                <span className="victory-rank">{RANK_LABELS[i] ?? `#${i + 1}`}</span>
+                <div className="victory-portrait-sm">
+                  <Avatar
+                    src={CANDIDATE_MAP[p.candidateId]?.portraitUrl ?? ''}
+                    initials={p.name.slice(0, 2).toUpperCase()}
+                    name={p.name}
+                    className="cand-token"
+                  />
+                </div>
+                <div className="victory-info">
+                  <span className="victory-row-name">
+                    {p.name}
+                    {p.eliminated && <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: '0.7rem' }}> — eliminated</span>}
+                  </span>
+                  <div className="victory-stats">
+                    <span><strong>{ev}</strong> EV total</span>
+                    {securedStates > 0 && (
+                      <span><strong>{securedStates}</strong> states locked ({securedEV} EV)</span>
+                    )}
+                    <span><strong>${p.nationalCash.toFixed(0)}k</strong> cash remaining</span>
+                    {groupsWon > 0 && (
+                      <span><strong>{groupsWon}</strong> group{groupsWon !== 1 ? 's' : ''} dominant</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      <div className="victory-cta">
-        <button type="button" onClick={runItBack}>
-          {multiplayerMode === 'online' ? 'New Lobby' : 'Run It Back'}
-        </button>
-        <button type="button" className="victory-challenge-btn" onClick={tryNextChallenge}>
-          Try Next Challenge
-        </button>
-        <button
-          type="button"
-          className="victory-share-btn"
-          onClick={handleShare}
-          disabled={sharing}
-        >
-          {sharing ? 'Preparing…' : 'Share Result'}
-        </button>
-        {multiplayerMode === 'online' && (
+        <div className="victory-cta">
+          <button type="button" onClick={runItBack}>
+            {multiplayerMode === 'online' ? 'New Lobby' : 'Run It Back'}
+          </button>
+          <button type="button" className="victory-challenge-btn" onClick={tryNextChallenge}>
+            Try Next Challenge
+          </button>
           <button
             type="button"
-            style={{ marginLeft: '0.75rem', background: 'var(--panel-2)', color: 'var(--text)' }}
-            onClick={() => { AudioManager.play('click'); returnToMenu(); }}
+            className="victory-share-btn"
+            onClick={handleShare}
+            disabled={sharing}
           >
-            Return to Menu
+            {sharing ? 'Preparing…' : 'Share Result'}
           </button>
-        )}
+          {multiplayerMode === 'online' && (
+            <button
+              type="button"
+              style={{ marginLeft: '0.75rem', background: 'var(--panel-2)', color: 'var(--text)' }}
+              onClick={() => { AudioManager.play('click'); returnToMenu(); }}
+            >
+              Return to Menu
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

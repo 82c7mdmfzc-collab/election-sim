@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:mobile-native": "node scripts/check-mobile-native.mjs",
     "build:edge": "node scripts/build-edge-function.mjs",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

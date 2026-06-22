@@ -39,6 +39,8 @@ interface ShopProps {
   onBack: () => void;
 }
 
+type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages';
+
 function priceValue(priceLabel: string): number {
   const n = Number(priceLabel.replace(/[^0-9.]/g, ''));
   return Number.isFinite(n) ? n : 0;
@@ -278,6 +280,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
   const nativeBillingHeld = (billingPlatform === 'ios' || billingPlatform === 'android') && !hasNativeBilling;
   const showAdRewards = rewardedAdBridgeAvailable() || inlineRewardedAdsEnabled();
+  const [tab, setTab] = useState<ShopTab>('recruit');
 
   useEffect(() => {
     track('shop_opened', {
@@ -362,132 +365,167 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   }
 
   return (
-    <div className="shop">
+    <div className="shop native-screen">
       <div className="shop__header">
+        <button type="button" className="mp-back native-only" onClick={onBack}>← Back</button>
         <h1 className="shop__title">Campaign Shop</h1>
         <span className="shop__balance">
           <span className="coin-inline" aria-hidden />
           {funds.toLocaleString()} Funds
         </span>
       </div>
-      <p className="shop__sub">Win games to earn Campaign Funds, then recruit new candidates to your roster.</p>
 
-      {showPaidFunds && (
-        <>
-          <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Campaign Funds</h2>
-          <p className="shop__sub">Top up instantly to recruit candidates faster.</p>
-        </>
-      )}
-      {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
-      {showPaidFunds ? (
-        <div className="funds-grid">
-          {FUNDS_BUNDLES.map((b) => (
-            <div key={b.sku} className="funds-card">
-              {b.badge && <span className="funds-card__badge">{b.badge}</span>}
-              <img
-                className="funds-card__img"
-                src={b.imageUrl}
-                alt=""
-                draggable={false}
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <div className="funds-card__amount">
-                <span className="coin-inline coin-inline--large" aria-hidden />
-                {b.funds.toLocaleString()}
-              </div>
-              <div className="funds-card__label">Campaign Funds</div>
-              <button
-                type="button"
-                className="funds-card__buy"
-                disabled={buyingSku === b.sku}
-                onClick={() => buyFunds(b.sku)}
-              >
-                {buyingSku === b.sku ? 'Processing…' : (nativePrices[b.sku] ?? b.priceLabel)}
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : nativeBillingHeld ? null : null}
-
-      {showAdRewards && (
-        <>
-          <h2 className="shop__section">Earn Campaign Funds</h2>
-          <RewardedAdCard />
-        </>
-      )}
-
-      <h2 className="shop__section">Recruit Candidates</h2>
-      <div className="shop__grid">
-        {PREMIUM_CANDIDATES.map((c) => {
-          const owned = unlocked.includes(c.id);
-          const affordable = funds >= c.unlockCost;
-          const pct = Math.min(100, Math.round((funds / c.unlockCost) * 100));
-          return (
-            <div
-              key={c.id}
-              className={`shop-card${owned ? ' is-owned' : ''}`}
-              style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-            >
-              <div className="shop-card__top">
-                <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
-                <div>
-                  <span className="shop-card__name">{c.name}</span>
-                  <span className="shop-card__tag">{c.tagline}</span>
-                </div>
-              </div>
-              <div className="shop-card__cash">${c.startingCash}k starting cash</div>
-              <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
-
-              <div className="shop-card__foot">
-                {owned ? (
-                  <div className="shop-card__owned">Owned ✓</div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="shop-card__unlock"
-                      disabled={!affordable || busy === c.id}
-                      onClick={() => buy(c.id)}
-                    >
-                      {busy === c.id
-                        ? 'Unlocking…'
-                        : affordable
-                          ? `Unlock — ${c.unlockCost.toLocaleString()} Funds`
-                          : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Funds`}
-                    </button>
-                    {!affordable && (
-                      <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div className="shop__tabs native-only" role="tablist" aria-label="Shop sections">
+        {[
+          ['funds', 'Funds'],
+          ['recruit', 'Recruit'],
+          ['earn', 'Earn'],
+          ['messages', 'Messages'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`shop__tab${tab === id ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id as ShopTab)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <InviteFriend />
+      <div className="shop__body">
+        <p className="shop__sub">Win games to earn Campaign Funds, then recruit new candidates to your roster.</p>
 
-      <h2 className="shop__section">Victory Messages</h2>
-      <p className="shop__sub">Choose the speech your winner delivers on the victory screen.</p>
-      <div className="shop__vm-list">
-        {VICTORY_MESSAGES.map((m) => {
-          const equipped = equippedVM === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              className={`vm-card${equipped ? ' is-equipped' : ''}`}
-              onClick={() => { AudioManager.play('click'); setSelectedVictoryMessage(m.id); setEquippedVM(m.id); }}
-            >
-              <span className="vm-card__label">
-                {m.label}
-                {equipped && <span className="vm-card__badge">Equipped</span>}
-              </span>
-              <span className="vm-card__text">“{m.text}”</span>
-            </button>
-          );
-        })}
+        <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}`}>
+          {showPaidFunds && (
+            <>
+              <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Campaign Funds</h2>
+              <p className="shop__sub">Top up instantly to recruit candidates faster.</p>
+            </>
+          )}
+          {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
+          {showPaidFunds ? (
+            <div className="funds-grid shop-rail">
+              {FUNDS_BUNDLES.map((b) => (
+                <div key={b.sku} className="funds-card">
+                  {b.badge && <span className="funds-card__badge">{b.badge}</span>}
+                  <img
+                    className="funds-card__img"
+                    src={b.imageUrl}
+                    alt=""
+                    draggable={false}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <div className="funds-card__amount">
+                    <span className="coin-inline coin-inline--large" aria-hidden />
+                    {b.funds.toLocaleString()}
+                  </div>
+                  <div className="funds-card__label">Campaign Funds</div>
+                  <button
+                    type="button"
+                    className="funds-card__buy"
+                    disabled={buyingSku === b.sku}
+                    onClick={() => buyFunds(b.sku)}
+                  >
+                    {buyingSku === b.sku ? 'Processing…' : (nativePrices[b.sku] ?? b.priceLabel)}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : nativeBillingHeld ? (
+            <p className="shop__sub">Campaign Funds purchases are not available in this build.</p>
+          ) : (
+            <p className="shop__sub">Campaign Funds purchases are available in the native app build.</p>
+          )}
+        </section>
+
+        <section className={`shop__pane shop__pane--earn${tab === 'earn' ? ' is-active' : ''}`}>
+          {showAdRewards && (
+            <>
+              <h2 className="shop__section">Earn Campaign Funds</h2>
+              <RewardedAdCard />
+            </>
+          )}
+          <InviteFriend />
+        </section>
+
+        <section className={`shop__pane shop__pane--recruit${tab === 'recruit' ? ' is-active' : ''}`}>
+          <h2 className="shop__section">Recruit Candidates</h2>
+          <div className="shop__grid shop-rail">
+            {PREMIUM_CANDIDATES.map((c) => {
+              const owned = unlocked.includes(c.id);
+              const affordable = funds >= c.unlockCost;
+              const pct = Math.min(100, Math.round((funds / c.unlockCost) * 100));
+              return (
+                <div
+                  key={c.id}
+                  className={`shop-card${owned ? ' is-owned' : ''}`}
+                  style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                >
+                  <div className="shop-card__top">
+                    <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                    <div>
+                      <span className="shop-card__name">{c.name}</span>
+                      <span className="shop-card__tag">{c.tagline}</span>
+                    </div>
+                  </div>
+                  <div className="shop-card__cash">${c.startingCash}k starting cash</div>
+                  <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+
+                  <div className="shop-card__foot">
+                    {owned ? (
+                      <div className="shop-card__owned">Owned ✓</div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="shop-card__unlock"
+                          disabled={!affordable || busy === c.id}
+                          onClick={() => buy(c.id)}
+                        >
+                          {busy === c.id
+                            ? 'Unlocking…'
+                            : affordable
+                              ? `Unlock — ${c.unlockCost.toLocaleString()} Funds`
+                              : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Funds`}
+                        </button>
+                        {!affordable && (
+                          <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className={`shop__pane shop__pane--messages${tab === 'messages' ? ' is-active' : ''}`}>
+          <h2 className="shop__section">Victory Messages</h2>
+          <p className="shop__sub">Choose the speech your winner delivers on the victory screen.</p>
+          <div className="shop__vm-list shop-rail">
+            {VICTORY_MESSAGES.map((m) => {
+              const equipped = equippedVM === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`vm-card${equipped ? ' is-equipped' : ''}`}
+                  onClick={() => { AudioManager.play('click'); setSelectedVictoryMessage(m.id); setEquippedVM(m.id); }}
+                >
+                  <span className="vm-card__label">
+                    {m.label}
+                    {equipped && <span className="vm-card__badge">Equipped</span>}
+                  </span>
+                  <span className="vm-card__text">“{m.text}”</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
       <div className="setup__foot" style={{ marginTop: '1.5rem' }}>

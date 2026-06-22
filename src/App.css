@@ -214,6 +214,148 @@ button, a, [role="button"] {
 }
 .coin-inline--large { width: 1.05em; height: 1.05em; }
 
+/* ══ Native single-viewport primitives ═════════════════════════════════════
+   These classes are inert on the website unless explicitly used by existing
+   layouts. The native rules below turn major screens into app-like stages:
+   fixed viewport, compact chrome, in-screen rails/panes, and pinned actions. */
+.native-only { display: none; }
+
+html.native .native-only { display: initial; }
+
+html.native .native-screen,
+html.native .home,
+html.native .landing,
+html.native .setup,
+html.native .shop {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-width: none;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.native .native-screen,
+html.native .setup,
+html.native .shop {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(0.85rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(0.85rem + env(safe-area-inset-left));
+}
+
+html.native .screen-transition {
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+html.native .native-topbar,
+html.native .setup__header,
+html.native .shop__header {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+}
+
+html.native .native-actionbar,
+html.native .setup__foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin: 0;
+  padding-top: 0.45rem;
+  min-height: 58px;
+}
+
+html.native .setup__title,
+html.native .shop__title {
+  font-size: clamp(1rem, 4.2dvh, 1.45rem);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+html.native .setup__count {
+  flex: 0 0 auto;
+  gap: 0.22rem;
+  padding: 0.18rem;
+  border: 1px solid rgba(240, 184, 80, 0.18);
+  border-radius: var(--r-pill);
+  background: rgba(10, 22, 42, 0.56);
+}
+
+html.native .setup__count span {
+  padding: 0 0.35rem;
+  font-size: 0.56rem;
+  white-space: nowrap;
+}
+
+html.native .setup__count-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 0.46rem;
+  border-radius: var(--r-pill);
+  font-size: 0.76rem;
+}
+
+html.native .setup__sub,
+html.native .next-challenge--solo {
+  display: none;
+}
+
+html.native .setup__start {
+  min-width: min(260px, 38vw);
+  min-height: 44px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.98rem;
+}
+
+html.native .mp-back {
+  min-height: 40px;
+  margin: 0;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: rgba(10, 22, 42, 0.48);
+  color: var(--text);
+}
+
+html.native .mp-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+html.native .candidate-rail,
+html.native .setup__roster,
+html.native .shop-rail {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+}
+
+html.native .candidate-rail::-webkit-scrollbar,
+html.native .setup__roster::-webkit-scrollbar,
+html.native .shop-rail::-webkit-scrollbar {
+  display: none;
+}
+
 /* ══ Tactical shell grid ═══════════════════════════════════════════════════ */
 
 .shell {
@@ -1464,8 +1606,6 @@ button, a, [role="button"] {
    inner grids are auto-fit, so they add columns rather than stretching wide. */
 html.native .setup {
   max-width: none;
-  padding-right: calc(1.5rem + env(safe-area-inset-right));
-  padding-left: calc(1.5rem + env(safe-area-inset-left));
 }
 .setup__header {
   display: flex; align-items: center; justify-content: space-between;
@@ -1501,6 +1641,215 @@ html.native .setup {
 
 .setup__roster {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.75rem;
+}
+
+html.native .setup__seats {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  margin: 0;
+  gap: 0.35rem;
+}
+
+html.native .setup__seat {
+  min-width: 0;
+  max-width: 24vw;
+  padding: 0.26rem 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.68rem;
+}
+
+html.native .native-select {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  padding-top: 0.35rem;
+}
+
+html.native .native-select__spotlight {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(170px, 0.82fr) minmax(260px, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+html.native .native-candidate {
+  display: grid;
+  grid-template-columns: minmax(86px, 0.42fr) minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: stretch;
+  min-height: 0;
+  padding: 0.65rem;
+  background: linear-gradient(180deg, rgba(27, 50, 88, 0.72), rgba(11, 20, 38, 0.86));
+  border: 1px solid var(--border);
+  border-left: 5px solid var(--p-color, var(--brand));
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+
+html.native .native-candidate__portrait {
+  min-height: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+html.native .native-candidate__portrait .cand-portrait,
+html.native .native-candidate__portrait .portrait-fallback {
+  width: 100%;
+  height: 100%;
+  min-height: 104px;
+  object-fit: cover;
+  object-position: center top;
+}
+
+html.native .native-candidate__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+html.native .native-candidate__name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.1rem, 4.8dvh, 1.8rem);
+  line-height: 0.95;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.native .native-candidate__tag {
+  color: var(--muted);
+  font-size: clamp(0.68rem, 2.3dvh, 0.82rem);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+html.native .native-candidate__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--green);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+html.native .native-candidate .mod-sheet {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem 0.45rem;
+  font-size: 0.62rem;
+}
+
+html.native .native-candidate .mod-row {
+  min-width: 0;
+}
+
+html.native .native-select__summary {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+html.native .native-select__summary-card {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(10, 22, 42, 0.56);
+}
+
+html.native .native-select__summary-title {
+  margin: 0 0 0.3rem;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+html.native .native-select__rail-label {
+  color: var(--muted);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+html.native .setup__roster {
+  flex: 0 0 auto;
+  gap: 0.55rem;
+  padding: 0.1rem 1.1rem 0.3rem;
+}
+
+html.native .setup__roster .cand-card {
+  scroll-snap-align: center;
+  flex: 0 0 clamp(108px, 18vw, 142px);
+  width: clamp(108px, 18vw, 142px);
+  min-height: 132px;
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: minmax(76px, 1fr) auto;
+  gap: 0;
+  border-top-width: 0;
+  border-left: 4px solid var(--p-color);
+}
+
+html.native .setup__roster .cand-card__top {
+  display: grid;
+  grid-template-rows: minmax(76px, 1fr) auto;
+  gap: 0;
+  margin: 0;
+}
+
+html.native .setup__roster .cand-portrait-wrap {
+  width: 100%;
+  height: 78px;
+  border-radius: 0;
+}
+
+html.native .setup__roster .cand-card__id {
+  padding: 0.35rem 0.42rem;
+}
+
+html.native .setup__roster .cand-card__name {
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.native .setup__roster .cand-card__tag,
+html.native .setup__roster .party-badge,
+html.native .setup__roster .cand-card__cash,
+html.native .setup__roster .mod-sheet,
+html.native .setup__roster .cand-card__perks {
+  display: none;
+}
+
+html.native .setup__roster .cand-card__seat,
+html.native .setup__roster .cand-card__lock {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+}
+
+html.native .setup__roster .cand-card.is-disabled {
+  opacity: 0.48;
+  filter: grayscale(0.6);
 }
 .cand-card {
   text-align: left;
@@ -3784,6 +4133,368 @@ html.native .shop {
 @keyframes orient-rock {
   0%, 55%, 100% { transform: rotate(0deg); }
   72%, 88% { transform: rotate(-90deg); }
+}
+
+/* ══ Native no-scroll major screens ════════════════════════════════════════ */
+html.native .home {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-items: center;
+  justify-items: center;
+  gap: 0.8rem 1rem;
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(1rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(1rem + env(safe-area-inset-left));
+}
+html.native .home__coin { top: calc(0.65rem + env(safe-area-inset-top)); right: calc(1rem + env(safe-area-inset-right)); }
+html.native .home__crest { grid-column: 1; grid-row: 1 / 3; }
+html.native .home__crest-img { width: min(110px, 17dvh); }
+html.native .brand__logo { width: min(310px, 38vw); }
+html.native .brand__tagline { font-size: 0.68rem; }
+html.native .home__modes {
+  grid-column: 2; grid-row: 2;
+  width: min(520px, 48vw);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 0.55rem;
+}
+html.native .menu-btn { min-height: clamp(54px, 15dvh, 78px); padding: 0.55rem 0.75rem; }
+html.native .menu-btn__chip { width: 38px; height: 38px; }
+html.native .menu-btn__label { font-size: clamp(1rem, 4.1dvh, 1.28rem); }
+html.native .home__progress { grid-column: 1; grid-row: 3; width: min(360px, 42vw); margin: 0; }
+html.native .home__progress .progress-panel--compact,
+html.native .home__progress .next-challenge { max-height: 22dvh; overflow: hidden; }
+html.native .home__link { grid-column: 2; grid-row: 3; margin: 0; }
+
+html.native .landing {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.9fr) minmax(300px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem 1rem;
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(1rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(1rem + env(safe-area-inset-left));
+}
+html.native .landing > .brand { grid-column: 1 / -1; justify-self: center; }
+html.native .landing .brand__logo { width: min(260px, 34vw); }
+html.native .landing .brand__tagline { display: none; }
+html.native .landing__hero { grid-column: 1; min-width: 0; gap: 0.55rem; }
+html.native .landing__pitch { max-width: 32ch; font-size: 0.82rem; line-height: 1.35; }
+html.native .landing__card { grid-column: 2; width: min(430px, 44vw); padding: 0.85rem; max-height: 62dvh; overflow: hidden; }
+html.native .landing__account-copy,
+html.native .landing__guest-note,
+html.native .landing__legal { display: none; }
+html.native .landing__guest { min-width: min(280px, 36vw); min-height: 44px; padding: 0.6rem 1rem; }
+html.native .signin { gap: 0.42rem; }
+html.native .signin__provider { padding: 0.52rem 0.8rem; min-height: 40px; }
+html.native .signin__divider { margin: -0.08rem 0; }
+
+html.native .native-select > .setup__seats,
+html.native .native-select > .mp-hint:not(.native-select__summary .mp-hint),
+html.native .setup--bot .native-select > .setup__seats,
+html.native .mp-screen--creating > .mp-hint,
+html.native .mp-screen--creating > .mp-error { display: none; }
+html.native .cand-card.is-active,
+html.native .setup__roster .cand-card.is-active { box-shadow: 0 0 0 2px var(--gold), var(--shadow-md); }
+
+html.native .mp-screen { gap: 0.45rem; }
+html.native .mp-choice {
+  align-self: center; justify-self: center;
+  display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 0.8rem; width: min(560px, 74vw);
+}
+html.native .mp-choice .setup__start { width: 100%; min-height: clamp(72px, 22dvh, 112px); }
+html.native .mp-join {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.65fr) minmax(300px, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.65rem 0.85rem;
+  margin: 0;
+  align-items: start;
+}
+html.native .mp-join > .mp-join__hint { grid-column: 1; }
+html.native .mp-join__row { grid-column: 1; flex-direction: column; align-items: stretch; }
+html.native .mp-join__input { width: 100%; height: clamp(50px, 15dvh, 72px); font-size: clamp(1.35rem, 6dvh, 2.2rem); }
+html.native .mp-join__row .setup__start { width: 100%; }
+html.native .mp-public {
+  grid-column: 2; grid-row: 1 / 4;
+  min-height: 0; margin: 0;
+  display: flex; flex-direction: column;
+}
+html.native .mp-public__list { min-height: 0; overflow-y: auto; padding-right: 0.2rem; }
+html.native .mp-join > .mp-back { grid-column: 1; align-self: end; width: fit-content; }
+html.native .mp-wait {
+  min-height: 0; margin: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.45rem;
+}
+html.native .mp-wait__code { font-size: clamp(2.1rem, 11dvh, 4rem); margin: 0; }
+html.native .mp-wait__hint { margin: 0; text-align: center; }
+html.native .mp-players {
+  width: min(760px, 82vw);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+}
+html.native .mp-player-row {
+  min-width: 0;
+  min-height: clamp(74px, 20dvh, 118px);
+  display: grid;
+  grid-template-rows: auto auto auto;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+  padding: 0.55rem;
+  border-left-width: 1px;
+  border-top: 4px solid var(--p-color, var(--border));
+}
+html.native .mp-player-row--empty { border-style: dashed; color: var(--muted); }
+html.native .mp-player-token { width: clamp(34px, 9dvh, 52px); height: clamp(34px, 9dvh, 52px); }
+html.native .mp-player-name {
+  font-family: var(--font-display);
+  font-size: clamp(0.84rem, 3.3dvh, 1.1rem);
+  flex: unset;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html.native .mp-player-cand { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+html.native .shop { gap: 0.45rem; }
+html.native .shop__header { display: grid; grid-template-columns: auto 1fr auto; }
+html.native .shop__title { justify-self: center; }
+html.native .shop__tabs,
+html.native .auth-tabs {
+  display: flex;
+  gap: 0.3rem;
+  justify-content: center;
+  padding: 0.18rem;
+  border: 1px solid rgba(240, 184, 80, 0.18);
+  border-radius: var(--r-pill);
+  background: rgba(10, 22, 42, 0.56);
+}
+html.native .shop__tab,
+html.native .auth-tabs__tab {
+  min-height: 34px;
+  padding: 0 0.75rem;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  cursor: pointer;
+}
+html.native .shop__tab.is-active,
+html.native .auth-tabs__tab.is-active { background: var(--brand); color: #fff6ea; }
+html.native .shop__body { min-height: 0; overflow: hidden; }
+html.native .shop__body > .shop__sub { display: none; }
+html.native .shop__pane { display: none; min-height: 0; height: 100%; overflow: hidden; }
+html.native .shop__pane.is-active { display: flex; flex-direction: column; gap: 0.45rem; }
+html.native .shop__section { margin: 0; font-size: 1rem; }
+html.native .shop__sub { margin: 0; font-size: 0.72rem; }
+html.native .shop__grid,
+html.native .funds-grid,
+html.native .shop__vm-list {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.35rem 1rem 0.45rem;
+  margin: 0;
+  border-width: 0;
+}
+html.native .shop-card,
+html.native .funds-card,
+html.native .vm-card {
+  scroll-snap-align: center;
+  flex: 0 0 clamp(180px, 28vw, 245px);
+  width: clamp(180px, 28vw, 245px);
+  max-height: 100%;
+}
+html.native .shop-card { padding: 0.7rem; gap: 0.38rem; }
+html.native .shop-card__portrait,
+html.native .shop-card .portrait-fallback { width: 46px; height: 46px; }
+html.native .shop-card .mod-sheet { font-size: 0.62rem; overflow: hidden; }
+html.native .funds-card__img { height: clamp(46px, 14dvh, 76px); }
+html.native .invite {
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(10, 22, 42, 0.5);
+}
+html.native .invite__note { padding: 0; margin: 0 0 0.4rem; }
+
+html.native .help-overlay {
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(0.85rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(0.85rem + env(safe-area-inset-left));
+}
+html.native .help-overlay__panel.auth-gate {
+  width: min(760px, 92vw);
+  max-height: calc(100dvh - 1.3rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem;
+}
+html.native .auth-pane { display: none; min-height: 0; overflow: hidden; }
+html.native .auth-pane.is-active { display: block; }
+html.native .auth-gate__legal { display: none; }
+html.native .auth-gate__stats { margin-bottom: 0; }
+html.native .auth-pane--progress.is-active { overflow-y: auto; }
+
+html.native .tutorial {
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(0.85rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(0.85rem + env(safe-area-inset-left));
+}
+html.native .tutorial__panel {
+  width: min(720px, 90vw);
+  max-height: calc(100dvh - 1.3rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: minmax(110px, 0.45fr) minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 0.35rem 0.85rem;
+  padding: 0.95rem 1rem;
+  overflow: hidden;
+}
+html.native .tutorial__skip { top: 0.55rem; right: 0.7rem; }
+html.native .tutorial__art {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  width: clamp(72px, 24dvh, 118px);
+  height: clamp(72px, 24dvh, 118px);
+  margin: 0 auto;
+}
+html.native .tutorial__title,
+html.native .tutorial__body,
+html.native .tutorial__dots,
+html.native .tutorial__nav { grid-column: 2; }
+html.native .tutorial__title { font-size: clamp(1.15rem, 5dvh, 1.65rem); margin: 0; }
+html.native .tutorial__body { max-width: none; margin: 0; font-size: 0.82rem; line-height: 1.35; }
+html.native .tutorial__dots { margin: 0; }
+
+html.native .victory-podium {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(330px, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  align-items: stretch;
+  justify-items: stretch;
+  gap: 0.85rem;
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(0.9rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(0.9rem + env(safe-area-inset-left));
+}
+html.native .victory-main { min-height: 0; justify-content: center; gap: 0.28rem; }
+html.native .victory-label { font-size: 0.62rem; }
+html.native .victory-portrait { width: clamp(58px, 18dvh, 92px); height: clamp(58px, 18dvh, 92px); }
+html.native .victory-headline { font-size: clamp(1.6rem, 7dvh, 2.6rem); }
+html.native .victory-ev-label { font-size: clamp(0.9rem, 3.8dvh, 1.2rem); }
+html.native .victory-speech {
+  max-width: min(360px, 40vw);
+  margin-top: 0.25rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.76rem;
+  line-height: 1.32;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+html.native .victory-side {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-self: stretch;
+}
+html.native .victory-rewards {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  max-height: 24dvh;
+  overflow: hidden;
+}
+html.native .victory-board { width: 100%; max-height: none; min-height: 0; overflow-y: auto; }
+html.native .victory-row { padding: 0.42rem 0.55rem; }
+html.native .victory-stats { gap: 0.45rem; font-size: 0.66rem; }
+html.native .victory-cta { margin: 0; gap: 0.45rem; flex-wrap: nowrap; }
+html.native .victory-cta button { min-width: 0; padding: 0.58rem 0.8rem; font-size: 0.82rem; white-space: nowrap; }
+
+@media (orientation: landscape) and (max-height: 430px) {
+  html.native .landing {
+    grid-template-columns: minmax(145px, 0.45fr) minmax(230px, 0.78fr) minmax(300px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+  html.native .landing > .brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  html.native .landing .brand__logo {
+    width: min(190px, 22vw);
+  }
+  html.native .landing__hero {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  html.native .landing__eyebrow {
+    font-size: 0.68rem;
+    margin: 0;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html.native .landing__pitch {
+    font-size: 0.74rem;
+    max-width: 30ch;
+  }
+  html.native .landing__guest {
+    min-width: 0;
+    width: min(220px, 25vw);
+  }
+  html.native .landing__card {
+    grid-column: 3;
+    grid-row: 1;
+    width: 100%;
+    max-height: 100%;
+    padding: 0.65rem;
+  }
+  html.native .landing__title {
+    font-size: 1.05rem;
+    margin-bottom: 0.35rem;
+  }
+  html.native .native-candidate { grid-template-columns: minmax(78px, 0.36fr) minmax(0, 1fr); padding: 0.5rem; }
+  html.native .native-candidate__portrait .cand-portrait,
+  html.native .native-candidate__portrait .portrait-fallback { min-height: 86px; }
+  html.native .native-candidate .mod-sheet { display: none; }
+  html.native .setup__roster .cand-card { flex-basis: 104px; width: 104px; min-height: 116px; }
+  html.native .setup__roster .cand-portrait-wrap { height: 68px; }
+  html.native .mp-players { gap: 0.45rem; }
+  html.native .mp-player-row { min-height: 72px; }
+  html.native .shop-card .mod-sheet { display: none; }
+  html.native .victory-rewards { display: none; }
 }
 
 /* ── Native screen transitions ───────────────────────────────────────────────

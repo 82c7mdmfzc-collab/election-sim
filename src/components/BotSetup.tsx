@@ -84,7 +84,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
   }
 
   return (
-    <div className="setup">
+    <div className="setup native-screen setup--bot">
       <div className="setup__header">
         <h1 className="setup__title">Solo Campaign</h1>
 
@@ -136,47 +136,89 @@ export function BotSetup({ onBack }: BotSetupProps) {
         <NextChallengeHint context="solo" />
       </div>
 
-      <p className="mp-hint">Candidate</p>
-      <div className="setup__roster">
-        {ownedCandidates.map((c) => {
-          const chosen = c.id === myId;
-          const chips = perkSummary(c);
-          return (
-            <button
-              key={c.id}
-              type="button"
-              className={`cand-card${chosen ? ' is-assigned' : ''}`}
-              style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-              onClick={() => { AudioManager.play('click'); setMyId(c.id); }}
-            >
-              <div className="cand-card__top">
-                <div className="cand-portrait-wrap">
-                  <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
-                </div>
-                <div className="cand-card__id">
-                  <span className="cand-card__name">{c.name}</span>
-                  <span className="cand-card__tag">{c.tagline}</span>
-                  <PartyBadge party={c.party} className="cand-card__party" />
-                </div>
-                {chosen && <span className="cand-card__seat">You</span>}
+      <div className="native-select">
+        <div className="native-select__spotlight native-only">
+          <div
+            className="native-candidate"
+            style={{ ['--p-color' as string]: PLAYER_COLORS[me.color] }}
+          >
+            <div className="native-candidate__portrait">
+              <Portrait className="cand-portrait" src={me.portraitUrl} initials={me.portrait} name={me.name} />
+            </div>
+            <div className="native-candidate__body">
+              <div className="native-candidate__name">{me.name}</div>
+              <div className="native-candidate__tag">{me.tagline}</div>
+              <div className="native-candidate__meta">
+                <PartyBadge party={me.party} />
+                <span>${me.startingCash}k starting cash</span>
               </div>
-              <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-              <div className="cand-card__perks" aria-label={`${c.name} perk summary`}>
-                {chips.map((chip) => (
+              <div className="cand-card__perks" aria-label={`${me.name} perk summary`}>
+                {perkSummary(me).map((chip) => (
                   <span key={chip.label} className={`perk-chip perk-chip--${chip.tone}`}>
                     {chip.label}
                   </span>
                 ))}
               </div>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          </div>
+          <div className="native-select__summary">
+            <div className="native-select__summary-card">
+              <p className="native-select__summary-title">Opposition</p>
+              <div className="setup__seats">
+                <span className="setup__seat is-filled">
+                  <strong>{botRoster.map((b) => b.name).join(', ')}</strong>
+                </span>
+              </div>
+            </div>
+            <div className="native-select__summary-card">
+              <p className="native-select__summary-title">Difficulty</p>
+              <p className="mp-hint">{DIFFICULTIES.find((d) => d.id === difficulty)?.blurb}</p>
+            </div>
+          </div>
+        </div>
 
-      <div className="setup__seats" style={{ marginTop: '0.75rem' }}>
-        <span className="setup__seat is-filled">
-          Opposition: <strong>{botRoster.map((b) => `${b.name} (${difficulty})`).join(', ')}</strong>
-        </span>
+        <p className="mp-hint">Candidate</p>
+        <div className="setup__roster candidate-rail">
+          {ownedCandidates.map((c) => {
+            const chosen = c.id === myId;
+            const chips = perkSummary(c);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`cand-card${chosen ? ' is-assigned is-active' : ''}`}
+                style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                onClick={() => { AudioManager.play('click'); setMyId(c.id); }}
+              >
+                <div className="cand-card__top">
+                  <div className="cand-portrait-wrap">
+                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  </div>
+                  <div className="cand-card__id">
+                    <span className="cand-card__name">{c.name}</span>
+                    <span className="cand-card__tag">{c.tagline}</span>
+                    <PartyBadge party={c.party} className="cand-card__party" />
+                  </div>
+                  {chosen && <span className="cand-card__seat">You</span>}
+                </div>
+                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
+                <div className="cand-card__perks" aria-label={`${c.name} perk summary`}>
+                  {chips.map((chip) => (
+                    <span key={chip.label} className={`perk-chip perk-chip--${chip.tone}`}>
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="setup__seats" style={{ marginTop: '0.75rem' }}>
+          <span className="setup__seat is-filled">
+            Opposition: <strong>{botRoster.map((b) => `${b.name} (${difficulty})`).join(', ')}</strong>
+          </span>
+        </div>
       </div>
 
       <div className="setup__foot">
