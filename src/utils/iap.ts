@@ -9,6 +9,7 @@
  * the client can never grant itself anything.
  */
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { platformKind, type PlatformKind } from './platform';
 
 export interface FundsBundle {
   sku: string;
@@ -32,17 +33,11 @@ export const FUNDS_BUNDLES: readonly FundsBundle[] = [
   { sku: 'funds_20000', funds: 20000, priceLabel: '$14.99', badge: 'Best value', imageUrl: '/assets/coins/funds_20000.png' },
 ];
 
-export type IapPlatform = 'web' | 'ios' | 'android' | 'unsupported';
+export type IapPlatform = PlatformKind;
 
-/** Detect the billing rail for the current runtime. */
+/** Detect the billing rail for the current runtime. Delegates to ./platform. */
 export function iapPlatform(): IapPlatform {
-  if (typeof window === 'undefined') return 'unsupported';
-  const isTauri = window.location.protocol.startsWith('tauri');
-  if (!isTauri) return 'web';
-  const ua = navigator.userAgent || '';
-  if (/android/i.test(ua)) return 'android';
-  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
-  return 'unsupported'; // desktop Tauri has no app-store billing
+  return platformKind();
 }
 
 /** True when the native StoreKit billing rail is available. The tauri-plugin-iap

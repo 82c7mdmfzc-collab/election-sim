@@ -2,7 +2,7 @@
 // On desktop, `main.rs` calls `run()` directly.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         // Native OAuth: open the provider's authorize URL in the system browser
         // (opener) and catch the com.playelector.app://auth-callback return (deep-link).
         // The rest of the game logic lives in the web layer (TypeScript / Zustand).
@@ -12,7 +12,14 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_elector_admob::init())
-        .plugin(tauri_plugin_iap::init())
+        .plugin(tauri_plugin_iap::init());
+
+    // Haptic feedback is a mobile-only crate (no desktop build), so register it
+    // only on iOS/Android — matching the cfg gate on the dependency in Cargo.toml.
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    let builder = builder.plugin(tauri_plugin_haptics::init());
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

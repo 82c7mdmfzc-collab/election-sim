@@ -14,6 +14,8 @@
  *                     app startup, before the first user interaction).
  */
 
+import { haptic, type HapticKind } from './haptics';
+
 const MANIFEST: Record<string, string> = {
   click:             '/sounds/click.ogg',
   tick:              '/sounds/tick.mp3',
@@ -26,6 +28,23 @@ const MANIFEST: Record<string, string> = {
   dominate:          '/sounds/dominate.mp3',
   election_warning:  '/sounds/election_warning.mp3',
   round_end:         '/sounds/round_end.mp3',
+};
+
+// Each discrete sound effect maps to a haptic, so every existing
+// AudioManager.play() call site also produces tactile feedback on supported
+// devices (no-op on web). 'tick' (the per-second turn timer) is intentionally
+// omitted so the device doesn't buzz once a second.
+const HAPTICS: Record<string, HapticKind> = {
+  click: 'selection',
+  confirm: 'medium',
+  clash: 'medium',
+  buy: 'success',
+  victory: 'success',
+  dominate: 'heavy',
+  income: 'selection',
+  election_warning: 'warning',
+  round_end: 'light',
+  quit: 'light',
 };
 
 class _AudioManager {
@@ -76,6 +95,10 @@ class _AudioManager {
       const now = performance.now();
       if (now - (this.lastPlayed.get(soundId) ?? -Infinity) < 80) return;
       this.lastPlayed.set(soundId, now);
+      // Fire the matching haptic alongside the sound (no-op on web; gated by the
+      // same mute check above, so muting audio also silences haptics).
+      const hapticKind = HAPTICS[soundId];
+      if (hapticKind) haptic(hapticKind);
       // Clone so simultaneous rapid clicks don't interrupt each other.
       const clone = src.cloneNode() as HTMLAudioElement;
       clone.play().catch(() => {});

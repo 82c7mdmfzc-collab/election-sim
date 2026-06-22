@@ -1,3 +1,5 @@
+import { isNativeRuntime, isIOS } from './platform';
+
 export const AD_REWARD_MIN = 20;
 export const AD_REWARD_MAX = 60;
 export const AD_REWARD_LIMIT = 5;
@@ -99,22 +101,10 @@ function bridge(): RewardedAdBridge | null {
   return w.__ELECTOR_ADS__ ?? w.ElectorAds ?? null;
 }
 
-function tauriRuntime(): boolean {
-  return typeof window !== 'undefined' && window.location.protocol.startsWith('tauri');
-}
-
-function iosRuntime(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const ua = navigator.userAgent || '';
-  const platform = navigator.platform || '';
-  return /iphone|ipad|ipod/i.test(ua)
-    || (/macintosh|macintel/i.test(`${ua} ${platform}`) && navigator.maxTouchPoints > 1);
-}
-
 export function nativeRewardedAdsAvailable(): boolean {
   return import.meta.env.VITE_ENABLE_NATIVE_REWARDED_ADS === 'true'
-    && tauriRuntime()
-    && iosRuntime();
+    && isNativeRuntime()
+    && isIOS();
 }
 
 export function rewardedAdBridgeAvailable(): boolean {
