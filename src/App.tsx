@@ -13,6 +13,7 @@ import { BotSetup } from './components/BotSetup';
 import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
+import { ScreenTransition } from './components/ScreenTransition';
 import { useGameStore } from './game/store';
 import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
@@ -27,7 +28,7 @@ import {
   setAnalyticsAccountState,
   track,
 } from './utils/analytics';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { BotDifficulty } from './game/types';
 
 type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot';
@@ -209,34 +210,48 @@ function App() {
     setAppMode('tutorial');
   }
 
-  // Once a game is running, route to the correct view regardless of appMode
-  if (phase === 'ELECTION_TALLY') return <ElectionTallyView />;
-  if (phase === 'GAME_OVER') return <VictoryPodium />;
-  if (phase !== 'SETUP' && phase !== 'MENU') {
+  // ── Decide which top-level screen to show ────────────────────────────────────
+  // Each branch sets `screen` + `screenKey`; the single <ScreenTransition> below
+  // animates whenever screenKey changes so navigation feels native, not web-y.
+  // The account modal (AuthGate) overlays independently, outside the transition.
+  const account = showAccount ? <AuthGate onClose={() => setShowAccount(false)} /> : null;
+
+  let screen: ReactNode;
+  let screenKey: string;
+
+  // Once a game is running, route to the correct view regardless of appMode.
+  if (phase === 'ELECTION_TALLY') {
+    screen = <ElectionTallyView />;
+    screenKey = 'tally';
+  } else if (phase === 'GAME_OVER') {
+    screen = <VictoryPodium />;
+    screenKey = 'gameover';
+  } else if (phase !== 'SETUP' && phase !== 'MENU') {
     // Show the matchup intro once at the start of a game, before the board.
-    if (versusPending) return <VersusScreen />;
-    return <GameShell />;
-  }
-
-  // Wait for the auth/profile check before deciding, so a signed-in user never
-  // flashes the landing page on load.
-  if (!ready) {
-    return <div className="landing landing--splash"><BrandMark /></div>;
-  }
-
-  // Signed-out front door — shown on every fresh load until "Continue as Guest".
-  if (!signedIn && !guestContinued) {
-    return (
+    if (versusPending) {
+      screen = <VersusScreen />;
+      screenKey = 'versus';
+    } else {
+      screen = <GameShell />;
+      screenKey = 'game';
+    }
+  } else if (!ready) {
+    // Wait for the auth/profile check before deciding, so a signed-in user never
+    // flashes the landing page on load.
+    screen = <div className="landing landing--splash"><BrandMark /></div>;
+    screenKey = 'splash';
+  } else if (!signedIn && !guestContinued) {
+    // Signed-out front door — shown on every fresh load until "Continue as Guest".
+    screen = (
       <Landing
         onContinueAsGuest={continueAsGuest}
         primaryLabel={isTutorialSeen() ? 'Start Solo' : 'Learn & Start'}
       />
     );
-  }
-
-  // One-time, mandatory username claim immediately after a new account signs in.
-  if (signedIn && !displayName) {
-    return (
+    screenKey = 'landing';
+  } else if (signedIn && !displayName) {
+    // One-time, mandatory username claim immediately after a new account signs in.
+    screen = (
       <div className="landing">
         <BrandMark />
         <div className="landing__card">
@@ -245,11 +260,9 @@ function App() {
         </div>
       </div>
     );
-  }
-
-  // Pre-game routing
-  if (appMode === 'tutorial') {
-    return (
+    screenKey = 'username';
+  } else if (appMode === 'tutorial') {
+    screen = (
       <Tutorial
         source={tutorialSource}
         onFinish={() => {
@@ -262,39 +275,58 @@ function App() {
         }}
       />
     );
-  }
-
-  const account = showAccount ? <AuthGate onClose={() => setShowAccount(false)} /> : null;
-
-  if (appMode === 'shop') {
-    return signedIn ? (
+    screenKey = 'tutorial';
+  } else if (appMode === 'shop') {
+    screen = signedIn ? (
       <Shop source={shopSource} onBack={() => setAppMode('mode-select')} />
     ) : (
-      <>
-        <GuestGate
-          title="Campaign Shop"
-          message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
-          onBack={() => setAppMode('mode-select')}
-          onSignIn={() => openAccount('shop_gate')}
-        />
-        {account}
-      </>
+      <GuestGate
+        title="Campaign Shop"
+        message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
+        onBack={() => setAppMode('mode-select')}
+        onSignIn={() => openAccount('shop_gate')}
+      />
     );
-  }
-  if (appMode === 'bot') return <BotSetup onBack={() => setAppMode('mode-select')} />;
-  if (appMode === 'online') return <><MultiplayerMenu onBack={() => setAppMode('mode-select')} onOpenAccount={() => openAccount('online_gate')} />{account}</>;
-  if (appMode === 'single') {
-    return (
-      <>
-        <CandidateSelect onBack={() => setAppMode('mode-select')} onOpenShop={() => {
+    screenKey = 'shop';
+  } else if (appMode === 'bot') {
+    screen = <BotSetup onBack={() => setAppMode('mode-select')} />;
+    screenKey = 'bot';
+  } else if (appMode === 'online') {
+    screen = (
+      <MultiplayerMenu
+        onBack={() => setAppMode('mode-select')}
+        onOpenAccount={() => openAccount('online_gate')}
+      />
+    );
+    screenKey = 'online';
+  } else if (appMode === 'single') {
+    screen = (
+      <CandidateSelect
+        onBack={() => setAppMode('mode-select')}
+        onOpenShop={() => {
           setShopSource('locked_candidate');
           setAppMode('shop');
-        }} />
-        {account}
-      </>
+        }}
+      />
     );
+    screenKey = 'single';
+  } else {
+    screen = (
+      <ModeSelect
+        onSelect={selectMode}
+        onTutorial={openTutorial}
+        onAccount={() => openAccount('account_button')}
+      />
+    );
+    screenKey = 'menu';
   }
-  return <><ModeSelect onSelect={selectMode} onTutorial={openTutorial} onAccount={() => openAccount('account_button')} />{account}</>;
+
+  return (
+    <>
+      <ScreenTransition screenKey={screenKey}>{screen}</ScreenTransition>
+      {account}
+    </>
+  );
 }
 
 export default App;
