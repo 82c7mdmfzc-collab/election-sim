@@ -36,6 +36,7 @@ import {
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
+import { getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
 import { rpcSetLobbyStatus } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
@@ -81,6 +82,8 @@ interface GameStore extends GameState {
   hasSubmittedLocalTurn: boolean;
   /** True right after a game starts, until the VS matchup intro is dismissed. */
   versusPending: boolean;
+  /** True while the current game is today's Daily Challenge (drives local streak + analytics). */
+  isDailyChallenge: boolean;
 
   /** Unique id for the current game, set at start. Keys the once-per-game reward. */
   gameId: string | null;
@@ -115,6 +118,12 @@ interface GameStore extends GameState {
     turnTimeLimit?: number | null,
     botSeats?: Record<string, BotDifficulty>,
   ): void;
+  /**
+   * Start today's Daily Challenge: the player brings their own candidate, and the
+   * opposition (count, difficulty, turn timer, opponents) is derived from the UTC
+   * date seed. Reuses startGame, then flags the game as the daily challenge.
+   */
+  startDailyChallenge(playerCandidate: CandidateDef, dateKey: string): void;
   allocate(kind: 'state' | 'national', targetId: string, rungs: number): boolean;
   cancelAllocation(kind: 'state' | 'national', targetId: string): void;
   /** Retract just the most-recently queued rung for a target (refunds it). */
@@ -270,6 +279,7 @@ export const useGameStore = create<GameStore>()(
         resolutionTickerDone: false,
         hasSubmittedLocalTurn: false,
         versusPending: false,
+        isDailyChallenge: false,
         gameId: null,
         multiplayerMode: 'single',
         localPlayerId: null,
@@ -315,7 +325,19 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: null,
             handoffAckKey: '1:0',
             versusPending: true,
+            isDailyChallenge: false,
           });
+        },
+
+        // ── startDailyChallenge ─────────────────────────────────────────────────
+        startDailyChallenge(playerCandidate, dateKey) {
+          const cfg = getDailyChallengeConfig(dateKey);
+          const opponents = resolveDailyOpponents(dateKey, playerCandidate.id);
+          const chosen = [playerCandidate, ...opponents];
+          const botSeats = Object.fromEntries(opponents.map((o) => [o.id, cfg.difficulty]));
+          // Reuse the standard solo start path (sets isDailyChallenge:false), then flag it.
+          get().startGame(chosen, cfg.turnTimeLimit, botSeats);
+          set({ isDailyChallenge: true });
         },
 
         // ── clearVersus ───────────────────────────────────────────────────────
@@ -688,6 +710,7 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: null,
             turnDeadline: null,
             handoffAckKey: null,
+            isDailyChallenge: false,
           });
         },
 
@@ -726,6 +749,7 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: null,
             turnDeadline: null,
             handoffAckKey: null,
+            isDailyChallenge: false,
           });
           AudioManager.play('quit');
         },
@@ -764,6 +788,7 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: null,
             turnDeadline: null,
             handoffAckKey: null,
+            isDailyChallenge: false,
           });
         },
 
@@ -874,6 +899,7 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: newDeadline,
             handoffAckKey: '1:0',
             versusPending: true,
+            isDailyChallenge: false,
           });
         },
 

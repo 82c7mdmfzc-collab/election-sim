@@ -8,6 +8,18 @@
 
 const KEY = 'election-sim-prefs-v1';
 
+/** Device-local Daily Challenge progress (the accountless source of truth). */
+export interface DailyChallengeLocal {
+  /** UTC YYYY-MM-DD of the most recent day the challenge was played. */
+  lastPlayedDate: string | null;
+  /** UTC YYYY-MM-DD of the most recent day the challenge was won. */
+  lastWonDate: string | null;
+  /** Consecutive-day play streak. */
+  streak: number;
+  /** Owner-seat EV from the most recent daily attempt. */
+  lastEv: number;
+}
+
 export interface LocalPrefs {
   tutorialSeen: boolean;
   muted: boolean;
@@ -15,6 +27,8 @@ export interface LocalPrefs {
   lastAwardedGameId: string | null;
   /** Equipped victory-message cosmetic id (see game/victoryMessages.ts). */
   selectedVictoryMessage: string;
+  /** Equipped share-card frame cosmetic id (see game/cosmetics.ts). */
+  selectedShareFrame: string;
   /** Referral code captured from a ?ref= invite link, pending set_referrer after sign-in. */
   pendingReferralCode: string | null;
   /** Whether the live first-campaign coach has been dismissed on this device. */
@@ -23,17 +37,28 @@ export interface LocalPrefs {
   blockedPlayers: string[];
   /** Whether we've already shown the OS notification-permission prompt once. */
   notifPermissionAsked: boolean;
+  /** Device-local Daily Challenge progress. */
+  dailyChallenge: DailyChallengeLocal;
 }
+
+const DEFAULT_DAILY_CHALLENGE: DailyChallengeLocal = {
+  lastPlayedDate: null,
+  lastWonDate: null,
+  streak: 0,
+  lastEv: 0,
+};
 
 const DEFAULTS: LocalPrefs = {
   tutorialSeen: false,
   muted: false,
   lastAwardedGameId: null,
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
+  selectedShareFrame: 'midnight', // DEFAULT_SHARE_FRAME_ID
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
   blockedPlayers: [],
   notifPermissionAsked: false,
+  dailyChallenge: { ...DEFAULT_DAILY_CHALLENGE },
 };
 
 export function getPrefs(): LocalPrefs {
@@ -64,11 +89,50 @@ export const getLastAwardedGameId = () => getPrefs().lastAwardedGameId;
 export const setLastAwardedGameId = (lastAwardedGameId: string) => setPrefs({ lastAwardedGameId });
 export const getSelectedVictoryMessage = () => getPrefs().selectedVictoryMessage;
 export const setSelectedVictoryMessage = (selectedVictoryMessage: string) => setPrefs({ selectedVictoryMessage });
+export const getSelectedShareFrame = () => getPrefs().selectedShareFrame;
+export const setSelectedShareFrame = (selectedShareFrame: string) => setPrefs({ selectedShareFrame });
 export const getPendingReferralCode = () => getPrefs().pendingReferralCode;
 export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs({ pendingReferralCode });
 export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });
 export const isFirstRunCoachDismissed = () => getPrefs().firstRunCoachDismissed;
 export const markFirstRunCoachDismissed = () => setPrefs({ firstRunCoachDismissed: true });
+
+// ── Daily Challenge (device-local progress) ───────────────────────────────────
+export const getDailyChallengeLocal = (): DailyChallengeLocal => ({
+  ...DEFAULT_DAILY_CHALLENGE,
+  ...getPrefs().dailyChallenge,
+});
+
+/** UTC YYYY-MM-DD one day before the given key (''  on a malformed key). */
+function isoYesterday(dateKey: string): string {
+  const t = Date.parse(`${dateKey}T00:00:00Z`);
+  if (Number.isNaN(t)) return '';
+  return new Date(t - 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Record a finished daily attempt for `dateKey`. The first finish of a new day
+ * advances the consecutive-day streak (resets to 1 on a gap); re-finishing the
+ * same day keeps the streak and just refreshes the won flag / EV. Returns the
+ * updated local record.
+ */
+export function recordDailyChallengeResult(dateKey: string, won: boolean, ev: number): DailyChallengeLocal {
+  const prev = getDailyChallengeLocal();
+  let next: DailyChallengeLocal;
+  if (prev.lastPlayedDate === dateKey) {
+    next = { ...prev, lastEv: ev, lastWonDate: won ? dateKey : prev.lastWonDate };
+  } else {
+    const consecutive = prev.lastPlayedDate != null && prev.lastPlayedDate === isoYesterday(dateKey);
+    next = {
+      lastPlayedDate: dateKey,
+      lastWonDate: won ? dateKey : prev.lastWonDate,
+      streak: consecutive ? prev.streak + 1 : 1,
+      lastEv: ev,
+    };
+  }
+  setPrefs({ dailyChallenge: next });
+  return next;
+}
 
 // ── Online safety: blocked players (Apple Guideline 1.2) ──────────────────────
 const normPlayerName = (name: string) => name.trim().toLowerCase();

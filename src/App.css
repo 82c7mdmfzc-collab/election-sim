@@ -5882,3 +5882,65 @@ html.native .native-state-summary {
     width: min(330px, 42vw);
   }
 }
+
+/* ── Daily Challenge ──────────────────────────────────────────────────────── */
+.daily__scenario {
+  margin-top: 0.85rem;
+  background: linear-gradient(180deg, rgba(27, 50, 88, 0.55), rgba(18, 36, 64, 0.7));
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+}
+.daily__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.daily__chip {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--gold); background: var(--panel-3); border: 1px solid var(--panel-2);
+  border-radius: var(--r-pill); padding: 0.2rem 0.6rem;
+}
+.daily__opponents { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.daily__opponent { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; width: 64px; }
+.daily__opponent-portrait {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 2px solid var(--p-color, var(--panel-2)); object-fit: cover;
+}
+.daily__opponent-name { font-size: 0.66rem; color: var(--muted); text-align: center; line-height: 1.1; }
+.daily__status { font-size: 0.82rem; color: var(--text); font-weight: 600; }
+
+/* ── Cosmetics shop pane ──────────────────────────────────────────────────── */
+.shop__cosmetics {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+.cosmetic-card {
+  text-align: left; cursor: pointer; padding: 0.75rem 0.9rem;
+  display: flex; flex-direction: column; gap: 0.35rem;
+  background: linear-gradient(180deg, rgba(27, 50, 88, 0.55), rgba(18, 36, 64, 0.7));
+  border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text);
+  transition: border-color 0.14s ease, transform 0.1s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .cosmetic-card:not(:disabled):not(.is-soon):hover { transform: translateY(-2px); border-color: var(--gold); }
+}
+.cosmetic-card.is-equipped { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+.cosmetic-card.is-locked, .cosmetic-card.is-soon { opacity: 0.6; cursor: default; }
+.cosmetic-card__name {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.9rem;
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.cosmetic-card__badge {
+  font-size: 0.55rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #2a1402; background: linear-gradient(180deg, var(--brand-top), var(--brand-deep));
+  border-radius: var(--r-pill); padding: 0.08rem 0.4rem;
+}
+.cosmetic-card__desc { font-size: 0.74rem; color: var(--muted); line-height: 1.35; }
+.cosmetic-card__foot { font-size: 0.72rem; font-weight: 700; color: var(--gold); margin-top: 0.1rem; }
+
+/* ── Resolution recap ("what just happened") ──────────────────────────────── */
+.round-resolution__summary {
+  list-style: none; margin: 0 0 0.6rem; padding: 0.5rem 0.7rem;
+  background: var(--panel-3); border: 1px solid var(--panel-2); border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.round-resolution__summary-line { font-size: 0.8rem; color: var(--text); line-height: 1.35; }
+
+/* Secondary share button (Card / 16:9 variant) */
+.victory-cta button.victory-share-btn--alt { background: var(--panel-2); color: var(--text); }

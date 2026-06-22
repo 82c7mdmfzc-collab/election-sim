@@ -55,7 +55,7 @@ export function CampaignCoach() {
   const hasNationalPending = pending.some((p) => p.kind === 'national');
 
   let title = 'Opening Objective';
-  let body = 'Open one state lane for EV and one national ladder for flexible cash. Arizona, Pennsylvania, Florida, Gun Lobby, and Youth Vote are all useful first clicks.';
+  let body: string;
   let accent: string;
 
   if (electionChance > 0 && projectedEV >= 220) {
@@ -71,6 +71,7 @@ export function CampaignCoach() {
     body = `${pendingRungs} rung${pendingRungs === 1 ? '' : 's'} queued across ${hasStatePending && hasNationalPending ? 'states and national groups' : hasNationalPending ? 'national groups' : 'states'}. Resolve, then watch clashes, income, and new leads.`;
     accent = 'Resolve';
   } else if (turn === 1) {
+    body = 'Tap a state to campaign, then tap a rung to buy it — each rung costs more as you climb, and reaching the top alone SECURES that state for good. Open a state for EV and a national ladder for flexible cash.';
     accent = 'State + national';
   } else if (dominatedGroups.length === 0 && turn > 1) {
     title = 'Build State-Group Income';

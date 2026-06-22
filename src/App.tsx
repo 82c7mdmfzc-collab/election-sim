@@ -10,6 +10,7 @@ import { Tutorial } from './components/Tutorial';
 import { AuthGate } from './components/AuthGate';
 import { Shop } from './components/Shop';
 import { BotSetup } from './components/BotSetup';
+import { DailyChallenge } from './components/DailyChallenge';
 import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
@@ -20,7 +21,7 @@ import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
-import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon } from './components/icons';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon } from './components/icons';
 import { isTutorialSeen } from './utils/localPrefs';
 import { NextChallengeHint, ProgressPanel } from './components/ProgressPanel';
 import {
@@ -32,7 +33,7 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import type { BotDifficulty } from './game/types';
 
-type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot';
+type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily';
 type TutorialSource = 'menu' | 'onboarding';
 type ShopSource = 'menu' | 'locked_candidate' | 'account';
 
@@ -46,6 +47,7 @@ interface ModeDef {
 
 const MODES: ModeDef[] = [
   { mode: 'bot',    label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
+  { mode: 'daily',  label: 'Daily',       Icon: TrophyIcon,  chip: 'orange' },
   { mode: 'single', label: 'Pass & Play', Icon: MonitorIcon, chip: 'blue' },
   { mode: 'online', label: 'Online',      Icon: GlobeIcon,   chip: 'orange' },
   { mode: 'shop',   label: 'Shop',        Icon: CartIcon,    chip: 'blue' },
@@ -196,6 +198,7 @@ function App() {
 
   function selectMode(mode: AppMode) {
     if (mode === 'shop') setShopSource(appModeToShopSource(appMode));
+    if (mode === 'daily') track('daily_challenge_opened', { entry_surface: 'menu' });
     setAppMode(mode);
   }
 
@@ -309,6 +312,9 @@ function App() {
   } else if (appMode === 'bot') {
     screen = <BotSetup onBack={() => setAppMode('mode-select')} />;
     screenKey = 'bot';
+  } else if (appMode === 'daily') {
+    screen = <DailyChallenge onBack={() => setAppMode('mode-select')} />;
+    screenKey = 'daily';
   } else if (appMode === 'online') {
     screen = (
       <MultiplayerMenu

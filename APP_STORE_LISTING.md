@@ -8,7 +8,7 @@ Copy-paste into App Store Connect. Char limits noted.
 - **Bundle ID**: `com.playelector.app`
 - **Primary category**: Games → **Strategy**  ·  **Secondary**: Games → Board
 - **Age rating**: **12+** (infrequent/mild mature/suggestive themes — political satire). No gambling, no violence.
-- **Price**: Free
+- **Price**: Free (with In-App Purchases)
 
 ## URLs
 - **Support URL**: `https://playelector.com`
@@ -54,8 +54,12 @@ for parody and commentary.
 • Accounts (optional) use a passwordless EMAIL CODE: enter an email, we send an
   8-digit code, you type it in. Use any inbox you control. Accounts are only
   needed for online play and to sync unlocks.
-• NO IN-APP PURCHASES in this build. Campaign Funds are earned by playing; there
-  is no purchase flow or external purchase link in the app.
+• IN-APP PURCHASES (native StoreKit): The Shop offers optional consumable
+  "Campaign Funds" bundles (funds_1500, funds_4000, funds_9000, funds_20000) via
+  Apple StoreKit. Purchases are OPTIONAL — Campaign Funds are also earned by
+  playing — and there is NO external or web purchase link inside the iOS app.
+  Funds unlock additional candidates and cosmetic items. There is no subscription
+  and no real-money gambling.
 • OPTIONAL REWARDED ADS: The Shop includes an opt-in rewarded ad button. Ads are
   never shown automatically; completing one grants a small random amount of
   Campaign Funds, capped server-side.
@@ -70,6 +74,7 @@ Data collected:
 - **Identifiers / Usage Data** → product analytics (PostHog), **not** linked for tracking across other apps. Purpose: Analytics, App Functionality.
 - **Identifiers / Usage Data** → optional rewarded advertising (Google AdMob). Purpose: Third-Party Advertising, Analytics, App Functionality.
 - **Contact Info (email)** + **User Content (username, game stats)** → account (Supabase). Purpose: App Functionality. Linked to the user's account.
+- **Purchases (Purchase History)** → in-app purchase records (Supabase `purchases` ledger keyed to the StoreKit transaction id). Purpose: App Functionality. Linked to the user's account.
 - If personalized ads/IDFA are enabled, include the ATT prompt and `NSUserTrackingUsageDescription`.
 - Account deletion is available in-app (Your Account → Delete account) and satisfies 5.1.1(v).
 

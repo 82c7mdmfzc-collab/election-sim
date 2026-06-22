@@ -15,7 +15,8 @@ import { VICTORY_MESSAGES } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
-import { getSelectedVictoryMessage, setSelectedVictoryMessage } from '../utils/localPrefs';
+import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
+import { cosmeticsByCategory, isCosmeticAvailable } from '../game/cosmetics';
 import {
   AD_REWARD_LIMIT,
   AD_REWARD_MAX,
@@ -39,7 +40,7 @@ interface ShopProps {
   onBack: () => void;
 }
 
-type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages';
+type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages' | 'cosmetics';
 
 function priceValue(priceLabel: string): number {
   const n = Number(priceLabel.replace(/[^0-9.]/g, ''));
@@ -273,6 +274,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [buyingSku, setBuyingSku] = useState<string | null>(null);
   const [equippedVM, setEquippedVM] = useState(getSelectedVictoryMessage);
+  const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
   const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
   const billingPlatform = iapPlatform();
@@ -299,6 +301,18 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   useEffect(() => {
     void getFundsPrices().then(setNativePrices);
   }, []);
+
+  function selectTab(next: ShopTab) {
+    if (next === 'cosmetics') track('cosmetic_shop_opened', { source });
+    setTab(next);
+  }
+
+  function equipFrame(id: string) {
+    AudioManager.play('click');
+    setSelectedShareFrame(id);
+    setEquippedFrame(id);
+    track('cosmetic_previewed', { cosmetic_id: id, category: 'share_frame' });
+  }
 
   async function buy(id: string) {
     const candidate = PREMIUM_CANDIDATES.find((c) => c.id === id);
@@ -379,6 +393,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         {[
           ['funds', 'Funds'],
           ['recruit', 'Recruit'],
+          ['cosmetics', 'Cosmetics'],
           ['earn', 'Earn'],
           ['messages', 'Messages'],
         ].map(([id, label]) => (
@@ -388,7 +403,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
             className={`shop__tab${tab === id ? ' is-active' : ''}`}
             role="tab"
             aria-selected={tab === id}
-            onClick={() => setTab(id as ShopTab)}
+            onClick={() => selectTab(id as ShopTab)}
           >
             {label}
           </button>
@@ -525,6 +540,51 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
               );
             })}
           </div>
+        </section>
+
+        <section className={`shop__pane shop__pane--cosmetics${tab === 'cosmetics' ? ' is-active' : ''}`}>
+          <h2 className="shop__section">Result Card Frames</h2>
+          <p className="shop__sub">Pick the look of your end-game share card. Purely cosmetic — no gameplay effect.</p>
+          <div className="shop__cosmetics shop-rail">
+            {cosmeticsByCategory('share_frame').map((c) => {
+              const owned = isCosmeticAvailable(c.id, unlocked);
+              const equipped = equippedFrame === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`cosmetic-card${equipped ? ' is-equipped' : ''}${owned ? '' : ' is-locked'}`}
+                  disabled={!owned}
+                  onClick={() => { if (owned) equipFrame(c.id); }}
+                >
+                  <span className="cosmetic-card__name">
+                    {c.name}
+                    {equipped && <span className="cosmetic-card__badge">Equipped</span>}
+                  </span>
+                  <span className="cosmetic-card__desc">{c.description}</span>
+                  <span className="cosmetic-card__foot">
+                    {owned ? (equipped ? 'Equipped' : 'Equip') : `${c.unlockCost.toLocaleString()} Funds — soon`}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <h2 className="shop__section">More Cosmetics</h2>
+          <p className="shop__sub">Map themes and profile banners are on the way.</p>
+          <div className="shop__cosmetics shop-rail">
+            {[...cosmeticsByCategory('map_theme'), ...cosmeticsByCategory('profile_banner')].map((c) => (
+              <div key={c.id} className="cosmetic-card is-soon">
+                <span className="cosmetic-card__name">{c.name}</span>
+                <span className="cosmetic-card__desc">{c.description}</span>
+                <span className="cosmetic-card__foot">Coming soon</span>
+              </div>
+            ))}
+          </div>
+          {/* TODO(server): priced cosmetic unlocks should validate + deduct Funds server-side via an
+              `unlock_cosmetic` RPC mirroring `unlock_character` (supabase/profiles.sql), granting a
+              `cosmetic:<id>` token consumed by isCosmeticAvailable(). Until then only free frames equip
+              and priced/placeholder cosmetics are teasers; fire `cosmetic_unlocked` when that lands. */}
         </section>
       </div>
 

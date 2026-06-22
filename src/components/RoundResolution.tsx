@@ -4,6 +4,7 @@ import { CANDIDATE_MAP } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { STRATEGY_TIPS } from '../game/tips';
+import { turnSummaryLines } from '../game/turnSummary';
 import { Avatar } from './Avatar';
 import { RotatingTip } from './RotatingTip';
 import { AudioManager } from '../utils/audioManager';
@@ -22,10 +23,24 @@ export function RoundResolution() {
   const players   = useGameStore((s) => s.players);
   const turn      = useGameStore((s) => s.turn);
   const dismiss   = useGameStore((s) => s.dismissResolutionTicker);
+  const report    = useGameStore((s) => s.lastTurnReport);
+  const prevDominance = useGameStore((s) => s.prevDominance);
+  const dominance = useGameStore((s) => s.stateGroupDominance);
+  const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
   const colors    = usePlayerColors();
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [shownTurn, setShownTurn] = useState(turn);
+
+  // Plain-language "what just happened" recap (secures, coalition flips, clashes).
+  const summary = useMemo(() => {
+    if (!report) return [];
+    const ownerId = multiplayerMode === 'online'
+      ? localPlayerId
+      : (players.filter((p) => !p.isBot).length === 1 ? (players.find((p) => !p.isBot)?.id ?? null) : null);
+    return turnSummaryLines({ report, prevDominance, dominance, players, ownerId });
+  }, [report, prevDominance, dominance, players, multiplayerMode, localPlayerId]);
 
   // Reset counter each time a new RESOLUTION phase begins (render-time adjustment,
   // avoids an extra effect-driven render pass).
@@ -76,6 +91,14 @@ export function RoundResolution() {
           Skip →
         </button>
       </div>
+
+      {summary.length > 0 && (
+        <ul className="round-resolution__summary">
+          {summary.slice(0, 4).map((line, i) => (
+            <li key={i} className="round-resolution__summary-line">{line}</li>
+          ))}
+        </ul>
+      )}
 
       <div className="round-resolution__feed">
         {grouped.length === 0 && (
