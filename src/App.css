@@ -4285,8 +4285,8 @@ html.native .auth-tabs {
 }
 html.native .shop__tab,
 html.native .auth-tabs__tab {
-  min-height: 34px;
-  padding: 0 0.75rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
   border: none;
   border-radius: var(--r-pill);
   background: transparent;
@@ -4438,8 +4438,10 @@ html.native .victory-rewards {
 html.native .victory-board { width: 100%; max-height: none; min-height: 0; overflow-y: auto; }
 html.native .victory-row { padding: 0.42rem 0.55rem; }
 html.native .victory-stats { gap: 0.45rem; font-size: 0.66rem; }
-html.native .victory-cta { margin: 0; gap: 0.45rem; flex-wrap: nowrap; }
-html.native .victory-cta button { min-width: 0; padding: 0.58rem 0.8rem; font-size: 0.82rem; white-space: nowrap; }
+/* Two-column grid so 4–5 actions sit on tidy rows instead of one cramped nowrap
+   row (the two share buttons fall onto their own row → clearer hierarchy). */
+html.native .victory-cta { margin: 0; gap: 0.4rem 0.45rem; display: grid; grid-template-columns: 1fr 1fr; }
+html.native .victory-cta button { min-width: 0; min-height: 44px; padding: 0.55rem 0.7rem; font-size: 0.82rem; white-space: nowrap; }
 
 /* ══ Native in-game board — map-first, no framed tool surface ═════════════ */
 html.native .shell {
@@ -4964,8 +4966,8 @@ html.native .native-game-sheet__header h2 {
 }
 
 html.native .native-game-sheet__close {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -5983,3 +5985,50 @@ html.native .native-state-summary {
 
 /* Sticky section headers inside scrollable native panes. */
 html.native .shop__section { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-block: 0.25rem; }
+
+/* ── Mobile UI polish pass ────────────────────────────────────────────────── */
+
+/* Tactile press feedback for the bespoke in-game HUD buttons (menus/zoom/victory
+   buttons already have :active). The global prefers-reduced-motion rule above
+   neutralises the transition for users who opt out. Per-element handling keeps the
+   turn button's translateX centering and the active tray's drop-shadow intact. */
+html.native .native-turn-button,
+html.native .native-round-action,
+html.native .native-corner,
+html.native .native-opponent-chip,
+html.native .native-active-tray,
+html.native .native-sg-row,
+html.native .native-alloc-chip,
+html.native .native-game-sheet__close {
+  transition: transform 0.09s ease, filter 0.09s ease;
+}
+html.native .native-round-action:active,
+html.native .native-corner:active,
+html.native .native-opponent-chip:active,
+html.native .native-sg-row:active,
+html.native .native-alloc-chip:active,
+html.native .native-game-sheet__close:active {
+  transform: scale(0.95);
+  filter: brightness(0.92);
+}
+html.native .native-turn-button:active {
+  transform: translateX(-52%) scale(0.94);
+  filter: brightness(0.88);
+}
+html.native .native-active-tray:active {
+  transform: scale(0.975);
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.26)) brightness(0.95);
+}
+
+/* Shortest landscape (≈360–375px tall): the Daily header is taller than Solo
+   setup (scenario chips + opponent + status), which clipped the candidate
+   spotlight's last line. Trim the redundant sub-copy and the spotlight portrait
+   here so the card + rail stay fully visible. Scoped to .setup--daily, so Solo
+   setup and every taller screen are untouched. */
+@media (orientation: landscape) and (max-height: 385px) {
+  .setup--daily .setup__sub { display: none; }
+  .setup--daily .daily__scenario { gap: 0.25rem; }
+  .setup--daily .daily__opponents { gap: 0.3rem; }
+  .setup--daily .native-candidate__portrait .cand-portrait,
+  .setup--daily .native-candidate__portrait .portrait-fallback { min-height: 64px; }
+}
