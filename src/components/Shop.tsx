@@ -16,7 +16,7 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
-import { cosmeticsByCategory, isCosmeticAvailable } from '../game/cosmetics';
+import { cosmeticsByCategory, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
 import {
   AD_REWARD_LIMIT,
   AD_REWARD_MAX,
@@ -269,10 +269,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
   const unlock = useProfile((s) => s.unlock);
+  const unlockCosmetic = useProfile((s) => s.unlockCosmetic);
   const guest = useProfile((s) => s.guest);
   const refresh = useProfile((s) => s.refresh);
   const [busy, setBusy] = useState<string | null>(null);
   const [buyingSku, setBuyingSku] = useState<string | null>(null);
+  const [cosmeticBusy, setCosmeticBusy] = useState<string | null>(null);
+  const [cosmeticMsg, setCosmeticMsg] = useState<string | null>(null);
   const [equippedVM, setEquippedVM] = useState(getSelectedVictoryMessage);
   const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
@@ -311,7 +314,31 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     AudioManager.play('click');
     setSelectedShareFrame(id);
     setEquippedFrame(id);
+    setCosmeticMsg(null);
     track('cosmetic_previewed', { cosmetic_id: id, category: 'share_frame' });
+  }
+
+  async function unlockOrEquipFrame(c: CosmeticDef) {
+    if (isCosmeticAvailable(c.id, unlocked)) { equipFrame(c.id); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
+    if (funds < c.unlockCost) {
+      setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Funds to unlock ${c.name}.`);
+      return;
+    }
+    setCosmeticBusy(c.id);
+    setCosmeticMsg(null);
+    AudioManager.play('click');
+    const ok = await unlockCosmetic(c.id);
+    if (ok) {
+      AudioManager.play('victory');
+      setSelectedShareFrame(c.id);
+      setEquippedFrame(c.id);
+      setCosmeticMsg(`Unlocked ${c.name} — equipped.`);
+      track('cosmetic_unlocked', { cosmetic_id: c.id, category: c.category, price_funds: c.unlockCost });
+    } else {
+      setCosmeticMsg('Could not unlock — please try again.');
+    }
+    setCosmeticBusy(null);
   }
 
   async function buy(id: string) {
@@ -545,26 +572,33 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         <section className={`shop__pane shop__pane--cosmetics${tab === 'cosmetics' ? ' is-active' : ''}`}>
           <h2 className="shop__section">Result Card Frames</h2>
           <p className="shop__sub">Pick the look of your end-game share card. Purely cosmetic — no gameplay effect.</p>
+          {cosmeticMsg && <div className="shop__purchase-msg">{cosmeticMsg}</div>}
           <div className="shop__cosmetics shop-rail">
             {cosmeticsByCategory('share_frame').map((c) => {
               const owned = isCosmeticAvailable(c.id, unlocked);
               const equipped = equippedFrame === c.id;
+              const affordable = funds >= c.unlockCost;
+              const foot = owned
+                ? (equipped ? 'Equipped' : 'Equip')
+                : cosmeticBusy === c.id
+                  ? 'Unlocking…'
+                  : guest
+                    ? 'Sign in to unlock'
+                    : `Unlock — ${c.unlockCost.toLocaleString()} Funds`;
               return (
                 <button
                   key={c.id}
                   type="button"
                   className={`cosmetic-card${equipped ? ' is-equipped' : ''}${owned ? '' : ' is-locked'}`}
-                  disabled={!owned}
-                  onClick={() => { if (owned) equipFrame(c.id); }}
+                  disabled={cosmeticBusy !== null}
+                  onClick={() => unlockOrEquipFrame(c)}
                 >
                   <span className="cosmetic-card__name">
                     {c.name}
                     {equipped && <span className="cosmetic-card__badge">Equipped</span>}
                   </span>
                   <span className="cosmetic-card__desc">{c.description}</span>
-                  <span className="cosmetic-card__foot">
-                    {owned ? (equipped ? 'Equipped' : 'Equip') : `${c.unlockCost.toLocaleString()} Funds — soon`}
-                  </span>
+                  <span className={`cosmetic-card__foot${!owned && !affordable && !guest ? ' is-dim' : ''}`}>{foot}</span>
                 </button>
               );
             })}
@@ -581,10 +615,10 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
               </div>
             ))}
           </div>
-          {/* TODO(server): priced cosmetic unlocks should validate + deduct Funds server-side via an
-              `unlock_cosmetic` RPC mirroring `unlock_character` (supabase/profiles.sql), granting a
-              `cosmetic:<id>` token consumed by isCosmeticAvailable(). Until then only free frames equip
-              and priced/placeholder cosmetics are teasers; fire `cosmetic_unlocked` when that lands. */}
+          {/* Priced share-frame unlocks are now server-validated via the `unlock_cosmetic` RPC
+              (supabase/cosmetics.sql), which grants a `cosmetic:<id>` token. The map_theme /
+              profile_banner categories above remain `comingSoon` placeholders until their render
+              surfaces exist; extend the cosmetics.sql price catalog when they ship. */}
         </section>
       </div>
 

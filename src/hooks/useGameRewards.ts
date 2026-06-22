@@ -17,6 +17,7 @@ import { getLastAwardedGameId, setLastAwardedGameId, recordDailyChallengeResult 
 import { clearGameTiming, gameDurationSeconds, track } from '../utils/analytics';
 import { NATIONAL_GROUPS } from '../game/config';
 import { dailyDateKey } from '../game/dailyChallenge';
+import { recordDailyResultRemote } from '../game/profile';
 import type { BotDifficulty } from '../game/types';
 
 const inflightClaims = new Set<string>();
@@ -104,6 +105,10 @@ export function useGameRewards(): void {
           streak: local.streak,
           candidate_id: owner?.candidateId ?? 'unknown',
         });
+      }
+      // Cross-device: persist to the server too (fire-and-forget; never blocks the reward flow).
+      if (useProfile.getState().userId) {
+        void recordDailyResultRemote(dateKey, won, electoralVotes);
       }
     }
 

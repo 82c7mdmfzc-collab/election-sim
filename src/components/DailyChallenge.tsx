@@ -10,7 +10,7 @@
  * so guests get the loop too; the Funds reward rides the normal game-end path.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CANDIDATES,
   CANDIDATE_MAP,
@@ -19,6 +19,7 @@ import {
 } from '../game/candidates';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
+import { getDailyStatusRemote } from '../game/profile';
 import { AudioManager } from '../utils/audioManager';
 import { track } from '../utils/analytics';
 import {
@@ -26,7 +27,7 @@ import {
   getDailyChallengeConfig,
   resolveDailyOpponents,
 } from '../game/dailyChallenge';
-import { getDailyChallengeLocal } from '../utils/localPrefs';
+import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/localPrefs';
 import { Portrait } from './Portrait';
 import { PartyBadge } from './PartyBadge';
 import { ModifierSheet } from './ModifierSheet';
@@ -47,10 +48,23 @@ function timerLabel(seconds: number | null): string {
 export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const startDailyChallenge = useGameStore((s) => s.startDailyChallenge);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
+  const userId = useProfile((s) => s.userId);
 
   const dateKey = useMemo(() => dailyDateKey(), []);
   const config = useMemo(() => getDailyChallengeConfig(dateKey), [dateKey]);
   const local = useMemo(() => getDailyChallengeLocal(), []);
+  const [serverStatus, setServerStatus] = useState<DailyChallengeLocal | null>(null);
+
+  // Cross-device: prefer the server-synced status when signed in (falls back to local).
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void getDailyStatusRemote().then((s) => { if (!cancelled && s) setServerStatus(s); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const status = serverStatus ?? local;
+  const streak = status.streak;
 
   const ownedCandidates = useMemo(
     () => CANDIDATES.filter((c) => isCandidateAvailable(c, unlocked)),
@@ -61,13 +75,11 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const me = CANDIDATE_MAP[myId];
   const opponents = useMemo(() => resolveDailyOpponents(dateKey, myId), [dateKey, myId]);
 
-  const playedToday = local.lastPlayedDate === dateKey;
-  const wonToday = local.lastWonDate === dateKey;
+  const playedToday = status.lastPlayedDate === dateKey;
+  const wonToday = status.lastWonDate === dateKey;
   const statusText = playedToday
-    ? `Today: ${wonToday ? 'Won 🏆' : 'Played'} · ${local.lastEv} EV${local.streak > 0 ? ` · ${local.streak}-day streak` : ''}`
-    : local.streak > 0
-      ? `${local.streak}-day streak — keep it going`
-      : 'New challenge — set the bar';
+    ? `Today: ${wonToday ? 'Won 🏆' : 'Played'} · ${status.lastEv} EV`
+    : 'New challenge — set the bar';
 
   function start() {
     AudioManager.play('confirm');
@@ -91,6 +103,9 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
 
         <div className="daily__scenario">
           <div className="daily__chips">
+            {streak > 0 && (
+              <span className="daily__chip daily__chip--streak">🔥 {streak}-day streak</span>
+            )}
             <span className="daily__chip">
               {config.opponentCount} opponent{config.opponentCount === 1 ? '' : 's'}
             </span>
@@ -159,6 +174,11 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
             );
           })}
         </div>
+        {ownedCandidates.length === 1 && (
+          <p className="mp-hint daily__unlock-hint">
+            Unlock more candidates in the Shop to bring different strengths to the daily.
+          </p>
+        )}
       </div>
 
       <div className="setup__foot">

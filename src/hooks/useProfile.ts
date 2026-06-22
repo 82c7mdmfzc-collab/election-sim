@@ -27,6 +27,7 @@ import {
   fetchAdRewardStatusRemote,
   claimAdRewardRemote,
   unlockCharacterRemote,
+  unlockCosmeticRemote,
   deleteAccountRemote,
   type AdRewardClaimRemote,
 } from '../game/profile';
@@ -108,6 +109,8 @@ interface ProfileStore {
   refreshAdRewardStatus(): Promise<AdRewardStatus | null>;
   claimAdReward(args: { placement: string; provider?: string | null; adUnit?: string | null }): Promise<AdRewardClaimResult>;
   unlock(characterId: string): Promise<boolean>;
+  /** Server-validated cosmetic unlock (account-only; server owns the price). */
+  unlockCosmetic(cosmeticId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
   sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
   verifyEmailCode(email: string, code: string): Promise<{ error?: string }>;
@@ -378,6 +381,19 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     if (!userId) return false; // unlocks are account-only
 
     const updated = await unlockCharacterRemote(characterId);
+    if (updated) {
+      set({ profile: updated });
+      return true;
+    }
+    return false;
+  },
+
+  async unlockCosmetic(cosmeticId) {
+    const { profile, userId } = get();
+    if (profile.unlockedCharacters.includes(`cosmetic:${cosmeticId}`)) return true;
+    if (!userId) return false; // unlocks are account-only
+
+    const updated = await unlockCosmeticRemote(cosmeticId);
     if (updated) {
       set({ profile: updated });
       return true;

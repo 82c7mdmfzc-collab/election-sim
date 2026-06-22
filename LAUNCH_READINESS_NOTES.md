@@ -119,3 +119,51 @@ exactly 9,000** (buys the whole roster), capping monetization. Suggestions, in p
    alive for engaged players; keep every one earnable to stay fair.
 4. **Keep candidates earnable** and resist raising their prices to "force" purchases — the generous earn
    rate is good for retention; deepen sinks instead of nerfing income.
+
+---
+
+# Follow-on pass — next-tasks completed + mobile polish (2026-06-22)
+
+## What shipped (code + SQL; inert until the manual deploy steps below)
+
+- **Server-validated cosmetic unlocks.** NEW `supabase/cosmetics.sql` `unlock_cosmetic(p_cosmetic)`
+  (mirrors `unlock_character`; price catalog `patriot`/`gold` = 600; grants a `cosmetic:<id>` token in
+  `unlocked_characters`). Client: `unlockCosmeticRemote` (profile.ts) + `unlockCosmetic` action
+  (useProfile.ts) + a real "Unlock — 600 Funds" button in the Shop Cosmetics tab that equips on success
+  and fires `cosmetic_unlocked`. Fail-soft: guests/offline get a clear inline message, no client grant.
+- **Cross-device Daily Challenge sync.** NEW `supabase/daily.sql` (adds `profiles.daily_challenge` jsonb;
+  `record_daily_result` with the same UTC consecutive-day logic as the login streak; `get_daily_status`).
+  Client: `recordDailyResultRemote` (fire-and-forget at game end, signed-in only) + `getDailyStatusRemote`
+  (read on the Daily screen). Device-local `localPrefs` streak remains the offline fallback.
+- **Re-tiered IAP ladder.** Added `funds_600` ($0.99 "Starter") and `funds_45000` ($19.99 "Most Funds")
+  across the three sync points: `src/utils/iap.ts` `FUNDS_BUNDLES`, `supabase/iap.sql` `fulfill_purchase`,
+  and the edge `KNOWN_SKUS`. Existing four bundles untouched.
+- **Mobile "more inviting / user-friendly" polish (all additive, native-contract-safe):**
+  - Home: tap haptic/sound on menu buttons, a live Daily **streak/"New" badge**, a short-landscape
+    2-column grid so 5 tiles never scroll, and 48px tap targets.
+  - Landing: a rotating game-hook line (`RotatingTip`) + stat chips (50 states · N candidates · Race to 270).
+  - Cosmetics/touch: grayscale "Coming soon" teasers, dim unaffordable prices, 56px card tap targets,
+    sticky section headers in native panes.
+  - Daily screen: cross-device status, a streak chip, and an empty-state hint to unlock more candidates.
+- **Tests:** added `parseDailyStatus` + (prior) suites — full vitest run green; lint + build +
+  `test:mobile-native` green.
+
+## Manual steps required to make the server features live
+
+1. **Apply SQL** (Supabase SQL editor, idempotent): `supabase/cosmetics.sql`, `supabase/daily.sql`, and
+   re-apply `supabase/iap.sql` (new SKU grants).
+2. **Deploy the edge function:** `supabase functions deploy fulfill-purchase` (new `KNOWN_SKUS`).
+3. **App Store Connect:** create consumables `funds_600` and `funds_45000` (per-territory pricing). Until
+   created they simply won't have a localized price / can't be bought; existing bundles are unaffected.
+4. **Apple server-verification secrets** (old task 2 — still required for ANY IAP to credit):
+   `APPLE_ISSUER_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` in Supabase. Until set, `fulfill-purchase`
+   fails closed (503) and no purchase credits.
+
+## Still remaining
+
+- Coin art for `funds_600` / `funds_45000` (`/assets/coins/*.png`); the Shop hides a missing image
+  gracefully and still shows amount + price.
+- `map_theme` / `profile_banner` cosmetics remain `comingSoon` (no render surface yet); extend the
+  `cosmetics.sql` price catalog when they ship.
+- Android Play Billing verification still stubbed.
+- On-device verification of real purchases + multi-device daily streak (needs the manual steps above).

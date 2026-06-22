@@ -41,10 +41,12 @@ begin
   if v_fresh = 1 then
     -- Campaign Funds bundles (server-owned amounts).
     v_funds := case p_sku
+      when 'funds_600'   then 600
       when 'funds_1500'  then 1500
       when 'funds_4000'  then 4000
       when 'funds_9000'  then 9000
       when 'funds_20000' then 20000
+      when 'funds_45000' then 45000
       else null end;
 
     if v_funds is not null then

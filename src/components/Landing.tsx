@@ -5,11 +5,21 @@
 
 import { BrandMark } from './BrandMark';
 import { SignInButtons } from './SignInButtons';
+import { RotatingTip } from './RotatingTip';
+import { CANDIDATES } from '../game/candidates';
 
 interface LandingProps {
   onContinueAsGuest: () => void;
   primaryLabel?: string;
 }
+
+const LANDING_HOOKS = [
+  'Build coalitions, not just majorities.',
+  'Every state is a negotiation.',
+  'Outspend and outmaneuver your rivals.',
+  'Read your opponent — a clash costs you both.',
+  'Your candidate, your strategy, your 270.',
+];
 
 export function Landing({ onContinueAsGuest, primaryLabel = 'Start Solo' }: LandingProps) {
   return (
@@ -21,6 +31,12 @@ export function Landing({ onContinueAsGuest, primaryLabel = 'Start Solo' }: Land
         <p className="landing__pitch">
           Start with a practice campaign, learn the map as you play, and race to 270 electoral votes.
         </p>
+        <div className="landing__chips">
+          <span className="daily__chip">50 states</span>
+          <span className="daily__chip">{CANDIDATES.length} candidates</span>
+          <span className="daily__chip">Race to 270</span>
+        </div>
+        <RotatingTip tips={LANDING_HOOKS} label="Why Elector" className="landing__hooks" />
         <button type="button" className="landing__guest" onClick={onContinueAsGuest}>
           {primaryLabel} →
         </button>

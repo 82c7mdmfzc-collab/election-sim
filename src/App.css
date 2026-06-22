@@ -5944,3 +5944,42 @@ html.native .native-state-summary {
 
 /* Secondary share button (Card / 16:9 variant) */
 .victory-cta button.victory-share-btn--alt { background: var(--panel-2); color: var(--text); }
+
+/* ── Follow-on mobile polish ──────────────────────────────────────────────── */
+
+/* Home menu: tap target + a small live badge (Daily streak / "New"). */
+.menu-btn { position: relative; min-height: 48px; }
+.menu-btn__badge {
+  position: absolute; top: -8px; right: 10px;
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.04em;
+  color: #2a1402; background: linear-gradient(180deg, var(--brand-top), var(--brand-deep));
+  border-radius: var(--r-pill); padding: 0.12rem 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+/* Short-landscape phones: wrap the 5 tiles into 2 columns so nothing scrolls. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .home__modes {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+    width: min(640px, 94vw);
+  }
+  .menu-btn--primary { grid-column: 1 / -1; }
+}
+
+/* Daily Challenge: streak chip + empty-state hint. */
+.daily__chip--streak {
+  color: #2a1402; background: linear-gradient(180deg, var(--brand-top), var(--brand-deep));
+  border-color: transparent;
+}
+.daily__unlock-hint { margin-top: 0.6rem; opacity: 0.85; }
+
+/* Landing warmth: stat chips + rotating hook spacing. */
+.landing__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin: 0.2rem 0 0.1rem; }
+.landing__hooks { margin: 0.35rem 0 0.2rem; }
+
+/* Cosmetics: "coming soon" teasers + dim unaffordable price + touch comfort. */
+.cosmetic-card.is-soon { filter: grayscale(1); pointer-events: none; }
+.cosmetic-card__foot.is-dim { color: var(--muted); }
+.cosmetic-card, .vm-card, .cand-card { min-height: 56px; }
+
+/* Sticky section headers inside scrollable native panes. */
+html.native .shop__section { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-block: 0.25rem; }

@@ -13,6 +13,7 @@
 
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 import type { AdRewardStatus } from '../utils/rewardedAds';
+import type { DailyChallengeLocal } from '../utils/localPrefs';
 import {
   type AchievementCounters,
   type DailyStreakState,
@@ -341,6 +342,55 @@ export async function unlockCharacterRemote(characterId: string): Promise<Profil
     return null;
   }
   return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
+}
+
+/** Server-validated cosmetic unlock (server owns the price; stores a `cosmetic:<id>`
+ *  token in unlocked_characters). Returns the updated profile. See supabase/cosmetics.sql. */
+export async function unlockCosmeticRemote(cosmeticId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('unlock_cosmetic', { p_cosmetic: cosmeticId });
+  if (error) {
+    console.warn('unlockCosmeticRemote failed:', error.message);
+    return null;
+  }
+  return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
+}
+
+// ── Daily Challenge cross-device sync (see supabase/daily.sql) ─────────────────
+// Maps the server jsonb { count, lastDate, lastWonDate, lastEv } onto the
+// device-local DailyChallengeLocal shape. Returns null when never played ({}).
+export function parseDailyStatus(data: unknown): DailyChallengeLocal | null {
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  if (typeof row.lastDate !== 'string' || !row.lastDate) return null; // never played
+  return {
+    lastPlayedDate: row.lastDate,
+    lastWonDate: typeof row.lastWonDate === 'string' && row.lastWonDate ? row.lastWonDate : null,
+    streak: typeof row.count === 'number' && Number.isFinite(row.count) ? row.count : 0,
+    lastEv: typeof row.lastEv === 'number' && Number.isFinite(row.lastEv) ? row.lastEv : 0,
+  };
+}
+
+/** Cross-device daily-challenge status (null when not configured / signed out / never played). */
+export async function getDailyStatusRemote(): Promise<DailyChallengeLocal | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('get_daily_status');
+  if (error) {
+    console.warn('getDailyStatusRemote failed:', error.message);
+    return null;
+  }
+  return parseDailyStatus(data);
+}
+
+/** Record a finished daily attempt server-side (cross-device streak). Returns the new status. */
+export async function recordDailyResultRemote(dateKey: string, won: boolean, ev: number): Promise<DailyChallengeLocal | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('record_daily_result', { p_date_key: dateKey, p_won: won, p_ev: ev });
+  if (error) {
+    console.warn('recordDailyResultRemote failed:', error.message);
+    return null;
+  }
+  return parseDailyStatus(data);
 }
 
 /**

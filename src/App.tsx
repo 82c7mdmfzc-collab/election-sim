@@ -22,7 +22,8 @@ import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
 import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon } from './components/icons';
-import { isTutorialSeen } from './utils/localPrefs';
+import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
+import { AudioManager } from './utils/audioManager';
 import { NextChallengeHint, ProgressPanel } from './components/ProgressPanel';
 import {
   identifyAccount,
@@ -43,6 +44,15 @@ interface ModeDef {
   Icon: ComponentType<{ size?: number }>;
   chip: 'orange' | 'blue';
   primary?: boolean;
+  /** Small overlay pill (e.g. the Daily streak/"New" hook). */
+  badge?: string;
+}
+
+/** The Daily tile's live badge: the active streak, or "New" until first played. */
+function dailyBadge(): string | undefined {
+  const d = getDailyChallengeLocal();
+  if (d.streak > 0) return `🔥 ${d.streak}`;
+  return d.lastPlayedDate == null ? 'New' : undefined;
 }
 
 const MODES: ModeDef[] = [
@@ -90,17 +100,21 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
       </div>
 
       <div className="home__modes">
-        {MODES.map(({ mode, label, Icon, chip, primary }) => (
-          <button
-            key={mode}
-            type="button"
-            className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
-            onClick={() => onSelect(mode)}
-          >
-            <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
-            <span className="menu-btn__label">{label}</span>
-          </button>
-        ))}
+        {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
+          const b = mode === 'daily' ? dailyBadge() : badge;
+          return (
+            <button
+              key={mode}
+              type="button"
+              className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
+              onClick={() => { AudioManager.play('click'); onSelect(mode); }}
+            >
+              <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
+              <span className="menu-btn__label">{label}</span>
+              {b && <span className="menu-btn__badge">{b}</span>}
+            </button>
+          );
+        })}
       </div>
 
       {signedIn && (

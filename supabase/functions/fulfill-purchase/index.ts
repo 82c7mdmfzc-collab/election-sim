@@ -33,7 +33,7 @@ const FALLBACK_ORIGIN = 'https://playelector.com';
 // SKUs the native IAP rail may grant (the authoritative grant amounts live in SQL).
 // Funds packs only — characters are unlocked with in-game funds, not real money.
 const KNOWN_SKUS = new Set<string>([
-  'funds_1500', 'funds_4000', 'funds_9000', 'funds_20000',
+  'funds_600', 'funds_1500', 'funds_4000', 'funds_9000', 'funds_20000', 'funds_45000',
 ]);
 
 const APPLE_BUNDLE_ID = 'com.playelector.app';
