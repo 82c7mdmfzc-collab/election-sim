@@ -2,6 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <!-- Custom URL scheme for native OAuth (Apple/Google) deep-link return:
+       com.playelector.app://auth-callback . Declared here because Tauri merges
+       src-tauri/Info.ios.plist into the generated Info.plist on every iOS build,
+       and the deep-link plugin's build.rs injection was not landing. -->
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>CFBundleURLName</key>
+      <string>com.playelector.app</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>com.playelector.app</string>
+      </array>
+    </dict>
+  </array>
   <key>GADApplicationIdentifier</key>
   <string>ca-app-pub-5364561069734393~8538342864</string>
   <key>SKAdNetworkItems</key>
