@@ -21,6 +21,8 @@ export interface LocalPrefs {
   firstRunCoachDismissed: boolean;
   /** Normalized usernames the player has blocked online (Apple Guideline 1.2). */
   blockedPlayers: string[];
+  /** Whether we've already shown the OS notification-permission prompt once. */
+  notifPermissionAsked: boolean;
 }
 
 const DEFAULTS: LocalPrefs = {
@@ -31,6 +33,7 @@ const DEFAULTS: LocalPrefs = {
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
   blockedPlayers: [],
+  notifPermissionAsked: false,
 };
 
 export function getPrefs(): LocalPrefs {

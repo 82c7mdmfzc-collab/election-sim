@@ -12,7 +12,10 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_elector_admob::init())
-        .plugin(tauri_plugin_iap::init());
+        .plugin(tauri_plugin_iap::init())
+        // Local notifications build on every platform (unlike haptics), so this
+        // init() is unconditional and its capability lives in default.json.
+        .plugin(tauri_plugin_notification::init());
 
     // Haptic feedback is a mobile-only crate (no desktop build), so register it
     // only on iOS/Android — matching the cfg gate on the dependency in Cargo.toml.

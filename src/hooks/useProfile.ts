@@ -45,6 +45,7 @@ import {
   clearPendingReferralCode,
 } from '../utils/localPrefs';
 import { clearSession } from '../utils/sessionStore';
+import { onGameFinishedNotifications } from '../utils/notifications';
 import {
   getSession,
   onAuthChange,
@@ -215,6 +216,11 @@ export const useProfile = create<ProfileStore>((set, get) => ({
 
   async applyGameResult(result) {
     const { profile, userId } = get();
+
+    // Re-engagement notifications (native only; no-op on web). Fire-and-forget so
+    // it never blocks the reward flow; the daily-streak nudge is account-only, and
+    // the OS permission prompt appears here — after a finished game, never on launch.
+    void onGameFinishedNotifications({ signedIn: !!userId });
 
     // No guest economy: a signed-out player earns nothing and sees no reveal.
     if (!userId) {

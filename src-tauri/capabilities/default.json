@@ -35,7 +35,8 @@
     "deep-link:default",
     "opener:allow-open-url",
     "elector-admob:default",
-    "iap:default"
+    "iap:default",
+    "notification:default"
 
   ]
 }
