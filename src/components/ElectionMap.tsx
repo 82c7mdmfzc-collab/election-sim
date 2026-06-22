@@ -14,7 +14,7 @@
  *   Active pending → handled inside RungTrack (dashed/pulsing active color)
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import usAtlas from 'us-atlas/states-10m.json';
 import { WIN_THRESHOLD, calcStateCost, bestAffinityForState } from '../game/engine';
@@ -162,6 +162,25 @@ const StateGeo = memo(function StateGeo({
 
 // ── State hover / action card ─────────────────────────────────────────────────
 
+/** Device safe-area insets (notch / home indicator), measured from a probe. */
+function safeAreaInsets(): { top: number; right: number; bottom: number; left: number } {
+  if (typeof document === 'undefined') return { top: 0, right: 0, bottom: 0, left: 0 };
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;visibility:hidden;pointer-events:none;'
+    + 'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const out = {
+    top: parseFloat(cs.paddingTop) || 0,
+    right: parseFloat(cs.paddingRight) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0,
+    left: parseFloat(cs.paddingLeft) || 0,
+  };
+  document.body.removeChild(probe);
+  return out;
+}
+
 interface StateHoverCardProps {
   stateId: StateId;
   x: number;
@@ -189,6 +208,32 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
     return () => window.removeEventListener('keydown', onKey);
   }, [interactive, onClose]);
 
+  // Position the card fully on-screen: clamp to the viewport minus the device
+  // safe-area insets (notch / home indicator), using the card's measured size.
+  // useLayoutEffect runs before paint so it never flashes off-screen / behind the notch.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ left: number; top: number }>(
+    () => ({ left: x + 16, top: Math.max(y - 20, 8) }),
+  );
+  useLayoutEffect(() => {
+    const insets = safeAreaInsets();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const el = cardRef.current;
+    const w = el?.offsetWidth ?? 290;
+    const h = el?.offsetHeight ?? 320;
+    const M = 8;
+    const left = Math.min(
+      Math.max(x + 16, insets.left + M),
+      Math.max(insets.left + M, vw - w - insets.right - M),
+    );
+    const top = Math.min(
+      Math.max(y - 20, insets.top + M),
+      Math.max(insets.top + M, vh - h - insets.bottom - M),
+    );
+    setCoords({ left, top });
+  }, [x, y, stateId]);
+
   if (!usState) return null;
 
   const maxRungs = usState.maxRungs;
@@ -205,15 +250,13 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
     ? players.find((p) => p.id === securedById)?.name ?? securedById
     : null;
 
-  const cardX = Math.max(8, Math.min(x + 16, window.innerWidth - 300));
-  const cardY = Math.max(y - 20, 8);
-
   return (
     <>
       {interactive && <div className="popover-backdrop" onClick={onClose} />}
       <div
+        ref={cardRef}
         className={`state-card${interactive ? ' state-card--pinned' : ''}`}
-        style={{ left: cardX, top: cardY }}
+        style={{ left: coords.left, top: coords.top }}
       >
         <div className="state-card__header">
           <span className="state-card__name">{usState.name}</span>
@@ -444,6 +487,9 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
   const resetZoom = useCallback(() => setPosition({ coordinates: US_CENTER, zoom: 1 }), []);
 
   const handleHover = useCallback((id: StateId, x: number, y: number) => {
+    // Touch devices fire a synthetic mouseenter before the click; skip the
+    // ephemeral hover card there so a single tap goes straight to the pinned card.
+    if (typeof window !== 'undefined' && window.matchMedia?.('(hover: none)').matches) return;
     if (!pinned) setHover({ stateId: id, x, y });
   }, [pinned]);
 

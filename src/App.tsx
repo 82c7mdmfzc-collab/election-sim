@@ -14,6 +14,7 @@ import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
 import { ScreenTransition } from './components/ScreenTransition';
+import { isNativeRuntime } from './utils/platform';
 import { useGameStore } from './game/store';
 import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
@@ -175,6 +176,23 @@ function App() {
       has_saved_session: signedIn,
     });
   }, [ready, signedIn]);
+
+  // Native keyboard avoidance: when a text field is focused the on-screen keyboard
+  // can cover it (sign-in email/code, username, lobby code). One global handler
+  // scrolls the focused input into view once the keyboard has animated in. Native
+  // only — the website relies on normal browser behavior.
+  useEffect(() => {
+    if (!isNativeRuntime()) return;
+    function onFocusIn(e: FocusEvent) {
+      const t = e.target as HTMLElement | null;
+      if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA')) return;
+      window.setTimeout(() => {
+        t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 280);
+    }
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
 
   function selectMode(mode: AppMode) {
     if (mode === 'shop') setShopSource(appModeToShopSource(appMode));

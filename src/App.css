@@ -661,6 +661,8 @@ button, a, [role="button"] {
 .wallet-drawer__close {
   background: none; border: none; color: var(--muted);
   font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -0.4rem -0.4rem -0.4rem 0;
 }
 @media (hover: hover) and (pointer: fine) { .wallet-drawer__close:hover { color: var(--text); } }
 
@@ -763,6 +765,9 @@ button, a, [role="button"] {
   border-radius: 14px;
   padding: 0.75rem;
   width: 290px;
+  max-width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+  max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
   font-size: 0.8rem;
   pointer-events: none;
@@ -2667,6 +2672,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
     overflow-x: auto;
     scrollbar-width: none;
     gap: 0.4rem;
+    /* Fade the right edge as a "scroll for more" cue when players overflow. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
   }
   .header-hud__players::-webkit-scrollbar { display: none; }
   .hud-card { flex: 0 0 auto; min-width: 160px; }
@@ -2687,6 +2695,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
     overflow-x: auto;
     scrollbar-width: none;
     padding-bottom: 2px;
+    /* Fade the right edge as a "scroll for more" cue when allocations overflow. */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
   }
   .planning__chips::-webkit-scrollbar { display: none; }
   .alloc-chip { flex: 0 0 auto; padding: 0.3rem 0.5rem; font-size: 0.8rem; }
@@ -3326,6 +3337,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   gap: 0.5rem;
   overflow-x: auto;
   flex-shrink: 0;
+  /* Fade the right edge as a "scroll for more" cue when group chips overflow. */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
   scrollbar-width: none;
 }
 .sg-bar::-webkit-scrollbar { display: none; }
@@ -3623,6 +3637,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .profile-modal__close {
   background: none; border: none; color: var(--muted);
   font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -0.4rem -0.4rem -0.4rem 0;
 }
 @media (hover: hover) and (pointer: fine) { .profile-modal__close:hover { color: var(--text); } }
 
