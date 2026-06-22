@@ -22,6 +22,7 @@ import type { CandidateDef } from '../game/candidates';
 import { Portrait } from './Portrait';
 import { PartyBadge } from './PartyBadge';
 import { NextChallengeHint } from './ProgressPanel';
+import { ModifierSheet } from './ModifierSheet';
 
 const DIFFICULTIES: { id: BotDifficulty; label: string; blurb: string }[] = [
   { id: 'easy',   label: 'Easy',   blurb: 'Loose, low-pressure decisions.' },
@@ -152,13 +153,11 @@ export function BotSetup({ onBack }: BotSetupProps) {
                 <PartyBadge party={me.party} />
                 <span>${me.startingCash}k starting cash</span>
               </div>
-              <div className="cand-card__perks" aria-label={`${me.name} perk summary`}>
-                {perkSummary(me).map((chip) => (
-                  <span key={chip.label} className={`perk-chip perk-chip--${chip.tone}`}>
-                    {chip.label}
-                  </span>
-                ))}
-              </div>
+              <ModifierSheet
+                affinities={me.affinities}
+                payoutModifiers={me.payoutModifiers}
+                compact
+              />
             </div>
           </div>
           <div className="native-select__summary">

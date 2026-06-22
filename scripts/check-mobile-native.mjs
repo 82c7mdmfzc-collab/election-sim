@@ -113,6 +113,15 @@ async function assertNativeGameBoard(page, label) {
     throw new Error(`${label}: legacy game chrome is visible ${JSON.stringify(metrics)}`);
   }
 
+  const walletCount = await page.$$eval('.native-group-wallet', (els) => els.length);
+  if (walletCount < 8) throw new Error(`${label}: expected state group wallet chips, found ${walletCount}`);
+
+  await page.click('.native-active-tray');
+  await page.waitForSelector('.profile-modal', { timeout: 2_000 });
+  await assertNoDocumentScroll(page, `${label}: active player profile`);
+  await page.click('.profile-modal__close');
+  await page.waitForSelector('.profile-modal', { hidden: true, timeout: 2_000 });
+
   const initialTransform = await page.evaluate(() =>
     document.querySelector('.rsm-zoomable-group')?.getAttribute('transform')
       ?? document.querySelector('svg g[transform]')?.getAttribute('transform')
@@ -135,6 +144,19 @@ async function assertNativeGameBoard(page, label) {
 
   await clickByText(page, '.native-round-action', 'State');
   await page.waitForSelector('.native-game-sheet--state', { timeout: 2_000 });
+  const stateProgress = await page.evaluate(() => ({
+    rows: document.querySelectorAll('.native-sg-row').length,
+    tracks: document.querySelectorAll('.native-sg-row__track').length,
+    thresholds: document.querySelectorAll('.native-sg-row__threshold').length,
+    memberRows: document.querySelectorAll('.sg-member,.sg-members').length,
+    text: document.querySelector('.native-game-sheet--state')?.textContent ?? '',
+  }));
+  if (stateProgress.rows < 8 || stateProgress.tracks !== stateProgress.rows || stateProgress.thresholds !== stateProgress.rows) {
+    throw new Error(`${label}: state group progress rows missing ${JSON.stringify(stateProgress)}`);
+  }
+  if (stateProgress.memberRows > 0 || /states\s+·|total EV|Lead a state/i.test(stateProgress.text)) {
+    throw new Error(`${label}: state drawer still contains verbose state detail ${JSON.stringify(stateProgress)}`);
+  }
   const stateDrawer = await page.evaluate(() => {
     const r = document.querySelector('.native-game-sheet--state')?.getBoundingClientRect();
     const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
@@ -160,6 +182,17 @@ async function assertNativeGameBoard(page, label) {
   await assertNoDocumentScroll(page, `${label}: national groups sheet`);
   await page.click('.native-game-sheet__close');
   await page.waitForSelector('.native-game-sheet--national', { hidden: true, timeout: 2_000 });
+
+  await page.click('.native-corner--left');
+  await page.waitForSelector('.setup--bot .native-candidate', { timeout: 3_000 });
+  const menuPerks = await page.evaluate(() => ({
+    spotlightMods: document.querySelectorAll('.setup--bot .native-candidate .mod-sheet').length,
+    visibleText: document.querySelector('.setup--bot .native-candidate')?.textContent ?? '',
+  }));
+  if (menuPerks.spotlightMods < 1 || !/Cheaper buy-in|Extra profit|Costs more|Lower payout|Neutral/i.test(menuPerks.visibleText)) {
+    throw new Error(`${label}: solo candidate menu does not expose perk/modifier text ${JSON.stringify(menuPerks)}`);
+  }
+  await assertNoDocumentScroll(page, `${label}: solo candidate menu perks`);
 }
 
 const server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT)], {
