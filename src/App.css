@@ -1460,6 +1460,13 @@ button, a, [role="button"] {
   max-width: 1040px; margin: 0 auto;
   padding: calc(1.5rem + env(safe-area-inset-top)) calc(1rem + env(safe-area-inset-right)) calc(3rem + env(safe-area-inset-bottom)) calc(1rem + env(safe-area-inset-left));
 }
+/* Native: setup screens (candidate / bot / multiplayer) fill the screen; their
+   inner grids are auto-fit, so they add columns rather than stretching wide. */
+html.native .setup {
+  max-width: none;
+  padding-right: calc(1.5rem + env(safe-area-inset-right));
+  padding-left: calc(1.5rem + env(safe-area-inset-left));
+}
 .setup__header {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;
@@ -3063,6 +3070,17 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 
 /* ── Shop ──────────────────────────────────────────────────────────────────── */
 .shop { max-width: 920px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+/* Native: fill the screen edge-to-edge on iPad/large devices — the responsive
+   grids below (auto-fill) reflow into more columns instead of letterboxing.
+   The secondary website keeps its centered, width-capped card. */
+html.native .shop {
+  max-width: none;
+  padding:
+    calc(1.5rem + env(safe-area-inset-top))
+    calc(1.5rem + env(safe-area-inset-right))
+    calc(3rem + env(safe-area-inset-bottom))
+    calc(1.5rem + env(safe-area-inset-left));
+}
 .shop__header {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1rem; margin-bottom: 0.4rem; flex-wrap: wrap;
