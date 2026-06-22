@@ -29,6 +29,7 @@ import {
   normalizeTurnTimeLimit,
 } from './_engine/lobbySecurity.ts';
 import type { LobbyGameState, WaitingLobbyState } from './_engine/types.ts';
+import { pushToLobby } from '../_shared/apns.ts';
 
 // Restrict cross-origin callers to our own surfaces (defense-in-depth; the JWT
 // is still validated below). Tauri mobile/desktop webviews use the tauri origins.
@@ -60,6 +61,17 @@ function json(body: unknown, status = 200, cors: Record<string, string> = {}): R
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
+}
+
+// Run a best-effort side task (push notifications) without blocking or failing
+// the response. Uses the platform's waitUntil when present so the task survives
+// past the response; otherwise fires it detached. Errors are always swallowed —
+// a push failure must never affect turn resolution.
+function background(task: Promise<unknown>): void {
+  const ert = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  const safe = task.catch(() => {});
+  if (ert?.waitUntil) ert.waitUntil(safe);
+  else void safe;
 }
 
 Deno.serve(async (req: Request) => {
@@ -133,6 +145,12 @@ Deno.serve(async (req: Request) => {
       if (updErr) return json({ error: updErr.message }, 500, cors);
       if (!updated || updated.length === 0) return json({ skipped: 'already started' }, 200, cors);
 
+      // Tell the other players (not the host who just started) the match is live.
+      background(pushToLobby(admin, lobbyId, {
+        title: 'Your match has begun',
+        body: 'The race to 270 is on — make your first move.',
+        data: { lobbyId },
+      }, uid));
       return json({ resolved: next }, 200, cors);
     }
 
@@ -185,6 +203,18 @@ Deno.serve(async (req: Request) => {
       // When the game ends, also flip the lobby lifecycle to finished.
       if (next.phase === 'GAME_OVER') {
         await admin.from('lobbies').update({ status: 'finished' }).eq('id', lobbyId);
+        background(pushToLobby(admin, lobbyId, {
+          title: 'Final results are in',
+          body: 'See how the election played out.',
+          data: { lobbyId },
+        }));
+      } else if (next.phase === 'PLANNING') {
+        // A fresh planning round — nudge the other players to take their turn.
+        background(pushToLobby(admin, lobbyId, {
+          title: 'Your move',
+          body: 'A new round has begun — submit your campaign moves.',
+          data: { lobbyId },
+        }, uid));
       }
       return json({ resolved: next }, 200, cors);
     }
