@@ -17,6 +17,7 @@ import {
   usePendingRungs,
 } from '../game/store';
 import type { NationalGroup } from '../game/types';
+import { isPlayerBlocked } from '../utils/localPrefs';
 import { RungTrack } from './RungTrack';
 import { PlayerProfileModal } from './PlayerProfileModal';
 
@@ -91,7 +92,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
             title="View player profile"
           >
             <span className="dot" style={{ background: colors[leader.id]?.hex }} />
-            {leader.name} · {leaderRungs}/{group.maxRungs}
+            {(leader.isBot ? leader.name : isPlayerBlocked(leader.name) ? 'Blocked player' : leader.name)} · {leaderRungs}/{group.maxRungs}
             {earns && <span className="nat-ladder__pay"> → +${payout}k</span>}
           </span>
         ) : (

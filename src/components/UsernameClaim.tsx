@@ -9,6 +9,7 @@
 import { useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
+import { containsProfanity } from '../utils/profanity';
 
 const NAME_RE = /^[A-Za-z0-9_-]{3,20}$/;
 
@@ -23,13 +24,17 @@ export function UsernameClaim({ onClaimed }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const valid = NAME_RE.test(name.trim());
+  const trimmed = name.trim();
+  const valid = NAME_RE.test(trimmed);
+  const clean = valid && !containsProfanity(trimmed);
 
   async function submit() {
-    if (!valid || busy) return;
+    if (busy) return;
+    if (!valid) { setError('Use 3–20 letters, numbers, _ or - only.'); return; }
+    if (containsProfanity(trimmed)) { setError('Please choose a different username.'); return; }
     setBusy(true);
     setError('');
-    const result = await claimUsername(name.trim());
+    const result = await claimUsername(trimmed);
     setBusy(false);
 
     switch (result) {
@@ -71,7 +76,7 @@ export function UsernameClaim({ onClaimed }: Props) {
           type="button"
           className="tutorial__btn"
           onClick={() => void submit()}
-          disabled={!valid || busy}
+          disabled={!clean || busy}
         >
           {busy ? 'Saving…' : 'Claim'}
         </button>

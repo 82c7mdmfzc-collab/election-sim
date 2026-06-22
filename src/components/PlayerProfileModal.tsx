@@ -7,9 +7,11 @@
  * Badges section is a placeholder for a future feature.
  */
 
+import { useState } from 'react';
 import { CANDIDATE_MAP } from '../game/candidates';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
+import { blockPlayer, isPlayerBlocked, unblockPlayer } from '../utils/localPrefs';
 import { Avatar } from './Avatar';
 
 interface Props {
@@ -25,12 +27,30 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
   const player = useGameStore((s) => s.players.find((p) => p.id === playerId));
   const colors = usePlayerColors();
   const { profile } = useProfile();
+  const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
+  const [, forceRerender] = useState(0);
 
   if (!player) return null;
 
   const cand = CANDIDATE_MAP[player.candidateId];
   const color = colors[playerId];
   const isBot = !!player.isBot;
+
+  // Online safety (Apple Guideline 1.2): report/block real opponents only.
+  const isOnlineOpponent = multiplayerMode === 'online' && !isBot && playerId !== localPlayerId;
+  const blocked = isOnlineOpponent && isPlayerBlocked(player.name);
+  const displayName = blocked ? 'Blocked player' : player.name;
+  const reportHref =
+    'mailto:support@playelector.com' +
+    '?subject=' + encodeURIComponent('Report player: ' + player.name) +
+    '&body=' + encodeURIComponent(
+      'Reporting player "' + player.name + '" for offensive content or behaviour.\n\nDetails: ');
+  function toggleBlock() {
+    if (isPlayerBlocked(player!.name)) unblockPlayer(player!.name);
+    else blockPlayer(player!.name);
+    forceRerender((n) => n + 1);
+  }
 
   const affinityEntries = Object.entries(cand?.affinities ?? {}).filter(([, v]) => v !== 0);
   const payoutEntries = Object.entries(cand?.payoutModifiers ?? {}).filter(([, v]) => v !== 0);
@@ -51,14 +71,14 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
         <div className="profile-modal__head">
           <div className="profile-modal__portrait">
             <Avatar
-              src={cand?.portraitUrl ?? ''}
-              initials={player.name.slice(0, 2).toUpperCase()}
-              name={player.name}
+              src={blocked ? '' : (cand?.portraitUrl ?? '')}
+              initials={displayName.slice(0, 2).toUpperCase()}
+              name={displayName}
               className="cand-token"
             />
           </div>
           <div className="profile-modal__info">
-            <div className="profile-modal__name">{player.name}</div>
+            <div className="profile-modal__name">{displayName}</div>
             {cand?.tagline && (
               <div className="profile-modal__tagline">{cand.tagline}</div>
             )}
@@ -146,6 +166,35 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
                 <div className="profile-stat__value profile-stat__value--sm">—</div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Safety — online opponents only (Apple Guideline 1.2) */}
+        {isOnlineOpponent && (
+          <div className="profile-modal__section">
+            <div className="profile-modal__section-title">Safety</div>
+            <div className="profile-safety-actions" style={{ display: 'flex', gap: '8px' }}>
+              <a
+                className="tutorial__btn"
+                href={reportHref}
+                style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+              >
+                Report
+              </a>
+              <button
+                type="button"
+                className="tutorial__btn"
+                style={{ flex: 1 }}
+                onClick={toggleBlock}
+              >
+                {blocked ? 'Unblock' : 'Block'}
+              </button>
+            </div>
+            {blocked && (
+              <div className="profile-badge-placeholder">
+                You’ve blocked this player — their name is hidden.
+              </div>
+            )}
           </div>
         )}
 
