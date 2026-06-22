@@ -56,9 +56,11 @@ function stateColor(
   securedById: string | null | undefined,
   maxRungs: number,
   colors: Record<string, ResolvedColor>,
+  nativeLook = false,
 ): string {
   if (securedById && colors[securedById]) return colors[securedById].hex;
 
+  const neutral = nativeLook ? ([246, 248, 250] as [number, number, number]) : NEUTRAL_RGB;
   let leader: string | null = null;
   let lead = 0;
   let second = 0;
@@ -66,15 +68,17 @@ function stateColor(
     if (r > lead) { second = lead; lead = r; leader = pid; }
     else if (r > second) second = r;
   }
-  if (!leader || lead === 0) return rgbStr(NEUTRAL_RGB);
+  if (!leader || lead === 0) return rgbStr(neutral);
 
   const margin = (lead - second) / maxRungs;
-  const intensity = Math.min(0.25 + margin * 1.75, 1);
+  const intensity = nativeLook
+    ? Math.min(0.16 + margin * 0.72, 0.82)
+    : Math.min(0.25 + margin * 1.75, 1);
   const c = colors[leader]?.rgb ?? NEUTRAL_RGB;
   return rgbStr([
-    lerp(NEUTRAL_RGB[0], c[0], intensity),
-    lerp(NEUTRAL_RGB[1], c[1], intensity),
-    lerp(NEUTRAL_RGB[2], c[2], intensity),
+    lerp(neutral[0], c[0], intensity),
+    lerp(neutral[1], c[1], intensity),
+    lerp(neutral[2], c[2], intensity),
   ]);
 }
 
@@ -109,7 +113,8 @@ const StateGeo = memo(function StateGeo({
 
   const usState = STATES_BY_ID.get(stateId);
   const maxRungs = usState?.maxRungs ?? 8;
-  const fill = stateColor(rungs, securedById, maxRungs, colors);
+  const nativeLook = typeof document !== 'undefined' && document.documentElement.classList.contains('native');
+  const fill = stateColor(rungs, securedById, maxRungs, colors, nativeLook);
   const hasPending = pendingRungs > 0;
 
   const isTallyActive = tallyActiveStateId === stateId;
@@ -126,8 +131,8 @@ const StateGeo = memo(function StateGeo({
     ? '#facc15'
     : hasPending
       ? activePlayerHex
-      : '#0f172a';
-  const strokeWidth = isGroupHighlighted ? 2.5 : hasPending ? 1.6 : 0.5;
+      : nativeLook ? '#2f3338' : '#0f172a';
+  const strokeWidth = isGroupHighlighted ? 2.5 : hasPending ? 1.6 : nativeLook ? 1.05 : 0.5;
   const opacity = isGroupDimmed ? 0.3 : 1;
 
   return (
