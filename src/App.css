@@ -5314,3 +5314,305 @@ html.native .auth-gate__input {
 @media (prefers-reduced-motion: reduce) {
   .screen-transition { animation: none; }
 }
+
+/* ══ Native in-game cleanup: Elector skin, side drawers, no clone chrome ═══ */
+html.native .shell {
+  background:
+    radial-gradient(760px 420px at 52% 48%, rgba(240, 184, 80, 0.08), transparent 58%),
+    linear-gradient(90deg, rgba(8, 18, 36, 0.72), rgba(214, 225, 232, 0.2) 18%, rgba(214, 225, 232, 0.2) 82%, rgba(8, 18, 36, 0.72)),
+    #c9d8e2;
+}
+
+html.native .election-map-container {
+  background:
+    linear-gradient(90deg, rgba(14, 29, 54, 0.42), rgba(234, 240, 244, 0.7) 20%, rgba(234, 240, 244, 0.7) 80%, rgba(14, 29, 54, 0.42)),
+    #d5e0e8;
+}
+
+html.native .native-corner {
+  min-height: 38px;
+  min-width: 76px;
+  border-radius: 10px;
+  border: 1px solid rgba(240, 184, 80, 0.28);
+  background:
+    linear-gradient(180deg, rgba(21,40,74,0.92), rgba(8,18,36,0.92));
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: clamp(0.75rem, 2.6dvh, 0.9rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-md);
+}
+
+html.native .native-game-ribbon {
+  top: calc(0.45rem + env(safe-area-inset-top));
+  width: min(500px, 54vw);
+  height: clamp(42px, 11dvh, 58px);
+  grid-template-columns: minmax(92px, 0.72fr) auto minmax(78px, 0.55fr);
+  gap: 0;
+  border: 1px solid rgba(240, 184, 80, 0.26);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(21, 40, 74, 0.94), rgba(9, 20, 39, 0.95));
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  filter: none;
+}
+
+html.native .native-game-ribbon__brand,
+html.native .native-game-ribbon__phase {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.24rem 0.7rem;
+  min-width: 0;
+}
+
+html.native .native-game-ribbon__brand {
+  border-right: 1px solid rgba(240, 184, 80, 0.18);
+}
+
+html.native .native-game-ribbon__brand strong {
+  color: var(--gold);
+  font-size: clamp(1rem, 4.2dvh, 1.45rem);
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+}
+
+html.native .native-game-ribbon__brand span,
+html.native .native-game-ribbon__phase {
+  color: var(--muted);
+  font-size: clamp(0.56rem, 1.9dvh, 0.7rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html.native .native-game-ribbon__center {
+  min-width: clamp(106px, 15vw, 150px);
+  height: 100%;
+  padding: 0.18rem 0.65rem;
+  background: rgba(255, 255, 255, 0.045);
+  border: 0;
+  clip-path: none;
+}
+
+html.native .native-game-ribbon__turn {
+  color: var(--text);
+  font-size: clamp(0.66rem, 2.35dvh, 0.82rem);
+}
+
+html.native .native-game-ribbon__clock {
+  min-width: clamp(60px, 8vw, 86px);
+  min-height: clamp(24px, 5.4dvh, 32px);
+  border-radius: 6px;
+  background: rgba(2, 7, 18, 0.76);
+  color: #fff6ea;
+  font-size: clamp(0.96rem, 4dvh, 1.28rem);
+  letter-spacing: 0.06em;
+}
+
+html.native .native-turn-button {
+  top: calc(0.55rem + env(safe-area-inset-top));
+  left: calc(50% + min(306px, 31vw));
+  width: auto;
+  min-width: clamp(86px, 13vw, 124px);
+  height: clamp(42px, 10dvh, 56px);
+  padding: 0 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.24);
+  background: linear-gradient(180deg, var(--brand-top), var(--brand) 52%, var(--brand-deep));
+  color: #fff6ea;
+  font-size: clamp(0.72rem, 2.9dvh, 0.95rem);
+  letter-spacing: 0.06em;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.42),
+    inset 0 -2px 0 rgba(120,55,0,0.55),
+    0 8px 22px rgba(0,0,0,0.32);
+}
+
+html.native .native-game-instruction {
+  top: calc(clamp(48px, 11.5dvh, 64px) + env(safe-area-inset-top));
+  min-width: min(330px, 42vw);
+  border: 1px solid rgba(240,184,80,0.18);
+  border-radius: 999px;
+  background: rgba(9, 20, 39, 0.74);
+  clip-path: none;
+  color: var(--text);
+  font-size: clamp(0.62rem, 2.25dvh, 0.78rem);
+}
+
+html.native .native-action-stack {
+  left: calc(0.65rem + env(safe-area-inset-left));
+  top: calc(50% + 0.4rem);
+  transform: translateY(-50%);
+  gap: 0.45rem;
+}
+
+html.native .native-round-action {
+  width: clamp(48px, 9.5vw, 68px);
+  height: clamp(104px, 28dvh, 138px);
+  border-radius: 12px;
+  border: 1px solid rgba(240, 184, 80, 0.26);
+  background:
+    linear-gradient(180deg, rgba(21,40,74,0.92), rgba(8,18,36,0.92));
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+
+html.native .native-round-action span {
+  display: block;
+  max-width: 100%;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: clamp(0.62rem, 2.25dvh, 0.78rem);
+  line-height: 1;
+  letter-spacing: 0.08em;
+}
+
+html.native .native-player-dock {
+  right: calc(0.65rem + env(safe-area-inset-right));
+  bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  width: min(520px, 56vw);
+  grid-template-columns: minmax(0, 0.78fr) minmax(255px, 1fr);
+}
+
+html.native .native-opponent-chip {
+  border-radius: 10px;
+  border: 1px solid rgba(240,184,80,0.16);
+  background:
+    linear-gradient(180deg, rgba(21,40,74,0.92), rgba(8,18,36,0.94));
+  box-shadow: var(--shadow-md);
+}
+
+html.native .native-opponent-chip span {
+  color: var(--gold);
+}
+
+html.native .native-opponent-chip__portrait {
+  border-color: rgba(240,184,80,0.5);
+}
+
+html.native .native-active-tray {
+  grid-template-columns: minmax(76px, 0.55fr) auto minmax(124px, 1fr);
+}
+
+html.native .native-active-tray__score,
+html.native .native-active-tray__cash {
+  border: 1px solid rgba(240,184,80,0.28);
+  background:
+    linear-gradient(180deg, rgba(21,40,74,0.96), rgba(8,18,36,0.96));
+}
+
+html.native .native-active-tray__score strong,
+html.native .native-active-tray__cash strong {
+  color: var(--gold);
+}
+
+html.native .native-active-tray__score {
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+}
+
+html.native .native-active-tray__cash {
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
+}
+
+html.native .native-active-tray__portrait {
+  border-color: rgba(240,184,80,0.74);
+  box-shadow: 0 0 0 4px rgba(21,40,74,0.7), var(--shadow-md);
+}
+
+html.native .native-alloc-empty,
+html.native .native-alloc-chip {
+  border-color: rgba(240,184,80,0.2);
+  background: rgba(8,18,36,0.78);
+  color: var(--text);
+}
+
+html.native .native-game-sheet-backdrop {
+  background: rgba(4, 9, 20, 0.28);
+}
+
+html.native .native-game-sheet--national,
+html.native .native-game-sheet--state {
+  top: calc(0.65rem + env(safe-area-inset-top));
+  bottom: calc(0.65rem + env(safe-area-inset-bottom));
+  left: calc(0.65rem + env(safe-area-inset-left));
+  right: auto;
+  transform: none;
+  width: min(360px, 42vw);
+  max-height: none;
+  border-radius: 16px;
+  border: 1px solid rgba(240,184,80,0.28);
+  background:
+    radial-gradient(420px 220px at 50% 0, rgba(245,144,34,0.14), transparent 64%),
+    rgba(8, 18, 36, 0.97);
+}
+
+html.native .native-game-sheet--state {
+  left: auto;
+  right: calc(0.65rem + env(safe-area-inset-right));
+}
+
+html.native .native-game-sheet--options {
+  width: min(420px, 48vw);
+  max-height: min(66dvh, 320px);
+}
+
+html.native .native-game-sheet__body .sidebar__ladders {
+  grid-template-columns: 1fr;
+}
+
+html.native .native-game-sheet__body--state .sg-bar {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: min(54dvh, 340px);
+}
+
+html.native .native-game-sheet__body--state .sg-chip {
+  width: 100%;
+}
+
+html.native .native-state-summary {
+  flex-direction: column;
+  overflow: visible;
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  html.native .native-game-sheet--national,
+  html.native .native-game-sheet--state {
+    width: min(420px, 34vw);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 430px) {
+  html.native .native-game-ribbon {
+    width: min(420px, 50vw);
+    height: 42px;
+  }
+
+  html.native .native-turn-button {
+    min-width: 78px;
+    height: 40px;
+  }
+
+  html.native .native-round-action {
+    width: 48px;
+    height: 96px;
+  }
+
+  html.native .native-round-action span {
+    font-size: 0.58rem;
+  }
+
+  html.native .native-game-sheet--national,
+  html.native .native-game-sheet--state {
+    width: min(330px, 42vw);
+  }
+}

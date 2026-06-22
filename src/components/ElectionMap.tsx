@@ -477,18 +477,33 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
   const colors = usePlayerColors();
   const [hover, setHover] = useState<CardState | null>(null);
   const [pinned, setPinned] = useState<CardState | null>(null);
+  const lastTapRef = useRef(0);
 
   const isInteractive = phase === 'PLANNING';
   const activeHex = activePlayer ? (colors[activePlayer.id]?.hex ?? '#facc15') : '#facc15';
+  const nativeLook = typeof document !== 'undefined' && document.documentElement.classList.contains('native');
+  const maxZoom = nativeLook ? 3 : 8;
+  const zoomStep = nativeLook ? 1.25 : 1.5;
+  const translateExtent: [[number, number], [number, number]] = nativeLook
+    ? [[-120, -80], [920, 580]]
+    : [[0, 0], [800, 500]];
 
   // Pinch-zoom / pan state.
   const [position, setPosition] = useState<MapPosition>({ coordinates: US_CENTER, zoom: 1 });
-  const handleMoveEnd = useCallback((pos: MapPosition) => setPosition(pos), []);
-  const zoomIn = useCallback(() => setPosition((p) => ({ ...p, zoom: Math.min(p.zoom * 1.5, 8) })), []);
+  const handleMoveEnd = useCallback((pos: MapPosition) => {
+    setPosition({
+      coordinates: pos.coordinates,
+      zoom: Math.min(Math.max(pos.zoom, 1), maxZoom),
+    });
+  }, [maxZoom]);
+  const zoomIn = useCallback(() => setPosition((p) => ({
+    ...p,
+    zoom: Math.min(p.zoom * zoomStep, maxZoom),
+  })), [maxZoom, zoomStep]);
   const zoomOut = useCallback(() => setPosition((p) => {
-    const zoom = Math.max(p.zoom / 1.5, 1);
+    const zoom = Math.max(p.zoom / zoomStep, 1);
     return zoom <= 1 ? { coordinates: US_CENTER, zoom: 1 } : { ...p, zoom };
-  }), []);
+  }), [zoomStep]);
   const resetZoom = useCallback(() => setPosition({ coordinates: US_CENTER, zoom: 1 }), []);
 
   const handleHover = useCallback((id: StateId, x: number, y: number) => {
@@ -507,9 +522,27 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
 
   const closePinned = useCallback(() => { setPinned(null); }, []);
 
+  const guardDoubleTap = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!nativeLook) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 280) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    lastTapRef.current = now;
+  }, [nativeLook]);
+
   return (
     <div className="election-map-wrap">
-      <div className="election-map-container">
+      <div
+        className="election-map-container"
+        onTouchEnd={guardDoubleTap}
+        onDoubleClick={(e) => {
+          if (!nativeLook) return;
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
         <ComposableMap
           projection="geoAlbersUsa"
           width={800}
@@ -520,8 +553,8 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
             zoom={position.zoom}
             center={position.coordinates}
             minZoom={1}
-            maxZoom={8}
-            translateExtent={[[0, 0], [800, 500]]}
+            maxZoom={maxZoom}
+            translateExtent={translateExtent}
             onMoveEnd={handleMoveEnd}
           >
             <Geographies geography={usAtlas as Record<string, unknown>}>

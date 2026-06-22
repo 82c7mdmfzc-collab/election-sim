@@ -11,15 +11,14 @@ import {
 } from '../game/store';
 import type { TurnTimerState } from '../game/useTurnTimer';
 import { AudioManager } from '../utils/audioManager';
-import { CampaignCoach } from './CampaignCoach';
 import { HelpButton } from './HelpButton';
 import { MuteButton } from './MuteButton';
 import { Portrait } from './Portrait';
 import { Sidebar } from './Sidebar';
 import { StateGroupBar } from './StateGroupBar';
-import { CloseIcon, HelpIcon } from './icons';
+import { CloseIcon } from './icons';
 
-type NativeSheet = 'coach' | 'national' | 'state' | 'options' | null;
+type NativeSheet = 'national' | 'state' | 'options' | null;
 
 interface NativeGameHudProps {
   timer: TurnTimerState;
@@ -134,24 +133,19 @@ function NativeTopRibbon({ timer, ready, onOptions }: {
         Options
       </button>
 
-      <div className="native-game-ribbon">
-        <div className="native-game-ribbon__wing native-game-ribbon__wing--left">
-          <span />
-          <span className="is-blue" />
-          <span />
+      <div className="native-game-ribbon" aria-label="Turn status">
+        <div className="native-game-ribbon__brand">
+          <strong>270</strong>
+          <span>Elector</span>
         </div>
         <div className="native-game-ribbon__center">
           <span className="native-game-ribbon__turn">Turn {turn}</span>
           <span className="native-game-ribbon__clock">
             {timer.display ?? `${leaderEV}`.padStart(3, '0')}
-          </span>
+            </span>
           {hungColleges > 0 && <span className="native-game-ribbon__hung">{hungColleges} hung</span>}
         </div>
-        <div className="native-game-ribbon__wing native-game-ribbon__wing--right">
-          <span />
-          <span className="is-blue" />
-          <span />
-        </div>
+        <div className="native-game-ribbon__phase">{phase}</div>
       </div>
       <NativeTurnButton ready={ready} />
       <div className="native-game-instruction">{instruction}</div>
@@ -162,14 +156,11 @@ function NativeTopRibbon({ timer, ready, onOptions }: {
 function NativeActionStack({ onOpen }: { onOpen: (sheet: NativeSheet) => void }) {
   return (
     <div className="native-action-stack" aria-label="Game menus">
-      <button type="button" className="native-round-action native-round-action--gold" onClick={() => onOpen('coach')}>
-        <span>Debate</span>
-      </button>
       <button type="button" className="native-round-action" onClick={() => onOpen('national')}>
-        <span>National<br />Groups</span>
+        <span>National Groups</span>
       </button>
       <button type="button" className="native-round-action" onClick={() => onOpen('state')}>
-        <span>State<br />Groups</span>
+        <span>State Groups</span>
       </button>
     </div>
   );
@@ -287,7 +278,6 @@ function NativeGameSheet({
   if (!sheet) return null;
 
   const title = {
-    coach: 'Debate Room',
     national: 'National Groups',
     state: 'State Groups',
     options: 'Options',
@@ -303,12 +293,6 @@ function NativeGameSheet({
             <CloseIcon size={18} />
           </button>
         </div>
-
-        {sheet === 'coach' && (
-          <div className="native-game-sheet__body native-game-sheet__body--coach">
-            <CampaignCoach />
-          </div>
-        )}
 
         {sheet === 'national' && (
           <div className="native-game-sheet__body">
@@ -347,9 +331,6 @@ function NativeGameSheet({
               <button type="button" className="native-game-options__button" onClick={() => { AudioManager.play('confirm'); abortGame(); }}>
                 <CloseIcon size={16} /> Exit Game
               </button>
-            </div>
-            <div className="native-game-options__hint">
-              <HelpIcon size={16} /> Open groups only when you need them to keep the map clear.
             </div>
           </div>
         )}

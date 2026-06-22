@@ -101,6 +101,9 @@ async function assertNativeGameBoard(page, label) {
     };
   });
 
+  const hasDebate = await page.evaluate(() => /\bDebate\b/i.test(document.body.innerText));
+  if (hasDebate) throw new Error(`${label}: native gameplay still shows Debate`);
+
   if (!metrics.map) throw new Error(`${label}: map container not found`);
   if (Math.abs(metrics.map.width - metrics.viewport.width) > 1 || Math.abs(metrics.map.height - metrics.viewport.height) > 1) {
     throw new Error(`${label}: map does not fill viewport ${JSON.stringify(metrics)}`);
@@ -110,14 +113,50 @@ async function assertNativeGameBoard(page, label) {
     throw new Error(`${label}: legacy game chrome is visible ${JSON.stringify(metrics)}`);
   }
 
+  const initialTransform = await page.evaluate(() =>
+    document.querySelector('.rsm-zoomable-group')?.getAttribute('transform')
+      ?? document.querySelector('svg g[transform]')?.getAttribute('transform')
+      ?? '',
+  );
+  await page.click('.map-zoom-btn[aria-label="Zoom in"]');
+  await wait(150);
+  await assertNoDocumentScroll(page, `${label}: zoom in`);
+  const zoomedTransform = await page.evaluate(() =>
+    document.querySelector('.rsm-zoomable-group')?.getAttribute('transform')
+      ?? document.querySelector('svg g[transform]')?.getAttribute('transform')
+      ?? '',
+  );
+  if (zoomedTransform === initialTransform) {
+    throw new Error(`${label}: zoom in did not change map transform`);
+  }
+  await page.click('.map-zoom-btn[aria-label="Reset view"]');
+  await wait(150);
+  await assertNoDocumentScroll(page, `${label}: zoom reset`);
+
   await clickByText(page, '.native-round-action', 'State');
   await page.waitForSelector('.native-game-sheet--state', { timeout: 2_000 });
+  const stateDrawer = await page.evaluate(() => {
+    const r = document.querySelector('.native-game-sheet--state')?.getBoundingClientRect();
+    const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+    return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, viewport } : null;
+  });
+  if (!stateDrawer || stateDrawer.height < stateDrawer.viewport.height * 0.75 || stateDrawer.width > stateDrawer.viewport.width * 0.5) {
+    throw new Error(`${label}: state groups did not open as a side drawer ${JSON.stringify(stateDrawer)}`);
+  }
   await assertNoDocumentScroll(page, `${label}: state groups sheet`);
   await page.click('.native-game-sheet__close');
   await page.waitForSelector('.native-game-sheet--state', { hidden: true, timeout: 2_000 });
 
   await clickByText(page, '.native-round-action', 'National');
   await page.waitForSelector('.native-game-sheet--national', { timeout: 2_000 });
+  const nationalDrawer = await page.evaluate(() => {
+    const r = document.querySelector('.native-game-sheet--national')?.getBoundingClientRect();
+    const viewport = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+    return r ? { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height, viewport } : null;
+  });
+  if (!nationalDrawer || nationalDrawer.height < nationalDrawer.viewport.height * 0.75 || nationalDrawer.width > nationalDrawer.viewport.width * 0.5) {
+    throw new Error(`${label}: national groups did not open as a side drawer ${JSON.stringify(nationalDrawer)}`);
+  }
   await assertNoDocumentScroll(page, `${label}: national groups sheet`);
   await page.click('.native-game-sheet__close');
   await page.waitForSelector('.native-game-sheet--national', { hidden: true, timeout: 2_000 });
