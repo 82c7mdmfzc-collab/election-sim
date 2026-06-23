@@ -97,7 +97,7 @@ export async function scheduleReengagement({ signedIn }: { signedIn: boolean }):
     m.sendNotification({
       id: COMEBACK_ID,
       title: 'The campaign needs you',
-      body: 'Your rivals are gaining ground. Jump back in and race to 270.',
+      body: 'Your rivals are pulling ahead. Jump back in and build influence before Election Night.',
       schedule: scheduleAt(m, atLocalHour(COMEBACK_AFTER_DAYS, NUDGE_HOUR)),
     });
   } catch {

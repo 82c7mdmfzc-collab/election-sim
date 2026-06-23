@@ -9,7 +9,7 @@
  * rungCost = turnBonus * 0.5 per the spec.
  *
  * Economy ($1k units):
- *   nationalCash income:  250/turn flat
+ *   nationalCash income:  240/turn flat
  *   group wallet income:  bonusPayout/turn while dominant
  *   national-group bonus: turnBonus/turn while rung≥5 and leading
  */
@@ -18,7 +18,7 @@ import type { NationalGroup, StateGroup } from './types';
 
 // ── Economy constants ─────────────────────────────────────────────────────────
 
-export const NATIONAL_INCOME = 250;     // per turn, all active players
+export const NATIONAL_INCOME = 240;     // per turn, all active players
 export const WIN_THRESHOLD = 270;
 export const ELECTION_START_TURN = 11;
 export const MEGASTATE_IDS = new Set(['CA', 'FL', 'TX', 'NY']);

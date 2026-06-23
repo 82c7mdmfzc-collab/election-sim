@@ -17,7 +17,7 @@ const LANDING_HOOKS = [
   'Build coalitions, not just majorities.',
   'Every state is a negotiation.',
   'Outspend and outmaneuver your rivals.',
-  'Read your opponent — a clash costs you both.',
+  'Read your opponent — a collision burns you both.',
   'Your candidate, your strategy, your 270.',
 ];
 
@@ -27,7 +27,7 @@ export function Landing({ onContinueAsGuest, primaryLabel = 'Start Solo' }: Land
       <BrandMark />
 
       <div className="landing__hero">
-        <p className="landing__eyebrow">Guided Solo • Pass-and-Play • Online</p>
+        <p className="landing__eyebrow">Solo Campaign • Local Campaign • Online Campaign</p>
         <p className="landing__pitch">
           Start with a practice campaign, learn the map as you play, and race to 270 electoral votes.
         </p>

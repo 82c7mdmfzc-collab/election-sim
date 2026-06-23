@@ -43,7 +43,7 @@ export function turnSummaryLines({
 
   // Newly secured (permanent locks) — the strongest beat, list first.
   for (const ev of report.newlySecured) {
-    lines.push(`🔒 ${nameOf(ev.playerId)} secured ${targetName(ev.kind, ev.targetId)} — locked for good.`);
+    lines.push(`🔒 ${nameOf(ev.playerId)} called ${targetName(ev.kind, ev.targetId)} — Called for good.`);
   }
 
   // Coalition dominance flips. Surface the owner's perspective first (a steal that
@@ -54,13 +54,13 @@ export function turnSummaryLines({
     const after = dominance[gid] ?? null;
     if (before === after) continue;
     if (after === ownerId) {
-      lines.push(`🏛 You now dominate ${gid} — pays income every turn.`);
+      lines.push(`🏛 You now lead the ${gid} Coalition — backing paid every turn.`);
     } else if (before === ownerId) {
-      lines.push(`📉 You lost ${gid} — that earmarked wallet evaporated to $0.`);
+      lines.push(`📉 You lost the ${gid} Coalition — its Reserve collapsed to $0.`);
     } else if (after) {
-      lines.push(`🏛 ${nameOf(after)} now dominates ${gid} — pays income every turn.`);
+      lines.push(`🏛 ${nameOf(after)} now leads the ${gid} Coalition — backing paid every turn.`);
     } else if (before) {
-      lines.push(`📉 ${nameOf(before)} lost ${gid} — that earmarked wallet evaporated to $0.`);
+      lines.push(`📉 ${nameOf(before)} lost the ${gid} Coalition — its Reserve collapsed to $0.`);
     }
   }
 
@@ -71,7 +71,7 @@ export function turnSummaryLines({
   ];
   if (clashed.length > 0) {
     const shown = clashed.slice(0, 3).join(', ');
-    lines.push(`⚠ Clash in ${shown}${clashed.length > 3 ? '…' : ''} — those rungs and the cash were forfeited.`);
+    lines.push(`⚠ Campaign Collision in ${shown}${clashed.length > 3 ? '…' : ''} — Influence Levels and spend burned.`);
   }
 
   return lines;

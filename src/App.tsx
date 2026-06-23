@@ -57,10 +57,10 @@ function dailyBadge(): string | undefined {
 
 const MODES: ModeDef[] = [
   { mode: 'bot',    label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
-  { mode: 'daily',  label: 'Daily',       Icon: TrophyIcon,  chip: 'orange' },
-  { mode: 'single', label: 'Pass & Play', Icon: MonitorIcon, chip: 'blue' },
+  { mode: 'daily',  label: 'Daily Race',  Icon: TrophyIcon,  chip: 'orange' },
+  { mode: 'single', label: 'Local',       Icon: MonitorIcon, chip: 'blue' },
   { mode: 'online', label: 'Online',      Icon: GlobeIcon,   chip: 'orange' },
-  { mode: 'shop',   label: 'Shop',        Icon: CartIcon,    chip: 'blue' },
+  { mode: 'shop',   label: 'Store',       Icon: CartIcon,    chip: 'blue' },
 ];
 
 function appModeToShopSource(mode: AppMode): ShopSource {
@@ -125,7 +125,7 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
       )}
 
       <button type="button" className="home__link" onClick={onTutorial}>
-        How to Play
+        Campaign Guide
       </button>
     </div>
   );

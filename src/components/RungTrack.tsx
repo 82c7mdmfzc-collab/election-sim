@@ -92,8 +92,8 @@ export function RungTrack({
               ].filter(Boolean).join(' ')}
               disabled={!handleClick}
               onClick={handleClick}
-              title={state === 'next' ? `Buy rung ${idx}` : isRetractable ? `Undo rung ${idx}` : `Rung ${idx}`}
-              aria-label={state === 'next' ? `Buy rung ${idx} of ${maxRungs}` : isRetractable ? `Undo rung ${idx}` : `Rung ${idx} of ${maxRungs}`}
+              title={state === 'next' ? `Build Influence Level ${idx}` : isRetractable ? `Undo Influence Level ${idx}` : `Influence Level ${idx}`}
+              aria-label={state === 'next' ? `Build Influence Level ${idx} of ${maxRungs}` : isRetractable ? `Undo Influence Level ${idx}` : `Influence Level ${idx} of ${maxRungs}`}
             />
           );
         })}

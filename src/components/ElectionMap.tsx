@@ -272,12 +272,12 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
         </div>
 
         <div className="state-card__meta">
-          <span className="state-card__tier">{tier} · {maxRungs} rungs</span>
-          <span className="state-card__cost">Base ${usState.baseCampaignCost}k/rung</span>
+          <span className="state-card__tier">{tier} · {maxRungs} Influence Levels</span>
+          <span className="state-card__cost">Base ${usState.baseCampaignCost}k/level</span>
         </div>
 
         {securedName && (
-          <div className="state-card__locked">🔒 Secured by {securedName}</div>
+          <div className="state-card__locked">🔒 Called for {securedName}</div>
         )}
 
         <RungTrack

@@ -47,7 +47,7 @@ export function SecuredToast() {
               animationDelay: `${i * 0.3}s`,
             }}
           >
-            🔒 {player?.name ?? e.playerId} secured {target}!
+            🔒 {player?.name ?? e.playerId} called {target}!
           </div>
         );
       })}

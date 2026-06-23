@@ -96,9 +96,9 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   return (
     <div className="setup native-screen setup--daily">
       <div className="setup__header">
-        <h1 className="setup__title">Daily Challenge</h1>
+        <h1 className="setup__title">Daily Race</h1>
         <p className="setup__sub">
-          Everyone faces the same opposition today. Bring your candidate and post your best result.
+          One map, one bracket, one day. Everyone runs the same opposition — bring your best operation and post your score.
         </p>
 
         <div className="daily__scenario">

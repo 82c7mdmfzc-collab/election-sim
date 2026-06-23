@@ -32,7 +32,7 @@ describe('turnSummaryLines', () => {
       players,
       ownerId: 'p1',
     });
-    expect(lines[0]).toBe('🔒 You secured Georgia — locked for good.');
+    expect(lines[0]).toBe('🔒 You called Georgia — Called for good.');
   });
 
   it('describes a coalition gain and an evaporation', () => {
@@ -43,9 +43,9 @@ describe('turnSummaryLines', () => {
       players,
       ownerId: 'p1',
     });
-    expect(lines).toContain('🏛 You now dominate Latino — pays income every turn.');
+    expect(lines).toContain('🏛 You now lead the Latino Coalition — backing paid every turn.');
     // p1 lost High Tech (before p1, after p2) → owner-perspective evaporation line
-    expect(lines).toContain('📉 You lost High Tech — that earmarked wallet evaporated to $0.');
+    expect(lines).toContain('📉 You lost the High Tech Coalition — its Reserve collapsed to $0.');
   });
 
   it('uses third-person grammar when the owner is not involved', () => {
@@ -56,7 +56,7 @@ describe('turnSummaryLines', () => {
       players,
       ownerId: 'p1',
     });
-    expect(lines).toContain('🏛 Rival now dominates Latino — pays income every turn.');
+    expect(lines).toContain('🏛 Rival now leads the Latino Coalition — backing paid every turn.');
   });
 
   it('summarizes clashes and caps the list', () => {
@@ -69,6 +69,6 @@ describe('turnSummaryLines', () => {
     });
     const clashLine = lines.find((l) => l.startsWith('⚠'));
     expect(clashLine).toContain('Georgia, Texas, Florida…');
-    expect(clashLine).toContain('forfeited');
+    expect(clashLine).toContain('burned');
   });
 });

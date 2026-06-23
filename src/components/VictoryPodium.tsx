@@ -319,11 +319,11 @@ export function VictoryPodium() {
                   <div className="victory-stats">
                     <span><strong>{ev}</strong> EV total</span>
                     {securedStates > 0 && (
-                      <span><strong>{securedStates}</strong> states locked ({securedEV} EV)</span>
+                      <span><strong>{securedStates}</strong> states called ({securedEV} EV)</span>
                     )}
                     <span><strong>${p.nationalCash.toFixed(0)}k</strong> cash remaining</span>
                     {groupsWon > 0 && (
-                      <span><strong>{groupsWon}</strong> group{groupsWon !== 1 ? 's' : ''} dominant</span>
+                      <span><strong>{groupsWon}</strong> coalition{groupsWon !== 1 ? 's' : ''} led</span>
                     )}
                   </div>
                 </div>

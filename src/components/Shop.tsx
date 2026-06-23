@@ -102,7 +102,7 @@ function RewardedAdCard() {
       if (userId) recordLocalAdReward(userId);
       setLocalSnapshot({ userId, status: result.adStatus });
       setLastReward(result.amount);
-      setMessage(`+${result.amount} Funds added.`);
+      setMessage(`+${result.amount} Credits added.`);
       AudioManager.play('victory');
       track('rewarded_ad_claimed', {
         placement: 'shop',
@@ -120,7 +120,7 @@ function RewardedAdCard() {
       });
     } else if (result.status === 'auth_required') {
       setLastReward(null);
-      setMessage('Sign in to earn Campaign Funds from ads.');
+      setMessage('Sign in to earn Campaign Credits from ads.');
     } else {
       setLastReward(null);
       setMessage(result.message);
@@ -152,7 +152,7 @@ function RewardedAdCard() {
 
   async function beginAd() {
     if (guest || !userId) {
-      setMessage('Sign in to earn Campaign Funds from ads.');
+      setMessage('Sign in to earn Campaign Credits from ads.');
       return;
     }
     if (limitReached) {
@@ -198,7 +198,7 @@ function RewardedAdCard() {
     claimStarted.current = false;
     watchedMeta.current = {};
     setPhase('idle');
-    setMessage('Ad cancelled. No Funds claimed.');
+    setMessage('Ad cancelled. No Credits claimed.');
     track('rewarded_ad_cancelled', {
       placement: 'shop',
       provider: 'inline_sponsor',
@@ -221,7 +221,7 @@ function RewardedAdCard() {
         <div>
           <h3 className="rewarded-ad__title">Watch an ad</h3>
           <p className="rewarded-ad__copy">
-            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Funds.
+            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Credits.
           </p>
         </div>
         <span className="rewarded-ad__quota">
@@ -409,16 +409,16 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     <div className="shop native-screen">
       <div className="shop__header">
         <button type="button" className="mp-back native-only" onClick={onBack}>← Back</button>
-        <h1 className="shop__title">Campaign Shop</h1>
+        <h1 className="shop__title">Campaign Store</h1>
         <span className="shop__balance">
           <span className="coin-inline" aria-hidden />
-          {funds.toLocaleString()} Funds
+          {funds.toLocaleString()} Credits
         </span>
       </div>
 
-      <div className="shop__tabs native-only" role="tablist" aria-label="Shop sections">
+      <div className="shop__tabs native-only" role="tablist" aria-label="Store sections">
         {[
-          ['funds', 'Funds'],
+          ['funds', 'Credits'],
           ['recruit', 'Recruit'],
           ['cosmetics', 'Cosmetics'],
           ['earn', 'Earn'],
@@ -438,13 +438,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       </div>
 
       <div className="shop__body">
-        <p className="shop__sub">Win games to earn Campaign Funds, then recruit new candidates to your roster.</p>
+        <p className="shop__sub">Win games to earn Campaign Credits, then recruit new candidates to your roster.</p>
 
         <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}`}>
           {showPaidFunds && (
             <>
-              <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Campaign Funds</h2>
-              <p className="shop__sub">Top up instantly to recruit candidates faster.</p>
+              <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Get Campaign Credits</h2>
+              <p className="shop__sub">Top up instantly to unlock new campaign styles faster.</p>
             </>
           )}
           {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
@@ -464,7 +464,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                     <span className="coin-inline coin-inline--large" aria-hidden />
                     {b.funds.toLocaleString()}
                   </div>
-                  <div className="funds-card__label">Campaign Funds</div>
+                  <div className="funds-card__label">Campaign Credits</div>
                   <button
                     type="button"
                     className="funds-card__buy"
@@ -477,16 +477,16 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
               ))}
             </div>
           ) : nativeBillingHeld ? (
-            <p className="shop__sub">Campaign Funds purchases are not available in this build.</p>
+            <p className="shop__sub">Campaign Credits purchases are not available in this build.</p>
           ) : (
-            <p className="shop__sub">Campaign Funds purchases are available in the native app build.</p>
+            <p className="shop__sub">Campaign Credits purchases are available in the native app build.</p>
           )}
         </section>
 
         <section className={`shop__pane shop__pane--earn${tab === 'earn' ? ' is-active' : ''}`}>
           {showAdRewards && (
             <>
-              <h2 className="shop__section">Earn Campaign Funds</h2>
+              <h2 className="shop__section">Earn Campaign Credits</h2>
               <RewardedAdCard />
             </>
           )}
@@ -530,8 +530,8 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                           {busy === c.id
                             ? 'Unlocking…'
                             : affordable
-                              ? `Unlock — ${c.unlockCost.toLocaleString()} Funds`
-                              : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Funds`}
+                              ? `Unlock — ${c.unlockCost.toLocaleString()} Credits`
+                              : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Credits`}
                         </button>
                         {!affordable && (
                           <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>

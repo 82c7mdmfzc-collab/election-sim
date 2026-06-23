@@ -58,12 +58,12 @@ describe('share-card SVG', () => {
 describe('dramaticEvent', () => {
   it('summarizes a win with secured states and coalitions', () => {
     expect(dramaticEvent({ winnerName: 'X', secured: 12, coalitions: 3 }))
-      .toBe('🔒 12 states secured · 🏛 3 coalitions');
+      .toBe('🔒 12 states called · 🏛 3 coalitions');
   });
 
   it('uses singular grammar for one of each', () => {
     expect(dramaticEvent({ winnerName: 'X', secured: 1, coalitions: 1 }))
-      .toBe('🔒 1 state secured · 🏛 1 coalition');
+      .toBe('🔒 1 state called · 🏛 1 coalition');
   });
 
   it('falls back to a generic line when there is no standout', () => {
@@ -73,6 +73,6 @@ describe('dramaticEvent', () => {
 
   it('handles a hung Electoral College', () => {
     expect(dramaticEvent({ winnerName: null, secured: 0, coalitions: 0 }))
-      .toBe('No majority — a hung Electoral College');
+      .toBe('No majority — Deadlocked Election');
   });
 });

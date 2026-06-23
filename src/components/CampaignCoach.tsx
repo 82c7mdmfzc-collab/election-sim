@@ -60,42 +60,42 @@ export function CampaignCoach() {
 
   if (electionChance > 0 && projectedEV >= 220) {
     title = 'Election Clock';
-    body = 'The vote can fire now. Secure your best states and keep enough cash for a tiebreak if nobody reaches 270.';
+    body = 'The vote can fire now. Call your best states and keep enough War Chest for a tiebreak if nobody reaches 270.';
     accent = `${Math.round(electionChance * 100)}% election`;
   } else if (turn >= ELECTION_START_TURN - 1 && projectedEV >= 160) {
     title = 'Line Up 270';
-    body = 'Election night starts soon. Count the states that close your gap and stop spending on lanes that do not matter.';
+    body = 'Election Night starts soon. Map the states that close your gap and stop spending on lanes that do not matter.';
     accent = `${projectedEV}/270 EV`;
   } else if (pendingRungs > 0) {
     title = 'Turn Ready';
-    body = `${pendingRungs} rung${pendingRungs === 1 ? '' : 's'} queued across ${hasStatePending && hasNationalPending ? 'states and national groups' : hasNationalPending ? 'national groups' : 'states'}. Resolve, then watch clashes, income, and new leads.`;
+    body = `${pendingRungs} Influence Level${pendingRungs === 1 ? '' : 's'} queued across ${hasStatePending && hasNationalPending ? 'states and network tracks' : hasNationalPending ? 'network tracks' : 'states'}. Resolve, then watch collisions, income, and new leads.`;
     accent = 'Resolve';
   } else if (turn === 1) {
-    body = 'Tap a state to campaign, then tap a rung to buy it — each rung costs more as you climb, and reaching the top alone SECURES that state for good. Open a state for EV and a national ladder for flexible cash.';
+    body = 'Tap a state to build influence — each level costs more as you climb. Reach full influence alone and that state is CALLED for good. Establish a foothold in a state and a network for flexible War Chest funds.';
     accent = 'State + national';
   } else if (dominatedGroups.length === 0 && turn > 1) {
-    title = 'Build State-Group Income';
-    body = 'Lead enough EV inside one state group to dominate it. That earmarked wallet pays every turn and funds the same group later.';
+    title = 'Build Coalition Income';
+    body = 'Lead enough EV inside one Coalition to control it. That Coalition Reserve pays every turn and funds the same lanes later.';
     accent = 'State group';
   } else if (earningNationalGroups.length === 0 && turn > 1) {
-    title = 'Claim Flexible Cash';
-    body = 'National groups are side ladders. Lead one with 4+ rungs to earn flexible national cash that spends anywhere.';
+    title = 'Claim War Chest Funds';
+    body = 'Network tracks are side battles. Lead one with 4+ Influence Levels to earn War Chest funds that spend anywhere.';
     accent = 'National group';
   } else if (projectedEV < 180) {
     title = 'Convert Income Into EV';
-    body = 'Use state-group wallets for their states and national-group cash for flexible attacks. The election clock starts on turn 11.';
+    body = `Use Coalition Reserves for their states and network funds for flexible attacks. Election Night pressure starts on Turn ${ELECTION_START_TURN}.`;
     accent = `${projectedEV}/270 EV`;
   } else {
     title = 'Close The Map';
-    body = 'You have a path. Secure states, protect income, and keep cash for the election tiebreak.';
+    body = 'You have a path. Call key states, protect your Coalitions, and keep War Chest for the Election Night tiebreak.';
     accent = `${projectedEV}/270 EV`;
   }
 
   const goals = [
-    { label: 'Queue rungs', done: pendingRungs > 0 || turn > 1 },
-    { label: 'Dominate state group', done: dominatedGroups.length > 0 },
-    { label: 'Earn national cash', done: earningNationalGroups.length > 0 },
-    { label: 'Secure a state', done: securedStates > 0 },
+    { label: 'Queue influence', done: pendingRungs > 0 || turn > 1 },
+    { label: 'Lead a Coalition', done: dominatedGroups.length > 0 },
+    { label: 'Earn network funds', done: earningNationalGroups.length > 0 },
+    { label: 'Call a state', done: securedStates > 0 },
     { label: 'Reach 270', done: projectedEV >= 270 },
   ];
 
