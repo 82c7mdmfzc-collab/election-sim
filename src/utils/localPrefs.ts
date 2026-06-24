@@ -23,6 +23,12 @@ export interface DailyChallengeLocal {
 export interface LocalPrefs {
   tutorialSeen: boolean;
   muted: boolean;
+  sfxMuted: boolean;
+  musicMuted: boolean;
+  /** SFX volume 0–100. */
+  sfxVolume: number;
+  /** Music volume 0–100. */
+  musicVolume: number;
   /** gameId of the most recent game whose reward was already granted (idempotency). */
   lastAwardedGameId: string | null;
   /** Equipped victory-message cosmetic id (see game/victoryMessages.ts). */
@@ -51,6 +57,10 @@ const DEFAULT_DAILY_CHALLENGE: DailyChallengeLocal = {
 const DEFAULTS: LocalPrefs = {
   tutorialSeen: false,
   muted: false,
+  sfxMuted: false,
+  musicMuted: false,
+  sfxVolume: 80,
+  musicVolume: 60,
   lastAwardedGameId: null,
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
   selectedShareFrame: 'midnight', // DEFAULT_SHARE_FRAME_ID
@@ -85,6 +95,14 @@ export const isTutorialSeen = () => getPrefs().tutorialSeen;
 export const markTutorialSeen = () => setPrefs({ tutorialSeen: true });
 export const isMuted = () => getPrefs().muted;
 export const setMuted = (muted: boolean) => setPrefs({ muted });
+export const isSfxMuted = () => getPrefs().sfxMuted;
+export const setSfxMuted = (sfxMuted: boolean) => setPrefs({ sfxMuted });
+export const isMusicMuted = () => getPrefs().musicMuted;
+export const setMusicMuted = (musicMuted: boolean) => setPrefs({ musicMuted });
+export const getSfxVolume = () => getPrefs().sfxVolume;
+export const setSfxVolumeLevel = (sfxVolume: number) => setPrefs({ sfxVolume });
+export const getMusicVolume = () => getPrefs().musicVolume;
+export const setMusicVolumeLevel = (musicVolume: number) => setPrefs({ musicVolume });
 export const getLastAwardedGameId = () => getPrefs().lastAwardedGameId;
 export const setLastAwardedGameId = (lastAwardedGameId: string) => setPrefs({ lastAwardedGameId });
 export const getSelectedVictoryMessage = () => getPrefs().selectedVictoryMessage;

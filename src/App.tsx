@@ -74,6 +74,8 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
 }) {
   const funds = useProfile(selectFunds);
   const signedIn = useProfile(selectIsSignedIn);
+  const native = isNativeRuntime();
+  const [progressOpen, setProgressOpen] = useState(false);
   return (
     <div className="home">
       <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
@@ -101,7 +103,7 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
 
       <div className="home__modes">
         {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
-          const b = mode === 'daily' ? dailyBadge() : badge;
+          const b = native && signedIn && mode === 'daily' ? undefined : (mode === 'daily' ? dailyBadge() : badge);
           return (
             <button
               key={mode}
@@ -118,10 +120,30 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
       </div>
 
       {signedIn && (
-        <div className="home__progress">
-          <ProgressPanel compact showAll={false} />
-          <NextChallengeHint />
-        </div>
+        native ? (
+          <div className="home__progress-native">
+            <button
+              type="button"
+              className="home__progress-toggle"
+              aria-expanded={progressOpen}
+              onClick={() => { AudioManager.play('click'); setProgressOpen((o) => !o); }}
+            >
+              Your progress
+              <span className="home__progress-chevron" aria-hidden>{progressOpen ? '▴' : '▾'}</span>
+            </button>
+            {progressOpen && (
+              <div className="home__progress-panel">
+                <ProgressPanel compact showAll={false} />
+                <NextChallengeHint />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="home__progress">
+            <ProgressPanel compact showAll={false} />
+            <NextChallengeHint />
+          </div>
+        )
       )}
 
       <button type="button" className="home__link" onClick={onTutorial}>

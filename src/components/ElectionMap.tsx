@@ -29,6 +29,8 @@ import {
 } from '../game/store';
 import type { StateId, US_State } from '../game/types';
 import { AudioManager } from '../utils/audioManager';
+import { notifyError } from '../utils/toast';
+import { friendlyAllocError } from '../game/allocErrors';
 import { RungTrack } from './RungTrack';
 
 // ── Module-level stable lookups ───────────────────────────────────────────────
@@ -245,6 +247,12 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
   const tier = maxRungs === 16 ? 'Megastate' : maxRungs === 8 ? 'Small' : 'Mid-Tier';
   const canBuy = interactive && phase === 'PLANNING' && !!activePlayer && !securedById;
 
+  function tryBuy(): boolean {
+    const r = allocate('state', stateId, 1);
+    if (!r.ok) notifyError(friendlyAllocError(r.reason));
+    return r.ok;
+  }
+
   const discount = activePlayer ? bestAffinityForState(activePlayer, stateId) : 0;
   const settled = activePlayer ? (rungs[activePlayer.id] ?? 0) : 0;
   const nextRungCost = activePlayer
@@ -287,7 +295,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
           activePlayerId={activePlayer?.id ?? null}
           colors={colors}
           securedBy={securedById}
-          onBuyNext={canBuy ? () => allocate('state', stateId, 1) : undefined}
+          onBuyNext={canBuy ? tryBuy : undefined}
           onRetractLast={canBuy && pendingRungs > 0 ? () => retractLastAllocation('state', stateId) : undefined}
         />
 
@@ -342,7 +350,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
               <button
                 type="button"
                 className="state-card__buy-btn"
-                onClick={() => { AudioManager.play('buy'); allocate('state', stateId, 1); }}
+                onClick={() => { if (!tryBuy()) AudioManager.play('clash'); else AudioManager.play('buy'); }}
               >
                 Buy rung →
               </button>

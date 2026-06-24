@@ -79,7 +79,7 @@ function useResolutionStage(hasClash: boolean): Stage {
   return stage;
 }
 
-function ResolutionView() {
+export function ResolutionRecap({ className }: { className?: string }) {
   const turn = useGameStore((s) => s.turn);
   const hungColleges = useGameStore((s) => s.hungColleges);
   const players = useGameStore((s) => s.players);
@@ -116,12 +116,12 @@ function ResolutionView() {
   const active = players.filter((p) => !p.eliminated);
 
   return (
-    <div className="resolution">
-      <div className="resolution__title">Campaign Report — Turn {turn}</div>
+    <div className={['resolution', className].filter(Boolean).join(' ')}>
+      <div className="resolution__title">Turn {turn} results</div>
 
       {clashes.length > 0 && (stage === 'clash' || stage === 'income' || stage === 'done') && (
         <div className={`resolution__clash${stage === 'clash' ? ' is-active' : ''}`}>
-          <span className="resolution__clash-label">⚠ COLLISION</span>
+          <span className="resolution__clash-label">Collision</span>
           {clashes.map((c) => (
             <span key={c} className="clash-chip">{c} — spend burned</span>
           ))}
@@ -154,13 +154,17 @@ function ResolutionView() {
       <div className="resolution__foot">
         <span className="resolution__chance">
           {electionChance > 0
-            ? `Projection Pressure: ${Math.round(electionChance * 100)}%`
-            : `Election Night begins from Turn ${ELECTION_START_TURN}`}
+            ? `Election chance: ${Math.round(electionChance * 100)}%`
+            : `Election Night from Turn ${ELECTION_START_TURN}`}
         </span>
         <HostOnlyResolutionButton ready={ready} turn={turn} onConfirm={confirmResolution} />
       </div>
     </div>
   );
+}
+
+function ResolutionView() {
+  return <ResolutionRecap />;
 }
 
 function PlanningControls() {

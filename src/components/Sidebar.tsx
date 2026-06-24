@@ -20,6 +20,8 @@ import type { NationalGroup } from '../game/types';
 import { isPlayerBlocked } from '../utils/localPrefs';
 import { RungTrack } from './RungTrack';
 import { PlayerProfileModal } from './PlayerProfileModal';
+import { notifyError } from '../utils/toast';
+import { friendlyAllocError } from '../game/allocErrors';
 
 const TOTAL_GROUP_EV = STATE_GROUPS.reduce((s, g) => s + g.totalEV, 0);
 
@@ -54,6 +56,12 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   const payout = Math.round(group.turnBonus * (1 + payoutMod));
   const canBuy = phase === 'PLANNING' && !!activePlayer && !securedBy;
 
+  function tryBuy(): boolean {
+    const r = allocate('national', group.id, 1);
+    if (!r.ok) notifyError(friendlyAllocError(r.reason));
+    return r.ok;
+  }
+
   return (
     <div className="nat-ladder">
       <div className="nat-ladder__head">
@@ -77,7 +85,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         activePlayerId={activePlayer?.id ?? null}
         colors={colors}
         securedBy={securedBy}
-        onBuyNext={canBuy ? () => allocate('national', group.id, 1) : undefined}
+        onBuyNext={canBuy ? tryBuy : undefined}
         onRetractLast={canBuy && pending > 0 ? () => retractLastAllocation('national', group.id) : undefined}
       />
 

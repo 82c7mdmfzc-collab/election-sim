@@ -98,7 +98,7 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
               <span className="wallet-cell__name">{g.id}</span>
               <WalletBalance value={bal} />
               {isDominant && <span className="wallet-cell__tag">+${g.bonusPayout}k/turn</span>}
-              {evaporated && <span className="wallet-cell__evap">RESERVE COLLAPSED</span>}
+              {evaporated && <span className="wallet-cell__evap">Reserve collapsed</span>}
             </div>
           );
         })}

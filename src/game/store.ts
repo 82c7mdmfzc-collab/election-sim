@@ -124,7 +124,7 @@ interface GameStore extends GameState {
    * date seed. Reuses startGame, then flags the game as the daily challenge.
    */
   startDailyChallenge(playerCandidate: CandidateDef, dateKey: string): void;
-  allocate(kind: 'state' | 'national', targetId: string, rungs: number): boolean;
+  allocate(kind: 'state' | 'national', targetId: string, rungs: number): { ok: boolean; reason?: string };
   cancelAllocation(kind: 'state' | 'national', targetId: string): void;
   /** Retract just the most-recently queued rung for a target (refunds it). */
   retractLastAllocation(kind: 'state' | 'national', targetId: string): void;
@@ -348,13 +348,13 @@ export const useGameStore = create<GameStore>()(
         // ── allocate ──────────────────────────────────────────────────────────
         allocate(kind, targetId, rungs) {
           const snap = get();
-          if (snap.phase !== 'PLANNING') return false;
+          if (snap.phase !== 'PLANNING') return { ok: false };
 
           const player = localPlayer(snap);
-          if (!player) return false;
+          if (!player) return { ok: false };
 
           const wc = snap.workingCash[player.id];
-          if (!wc) return false;
+          if (!wc) return { ok: false };
 
           const startRung =
             kind === 'state'
@@ -365,18 +365,17 @@ export const useGameStore = create<GameStore>()(
             (p) => p.targetId === targetId,
           );
           const pendingRungs = pendingForTarget.reduce((s, p) => s + p.rungs, 0);
-          const pendingCost = (snap.pendingByPlayer[player.id] ?? []).reduce(
-            (s, p) => s + p.cost,
-            0,
-          );
-
           const playerProxy: PlayerState = {
             ...player,
             nationalCash: wc.nationalCash,
             groupWallets: wc.groupWallets,
           };
 
-          const err = validatePurchase(playerProxy, pendingCost, {
+          // workingCash already nets out every pending purchase queued this turn,
+          // so the proxy above reflects post-pending balances. Pass 0 here —
+          // passing the pending-cost sum again would double-count it and wrongly
+          // reject affordable buys. Matches the server resolver (lobbySecurity.ts).
+          const err = validatePurchase(playerProxy, 0, {
             kind,
             targetId,
             rungsToBuy: rungs,
@@ -385,7 +384,7 @@ export const useGameStore = create<GameStore>()(
           });
           if (err) {
             console.warn('allocate rejected:', err.reason);
-            return false;
+            return { ok: false, reason: err.reason };
           }
 
           let cost: number;
@@ -396,7 +395,7 @@ export const useGameStore = create<GameStore>()(
             const discount = bestAffinityForState(playerProxy, targetId);
             cost = calcStateCost(targetId, usState.baseCampaignCost, startRung + pendingRungs, rungs, discount);
             const split = computeWalletSplit(playerProxy, targetId, cost);
-            if (!split) return false;
+            if (!split) return { ok: false, reason: 'Insufficient funds.' };
             walletDraw = split.walletDraw;
           } else {
             cost = calcNationalCost(targetId, startRung + pendingRungs, rungs, playerProxy);
@@ -424,7 +423,7 @@ export const useGameStore = create<GameStore>()(
             },
             workingCash: { ...s.workingCash, [player.id]: nextWc },
           }));
-          return true;
+          return { ok: true };
         },
 
         // ── cancelAllocation ─────────────────────────────────────────────────

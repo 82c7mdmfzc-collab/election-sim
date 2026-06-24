@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CANDIDATE_MAP, groupImageUrl } from '../game/candidates';
+import { CANDIDATE_MAP } from '../game/candidates';
 import { STATE_GROUPS } from '../game/config';
 import { groupDominanceProgress } from '../game/engine';
 import {
@@ -12,14 +12,17 @@ import {
 } from '../game/store';
 import type { TurnTimerState } from '../game/useTurnTimer';
 import { AudioManager } from '../utils/audioManager';
+import { CampaignCoach } from './CampaignCoach';
 import { HelpButton } from './HelpButton';
-import { MuteButton } from './MuteButton';
+import { SfxVolumeBar, MusicVolumeBar } from './MuteButton';
 import { PlayerProfileModal } from './PlayerProfileModal';
 import { Portrait } from './Portrait';
+import { ResolutionRecap } from './PhaseFooter';
 import { Sidebar } from './Sidebar';
+import { WalletDrawer } from './WalletDrawer';
 import { CloseIcon } from './icons';
 
-type NativeSheet = 'national' | 'state' | 'options' | null;
+type NativeSheet = 'national' | 'state' | 'options' | 'wallet' | null;
 
 interface NativeGameHudProps {
   timer: TurnTimerState;
@@ -27,33 +30,21 @@ interface NativeGameHudProps {
   onHighlightGroup: (id: string | null) => void;
 }
 
-function useResolutionReady(): boolean {
-  const phase = useGameStore((s) => s.phase);
-  const turn = useGameStore((s) => s.turn);
-  const report = useGameStore((s) => s.lastTurnReport);
-  const clashCount = (report?.clashedStates.length ?? 0) + (report?.clashedNational.length ?? 0);
-  const readyKey = phase === 'RESOLUTION' ? `${turn}:${clashCount}` : null;
-  const [settledKey, setSettledKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!readyKey) return;
-    const t = window.setTimeout(() => setSettledKey(readyKey), clashCount > 0 ? 2700 : 1700);
-    return () => window.clearTimeout(t);
-  }, [readyKey, clashCount]);
-
-  return !readyKey || settledKey === readyKey;
+function phaseLabel(phase: string): string {
+  if (phase === 'PLANNING') return 'Your turn';
+  if (phase === 'RESOLUTION') return 'Turn results';
+  if (phase === 'ELECTION') return 'Election';
+  return phase;
 }
 
-function NativeTurnButton({ ready }: { ready: boolean }) {
+function NativeTurnButton() {
   const phase = useGameStore((s) => s.phase);
   const players = useGameStore((s) => s.players);
   const activeIndex = useGameStore((s) => s.activePlayerIndex);
   const multiplayerMode = useGameStore((s) => s.multiplayerMode);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
-  const hostPlayerId = useGameStore((s) => s.hostPlayerId);
   const submittedPlayers = useGameStore((s) => s.submittedPlayers);
   const submitTurn = useGameStore((s) => s.submitTurn);
-  const confirmResolution = useGameStore((s) => s.confirmResolution);
 
   const active = players.filter((p) => !p.eliminated);
   const isLast = activeIndex >= active.length - 1;
@@ -61,24 +52,8 @@ function NativeTurnButton({ ready }: { ready: boolean }) {
     multiplayerMode === 'online' &&
     !!localPlayerId &&
     submittedPlayers.includes(localPlayerId);
-  const isHostOrSingle = multiplayerMode === 'single' || localPlayerId === hostPlayerId;
 
-  if (phase === 'RESOLUTION') {
-    return (
-      <button
-        type="button"
-        className="native-turn-button"
-        disabled={!ready || !isHostOrSingle}
-        onClick={() => {
-          if (!ready || !isHostOrSingle) return;
-          AudioManager.play('confirm');
-          confirmResolution();
-        }}
-      >
-        {isHostOrSingle ? (ready ? 'Next' : 'Wait') : 'Host'}
-      </button>
-    );
-  }
+  if (phase === 'RESOLUTION') return null;
 
   return (
     <button
@@ -98,23 +73,24 @@ function NativeTurnButton({ ready }: { ready: boolean }) {
   );
 }
 
-function NativeTopRibbon({ timer, ready, onOptions }: {
+function NativeTopRibbon({ timer, onOptions }: {
   timer: TurnTimerState;
-  ready: boolean;
   onOptions: () => void;
 }) {
   const turn = useGameStore((s) => s.turn);
   const phase = useGameStore((s) => s.phase);
   const hungColleges = useGameStore((s) => s.hungColleges);
+  const tickerDone = useGameStore((s) => s.resolutionTickerDone);
   const abortGame = useGameStore((s) => s.abortGame);
   const result = useElectoralResult();
 
   const leaderEV = Math.max(0, ...Object.values(result.evByPlayer));
+  const showInstruction = phase === 'PLANNING' || (phase === 'RESOLUTION' && !tickerDone);
   const instruction =
     phase === 'RESOLUTION'
-      ? 'Resolving campaign moves'
+      ? 'Reviewing moves'
       : phase === 'PLANNING'
-        ? 'Choose states to spend your funds'
+        ? 'Tap a state to spend funds'
         : 'Election in progress';
 
   return (
@@ -143,13 +119,15 @@ function NativeTopRibbon({ timer, ready, onOptions }: {
           <span className="native-game-ribbon__turn">Turn {turn}</span>
           <span className="native-game-ribbon__clock">
             {timer.display ?? `${leaderEV}`.padStart(3, '0')}
-            </span>
+          </span>
           {hungColleges > 0 && <span className="native-game-ribbon__hung">{hungColleges} hung</span>}
         </div>
-        <div className="native-game-ribbon__phase">{phase}</div>
+        <div className="native-game-ribbon__phase">{phaseLabel(phase)}</div>
       </div>
-      <NativeTurnButton ready={ready} />
-      <div className="native-game-instruction">{instruction}</div>
+      <NativeTurnButton />
+      {showInstruction && (
+        <div className="native-game-instruction">{instruction}</div>
+      )}
     </>
   );
 }
@@ -158,16 +136,23 @@ function NativeActionStack({ onOpen }: { onOpen: (sheet: NativeSheet) => void })
   return (
     <div className="native-action-stack" aria-label="Game menus">
       <button type="button" className="native-round-action" onClick={() => onOpen('national')}>
-        <span>National Groups</span>
+        <span>National</span>
       </button>
       <button type="button" className="native-round-action" onClick={() => onOpen('state')}>
-        <span>State Groups</span>
+        <span>Coalitions</span>
       </button>
     </div>
   );
 }
 
-function NativePlayerTray({ onOpenProfile }: { onOpenProfile: (playerId: string) => void }) {
+function NativePlayerTray({
+  onOpenProfile,
+  onOpenWallet,
+}: {
+  onOpenProfile: (playerId: string) => void;
+  onOpenWallet: () => void;
+}) {
+  const phase = useGameStore((s) => s.phase);
   const players = useGameStore((s) => s.players);
   const activePlayer = useActivePlayer();
   const pending = useActivePending();
@@ -175,11 +160,6 @@ function NativePlayerTray({ onOpenProfile }: { onOpenProfile: (playerId: string)
   const result = useElectoralResult();
   const colors = usePlayerColors();
   const cancelAllocation = useGameStore((s) => s.cancelAllocation);
-  const groupWallets = useGameStore((s) =>
-    activePlayer
-      ? (s.workingCash[activePlayer.id]?.groupWallets ?? activePlayer.groupWallets)
-      : null,
-  );
 
   const active = players.filter((p) => !p.eliminated);
   const opponents = active.filter((p) => p.id !== activePlayer?.id);
@@ -198,7 +178,7 @@ function NativePlayerTray({ onOpenProfile }: { onOpenProfile: (playerId: string)
     [pending],
   );
 
-  if (!activePlayer || !candidate) return null;
+  if (!activePlayer || !candidate || phase !== 'PLANNING') return null;
 
   return (
     <div className="native-player-dock">
@@ -209,13 +189,12 @@ function NativePlayerTray({ onOpenProfile }: { onOpenProfile: (playerId: string)
             <button
               type="button"
               key={p.id}
-              className="native-opponent-chip"
+              className="native-opponent-chip native-opponent-chip--avatar"
               style={{ ['--p-color' as string]: colors[p.id]?.hex }}
               onClick={() => { AudioManager.play('click'); onOpenProfile(p.id); }}
-              title={`View ${p.name}`}
+              title={`${p.name} · ${result.evByPlayer[p.id] ?? 0} EV`}
+              aria-label={`View ${p.name}`}
             >
-              <span>{result.evByPlayer[p.id] ?? 0}</span>
-              <strong>${p.nationalCash.toFixed(0)}k</strong>
               <Portrait
                 className="native-opponent-chip__portrait"
                 src={c?.portraitUrl ?? ''}
@@ -231,7 +210,14 @@ function NativePlayerTray({ onOpenProfile }: { onOpenProfile: (playerId: string)
         type="button"
         className="native-active-tray"
         style={{ ['--p-color' as string]: colors[activePlayer.id]?.hex }}
-        onClick={() => { AudioManager.play('click'); onOpenProfile(activePlayer.id); }}
+        onClick={(e) => {
+          AudioManager.play('click');
+          if ((e.target as HTMLElement).closest('.native-active-tray__cash')) {
+            onOpenWallet();
+          } else {
+            onOpenProfile(activePlayer.id);
+          }
+        }}
         title={`View ${activePlayer.name}`}
       >
         <div className="native-active-tray__score">
@@ -246,29 +232,28 @@ function NativePlayerTray({ onOpenProfile }: { onOpenProfile: (playerId: string)
             name={activePlayer.name}
           />
         </div>
-        <div className="native-active-tray__cash">
+        <div
+          className="native-active-tray__cash"
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            AudioManager.play('click');
+            onOpenWallet();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+              AudioManager.play('click');
+              onOpenWallet();
+            }
+          }}
+        >
           <span>{activePlayer.name}</span>
           <strong>${cash.toFixed(0)}k</strong>
           {totalCommitted > 0 && <em>${totalCommitted.toFixed(0)}k queued</em>}
         </div>
       </button>
-
-      <div className="native-group-wallets" aria-label="State group cash balances">
-        {STATE_GROUPS.map((group) => (
-          <span key={group.id} className="native-group-wallet">
-            <img
-              src={groupImageUrl('state', group.id)}
-              alt=""
-              draggable={false}
-              loading="lazy"
-              decoding="async"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-            <span className="native-group-wallet__name">{group.id}</span>
-            <strong>${(groupWallets?.[group.id] ?? 0).toFixed(0)}k</strong>
-          </span>
-        ))}
-      </div>
 
       <div className="native-alloc-rail" aria-label="Queued allocations">
         {chips.length === 0 ? (
@@ -343,15 +328,6 @@ function NativeStateGroupProgressList({
             }}
             onClick={() => onHighlightGroup(active ? null : group.id)}
           >
-            <img
-              className="native-sg-row__icon"
-              src={groupImageUrl('state', group.id)}
-              alt=""
-              draggable={false}
-              loading="lazy"
-              decoding="async"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
             <span className="native-sg-row__name">{group.id}</span>
             <span className="native-sg-row__cash">+${group.bonusPayout}k/turn</span>
             <strong className="native-sg-row__wallet">${(groupWallets?.[group.id] ?? 0).toFixed(0)}k</strong>
@@ -372,20 +348,24 @@ function NativeGameSheet({
   onClose,
   highlightedGroupId,
   onHighlightGroup,
+  walletPlayerId,
 }: {
   sheet: NativeSheet;
   onClose: () => void;
   highlightedGroupId: string | null;
   onHighlightGroup: (id: string | null) => void;
+  walletPlayerId: string | null;
 }) {
   const abortGame = useGameStore((s) => s.abortGame);
+  const colors = usePlayerColors();
 
   if (!sheet) return null;
 
   const title = {
     national: 'National Groups',
-    state: 'State Groups',
+    state: 'State Coalitions',
     options: 'Options',
+    wallet: 'Coalition Reserves',
   }[sheet];
 
   return (
@@ -417,10 +397,21 @@ function NativeGameSheet({
           </div>
         )}
 
+        {sheet === 'wallet' && walletPlayerId && (
+          <div className="native-game-sheet__body native-game-sheet__body--wallet">
+            <WalletDrawer
+              playerId={walletPlayerId}
+              color={colors[walletPlayerId]}
+              onClose={onClose}
+            />
+          </div>
+        )}
+
         {sheet === 'options' && (
           <div className="native-game-sheet__body native-game-options">
+            <SfxVolumeBar />
+            <MusicVolumeBar />
             <div className="native-game-options__row">
-              <MuteButton />
               <HelpButton />
               <button type="button" className="native-game-options__button" onClick={() => { AudioManager.play('confirm'); abortGame(); }}>
                 <CloseIcon size={16} /> Exit Game
@@ -433,26 +424,71 @@ function NativeGameSheet({
   );
 }
 
+function NativeResolutionSheet() {
+  const phase = useGameStore((s) => s.phase);
+  const tickerDone = useGameStore((s) => s.resolutionTickerDone);
+
+  if (phase !== 'RESOLUTION' || !tickerDone) return null;
+
+  return (
+    <>
+      <div className="native-resolution-backdrop" aria-hidden />
+      <section className="native-resolution-sheet" aria-label="Turn results">
+        <ResolutionRecap className="resolution--native-sheet" />
+      </section>
+    </>
+  );
+}
+
 export function NativeGameHud({ timer, highlightedGroupId, onHighlightGroup }: NativeGameHudProps) {
+  const phase = useGameStore((s) => s.phase);
+  const activePlayer = useActivePlayer();
   const [sheet, setSheet] = useState<NativeSheet>(null);
   const [profilePlayerId, setProfilePlayerId] = useState<string | null>(null);
-  const ready = useResolutionReady();
+
+  // Start/stop background music when the game becomes active or ends.
+  const isGameActive = phase !== 'SETUP' && phase !== 'MENU' && phase !== 'GAME_OVER';
+  useEffect(() => {
+    if (isGameActive) {
+      AudioManager.play('music', true);
+    } else {
+      AudioManager.stop('music');
+    }
+    return () => { AudioManager.stop('music'); };
+  }, [isGameActive]);
 
   function openSheet(next: NativeSheet) {
     AudioManager.play('click');
     setSheet((current) => (current === next ? null : next));
   }
 
+  function closeSheet() {
+    AudioManager.play('quit');
+    setSheet(null);
+  }
+
   return (
     <div className="native-game-hud native-only">
-      <NativeTopRibbon timer={timer} ready={ready} onOptions={() => openSheet('options')} />
-      <NativeActionStack onOpen={openSheet} />
-      <NativePlayerTray onOpenProfile={setProfilePlayerId} />
+      <NativeTopRibbon timer={timer} onOptions={() => openSheet('options')} />
+      {phase === 'PLANNING' && (
+        <>
+          <div className="native-coach-banner">
+            <CampaignCoach />
+          </div>
+          <NativeActionStack onOpen={openSheet} />
+          <NativePlayerTray
+            onOpenProfile={setProfilePlayerId}
+            onOpenWallet={() => openSheet('wallet')}
+          />
+        </>
+      )}
+      <NativeResolutionSheet />
       <NativeGameSheet
         sheet={sheet}
-        onClose={() => { AudioManager.play('quit'); setSheet(null); }}
+        onClose={closeSheet}
         highlightedGroupId={highlightedGroupId}
         onHighlightGroup={onHighlightGroup}
+        walletPlayerId={activePlayer?.id ?? null}
       />
       {profilePlayerId && (
         <PlayerProfileModal

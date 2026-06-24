@@ -12,6 +12,7 @@ import { CANDIDATE_MAP } from '../game/candidates';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { blockPlayer, isPlayerBlocked, unblockPlayer } from '../utils/localPrefs';
+import { isNativeRuntime } from '../utils/platform';
 import { Avatar } from './Avatar';
 
 interface Props {
@@ -198,11 +199,12 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
           </div>
         )}
 
-        {/* Badges — placeholder */}
-        <div className="profile-modal__section">
-          <div className="profile-modal__section-title">Badges</div>
-          <div className="profile-badge-placeholder">Coming soon</div>
-        </div>
+        {!isNativeRuntime() && (
+          <div className="profile-modal__section">
+            <div className="profile-modal__section-title">Badges</div>
+            <div className="profile-badge-placeholder">Coming soon</div>
+          </div>
+        )}
       </div>
     </div>
   );

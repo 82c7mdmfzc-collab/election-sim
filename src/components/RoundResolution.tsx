@@ -8,6 +8,11 @@ import { turnSummaryLines } from '../game/turnSummary';
 import { Avatar } from './Avatar';
 import { RotatingTip } from './RotatingTip';
 import { AudioManager } from '../utils/audioManager';
+import { isNativeRuntime } from '../utils/platform';
+
+function displaySummaryLine(line: string): string {
+  return line.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, '');
+}
 
 const STATE_NAME: Record<string, string> = Object.fromEntries(
   ALL_STATES.map((s) => [s.id, s.name]),
@@ -77,12 +82,13 @@ export function RoundResolution() {
 
   if (phase !== 'RESOLUTION' || done) return null;
 
+  const native = isNativeRuntime();
   const playerMap = Object.fromEntries(players.map((p) => [p.id, p]));
 
   return (
     <div className="round-resolution" role="status" aria-live="polite">
       <div className="round-resolution__hdr">
-        <span className="round-resolution__title">Turn {turn} — Campaign Activity</span>
+        <span className="round-resolution__title">Turn {turn}</span>
         <button
           type="button"
           className="phase-btn res-skip-btn"
@@ -95,7 +101,9 @@ export function RoundResolution() {
       {summary.length > 0 && (
         <ul className="round-resolution__summary">
           {summary.slice(0, 4).map((line, i) => (
-            <li key={i} className="round-resolution__summary-line">{line}</li>
+            <li key={i} className="round-resolution__summary-line">
+              {native ? displaySummaryLine(line) : line}
+            </li>
           ))}
         </ul>
       )}
@@ -143,7 +151,7 @@ export function RoundResolution() {
         </div>
       )}
 
-      <RotatingTip tips={STRATEGY_TIPS} className="round-resolution__tip" />
+      {!native && <RotatingTip tips={STRATEGY_TIPS} className="round-resolution__tip" />}
     </div>
   );
 }

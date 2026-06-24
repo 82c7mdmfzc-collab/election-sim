@@ -12,6 +12,7 @@ import { track } from '../utils/analytics';
 import { RewardReveal } from './RewardReveal';
 import { Avatar } from './Avatar';
 import { NextChallengeHint, ProgressPanel } from './ProgressPanel';
+import { isNativeRuntime } from '../utils/platform';
 
 const CONFETTI_COLORS = [
   '#2563eb', // blue
@@ -22,8 +23,9 @@ const CONFETTI_COLORS = [
   '#ffffff', // white
 ];
 
-// 40 confetti particles with seeded random-ish values for deterministic render
-const CONFETTI_PARTICLES = Array.from({ length: 40 }, (_, i) => {
+// Confetti particles — fewer on native for a calmer finish screen
+const CONFETTI_COUNT = isNativeRuntime() ? 12 : 40;
+const CONFETTI_PARTICLES = Array.from({ length: CONFETTI_COUNT }, (_, i) => {
   const seed = (i * 7 + 13) % 100;
   const seed2 = (i * 11 + 5) % 100;
   const seed3 = (i * 3 + 17) % 100;
@@ -34,7 +36,7 @@ const CONFETTI_PARTICLES = Array.from({ length: 40 }, (_, i) => {
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
     spin: `${((i % 4) + 1) * 90}deg`,
     size: `${6 + (i % 5)}px`,
-    left: `${10 + (i / 40) * 80}%`,
+    left: `${10 + (i / CONFETTI_COUNT) * 80}%`,
   };
 });
 
@@ -211,8 +213,10 @@ export function VictoryPodium() {
     return totals;
   }, [securedBy]);
 
+  const native = isNativeRuntime();
+
   return (
-    <div className="victory-podium">
+    <div className={`victory-podium${native ? ' victory-podium--native' : ''}`}>
       {/* Per-winner background art (hidden if the asset is absent → gradient shows) */}
       {victoryBg && (
         <img
@@ -249,8 +253,8 @@ export function VictoryPodium() {
         className="victory-main"
         style={{ ['--p-color' as string]: winnerColor }}
       >
-        <div className="victory-sunburst" aria-hidden />
-        <div className="victory-label">ELECTOR PROJECTS</div>
+        {!native && <div className="victory-sunburst" aria-hidden />}
+        {!native && <div className="victory-label">ELECTOR PROJECTS</div>}
         <div className="victory-portrait">
           {winner ? (
             <Avatar
@@ -278,8 +282,12 @@ export function VictoryPodium() {
         {/* Campaign Funds payout */}
         <div className="victory-rewards">
           <RewardReveal />
-          <ProgressPanel compact showAll={false} />
-          <NextChallengeHint context="victory" />
+          {!native && (
+            <>
+              <ProgressPanel compact showAll={false} />
+              <NextChallengeHint context="victory" />
+            </>
+          )}
         </div>
 
         {/* Leaderboard */}
@@ -336,33 +344,60 @@ export function VictoryPodium() {
           <button type="button" onClick={runItBack}>
             {multiplayerMode === 'online' ? 'New Lobby' : 'Run It Back'}
           </button>
-          <button type="button" className="victory-challenge-btn" onClick={tryNextChallenge}>
-            Try Next Challenge
-          </button>
-          <button
-            type="button"
-            className="victory-share-btn"
-            onClick={() => handleShare('portrait')}
-            disabled={sharing !== null}
-          >
-            {sharing === 'portrait' ? 'Preparing…' : 'Share Story'}
-          </button>
-          <button
-            type="button"
-            className="victory-share-btn victory-share-btn--alt"
-            onClick={() => handleShare('landscape')}
-            disabled={sharing !== null}
-          >
-            {sharing === 'landscape' ? 'Preparing…' : 'Share Card'}
-          </button>
-          {multiplayerMode === 'online' && (
-            <button
-              type="button"
-              style={{ marginLeft: '0.75rem', background: 'var(--panel-2)', color: 'var(--text)' }}
-              onClick={() => { AudioManager.play('click'); returnToMenu(); }}
-            >
-              Return to Menu
-            </button>
+          {native ? (
+            <>
+              <button
+                type="button"
+                className="victory-cta--secondary"
+                onClick={() => { AudioManager.play('click'); returnToMenu(); }}
+              >
+                Menu
+              </button>
+              <div className="victory-cta__more">
+                <button type="button" className="victory-challenge-btn" onClick={tryNextChallenge}>
+                  Next Challenge
+                </button>
+                <button
+                  type="button"
+                  className="victory-share-btn"
+                  onClick={() => handleShare('portrait')}
+                  disabled={sharing !== null}
+                >
+                  {sharing === 'portrait' ? 'Preparing…' : 'Share'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button type="button" className="victory-challenge-btn" onClick={tryNextChallenge}>
+                Try Next Challenge
+              </button>
+              <button
+                type="button"
+                className="victory-share-btn"
+                onClick={() => handleShare('portrait')}
+                disabled={sharing !== null}
+              >
+                {sharing === 'portrait' ? 'Preparing…' : 'Share Story'}
+              </button>
+              <button
+                type="button"
+                className="victory-share-btn victory-share-btn--alt"
+                onClick={() => handleShare('landscape')}
+                disabled={sharing !== null}
+              >
+                {sharing === 'landscape' ? 'Preparing…' : 'Share Card'}
+              </button>
+              {multiplayerMode === 'online' && (
+                <button
+                  type="button"
+                  style={{ marginLeft: '0.75rem', background: 'var(--panel-2)', color: 'var(--text)' }}
+                  onClick={() => { AudioManager.play('click'); returnToMenu(); }}
+                >
+                  Return to Menu
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

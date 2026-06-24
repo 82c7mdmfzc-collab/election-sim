@@ -23,7 +23,7 @@ interface RungTrackProps {
   activePlayerId: string | null;
   colors: Record<string, ResolvedColor>;
   securedBy?: string | null;
-  onBuyNext?: () => void;
+  onBuyNext?: () => boolean | void;
   /** Retract the most-recently queued (top pending) rung. */
   onRetractLast?: () => void;
   clashing?: boolean;
@@ -75,7 +75,7 @@ export function RungTrack({
           const isRetractable = !!onRetractLast && idx === topPendingIndex;
 
           const handleClick = state === 'next'
-            ? () => { AudioManager.play('buy'); onBuyNext?.(); }
+            ? () => { const ok = onBuyNext?.(); if (ok === false) AudioManager.play('clash'); else AudioManager.play('buy'); }
             : isRetractable
               ? () => { AudioManager.play('quit'); onRetractLast?.(); }
               : undefined;
