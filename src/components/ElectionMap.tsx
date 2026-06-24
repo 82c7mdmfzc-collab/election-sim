@@ -29,7 +29,7 @@ import {
 } from '../game/store';
 import type { StateId, US_State } from '../game/types';
 import { AudioManager } from '../utils/audioManager';
-import { notifyError } from '../utils/toast';
+import { notifyOnce } from '../utils/toast';
 import { friendlyAllocError } from '../game/allocErrors';
 import { RungTrack } from './RungTrack';
 
@@ -84,6 +84,17 @@ function stateColor(
   ]);
 }
 
+/** Top two Influence-Level counts in a state (for the "heavily contested" cue). */
+function leadMargin(rungs: Record<string, number>): { lead: number; second: number } {
+  let lead = 0;
+  let second = 0;
+  for (const r of Object.values(rungs)) {
+    if (r > lead) { second = lead; lead = r; }
+    else if (r > second) second = r;
+  }
+  return { lead, second };
+}
+
 // ── Per-state path ────────────────────────────────────────────────────────────
 
 interface StateGeoProps {
@@ -100,11 +111,12 @@ interface StateGeoProps {
   tallyRevealedIds?: Set<string>;
   isGroupHighlighted?: boolean;
   isGroupDimmed?: boolean;
+  isSelected?: boolean;
 }
 
 const StateGeo = memo(function StateGeo({
   geo, stateId, isInteractive, colors, activePlayerHex, onHover, onLeave, onSelect,
-  tallyActiveStateId, tallyRevealedIds, isGroupHighlighted, isGroupDimmed,
+  tallyActiveStateId, tallyRevealedIds, isGroupHighlighted, isGroupDimmed, isSelected,
 }: StateGeoProps) {
   const rungs = useGameStore((s) => s.rungs[stateId] ?? {});
   const securedById = useGameStore((s) => s.securedBy[stateId]);
@@ -112,30 +124,44 @@ const StateGeo = memo(function StateGeo({
   const clashing = useGameStore(
     (s) => s.phase === 'RESOLUTION' && (s.lastTurnReport?.clashedStates.includes(stateId) ?? false),
   );
+  // A state that just locked in this turn gets a one-shot "recently changed" pulse.
+  const recentlySecured = useGameStore(
+    (s) => s.phase === 'RESOLUTION'
+      && (s.lastTurnReport?.newlySecured.some((e) => e.kind === 'state' && e.targetId === stateId) ?? false),
+  );
 
   const usState = STATES_BY_ID.get(stateId);
   const maxRungs = usState?.maxRungs ?? 8;
   const nativeLook = typeof document !== 'undefined' && document.documentElement.classList.contains('native');
   const fill = stateColor(rungs, securedById, maxRungs, colors, nativeLook);
   const hasPending = pendingRungs > 0;
+  const { lead, second } = leadMargin(rungs);
+  const contested = !securedById && lead > 0 && second > 0 && lead - second <= 1;
 
   const isTallyActive = tallyActiveStateId === stateId;
   const isTallyRevealed = !isTallyActive && (tallyRevealedIds?.has(stateId) ?? false);
   const className = [
     clashing ? 'state-geo--clash' : '',
+    recentlySecured ? 'state-geo--recent' : '',
+    isSelected ? 'state-geo--selected' : '',
+    contested && !isSelected ? 'state-geo--contested' : '',
     isTallyActive ? 'state-geo--tally-active' : '',
     isTallyRevealed ? 'state-geo--tally-revealed' : '',
     isGroupHighlighted ? 'state-geo--group-highlight' : '',
     isGroupDimmed ? 'state-geo--group-dim' : '',
   ].filter(Boolean).join(' ') || undefined;
 
-  const stroke = isGroupHighlighted
-    ? '#facc15'
-    : hasPending
-      ? activePlayerHex
-      : nativeLook ? '#2f3338' : '#0f172a';
-  const strokeWidth = isGroupHighlighted ? 2.5 : hasPending ? 1.6 : nativeLook ? 1.05 : 0.5;
+  const stroke = isSelected
+    ? 'var(--brand)'
+    : isGroupHighlighted
+      ? '#facc15'
+      : hasPending
+        ? activePlayerHex
+        : nativeLook ? '#2f3338' : '#0f172a';
+  const strokeWidth = isSelected ? 2.4 : isGroupHighlighted ? 2.5 : hasPending ? 1.6 : nativeLook ? 1.05 : 0.5;
   const opacity = isGroupDimmed ? 0.3 : 1;
+  // Glow filter is applied ONLY to the selected state (≤1 path) — never the whole map.
+  const filter = isSelected ? 'url(#sel-glow)' : undefined;
 
   return (
     <Geography
@@ -150,15 +176,17 @@ const StateGeo = memo(function StateGeo({
           stroke,
           strokeWidth,
           opacity,
+          filter,
           outline: 'none',
           cursor: isInteractive ? 'pointer' : 'default',
         },
         hover: {
           fill,
-          stroke: isGroupHighlighted ? '#facc15' : '#ffffff',
-          strokeWidth: isGroupHighlighted ? 2.5 : 1.5,
+          stroke: isSelected ? 'var(--brand)' : isGroupHighlighted ? '#facc15' : '#ffffff',
+          strokeWidth: isSelected ? 2.4 : isGroupHighlighted ? 2.5 : 1.5,
           outline: 'none',
           opacity: isGroupDimmed ? 0.5 : 0.85,
+          filter,
           cursor: isInteractive ? 'pointer' : 'default',
         },
         pressed: { fill, stroke: '#ffffff', strokeWidth: 2, outline: 'none', opacity: 0.9 },
@@ -249,7 +277,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
 
   function tryBuy(): boolean {
     const r = allocate('state', stateId, 1);
-    if (!r.ok) notifyError(friendlyAllocError(r.reason));
+    if (!r.ok) notifyOnce('error', friendlyAllocError(r.reason));
     return r.ok;
   }
 
@@ -557,6 +585,12 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
           height={500}
           style={{ width: '100%', height: '100%' }}
         >
+          <defs>
+            {/* Brand-orange glow, applied only to the selected state (perf-safe). */}
+            <filter id="sel-glow" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#f59022" floodOpacity="0.95" />
+            </filter>
+          </defs>
           <ZoomableGroup
             zoom={position.zoom}
             center={position.coordinates}
@@ -586,6 +620,7 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
                       tallyRevealedIds={tallyRevealedIds}
                       isGroupHighlighted={!!highlightedStateIds?.has(stateId)}
                       isGroupDimmed={!!highlightedStateIds && !highlightedStateIds.has(stateId)}
+                      isSelected={pinned?.stateId === stateId}
                     />
                   );
                 })

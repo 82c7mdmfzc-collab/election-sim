@@ -182,12 +182,15 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
     <header className="header-hud">
       <div className="header-hud__bar">
         <div className="header-hud__brand">
-          <span className="header-hud__title">270</span>
+          <span className="header-hud__wordmark">Elect<span className="header-hud__wordmark-o">o</span>r</span>
           <span className="header-hud__round">
             Round {turn}
             {hungColleges > 0 && <span className="header-hud__hung"> · {hungColleges} hung</span>}
           </span>
         </div>
+        <span className="header-hud__target" title="First to 270 electoral votes wins the election">
+          Victory Target <strong>270 EV</strong>
+        </span>
         {electionPct > 0 && (
           <span className={`hud__elect-pill${electionPct >= 50 ? ' is-high' : ''}`}>
             ⚡ Election {electionPct}%

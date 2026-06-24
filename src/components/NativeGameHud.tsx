@@ -112,8 +112,8 @@ function NativeTopRibbon({ timer, onOptions }: {
 
       <div className="native-game-ribbon" aria-label="Turn status">
         <div className="native-game-ribbon__brand">
-          <strong>270</strong>
-          <span>Elector</span>
+          <strong>Elector</strong>
+          <span>270 to win</span>
         </div>
         <div className="native-game-ribbon__center">
           <span className="native-game-ribbon__turn">Turn {turn}</span>

@@ -20,7 +20,7 @@ import type { NationalGroup } from '../game/types';
 import { isPlayerBlocked } from '../utils/localPrefs';
 import { RungTrack } from './RungTrack';
 import { PlayerProfileModal } from './PlayerProfileModal';
-import { notifyError } from '../utils/toast';
+import { notifyOnce } from '../utils/toast';
 import { friendlyAllocError } from '../game/allocErrors';
 
 const TOTAL_GROUP_EV = STATE_GROUPS.reduce((s, g) => s + g.totalEV, 0);
@@ -58,7 +58,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
 
   function tryBuy(): boolean {
     const r = allocate('national', group.id, 1);
-    if (!r.ok) notifyError(friendlyAllocError(r.reason));
+    if (!r.ok) notifyOnce('error', friendlyAllocError(r.reason));
     return r.ok;
   }
 

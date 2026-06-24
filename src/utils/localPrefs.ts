@@ -39,6 +39,8 @@ export interface LocalPrefs {
   pendingReferralCode: string | null;
   /** Whether the live first-campaign coach has been dismissed on this device. */
   firstRunCoachDismissed: boolean;
+  /** Whether the one-time first-gameplay tips overlay has been dismissed. */
+  firstGameplayTipsSeen: boolean;
   /** Normalized usernames the player has blocked online (Apple Guideline 1.2). */
   blockedPlayers: string[];
   /** Whether we've already shown the OS notification-permission prompt once. */
@@ -66,6 +68,7 @@ const DEFAULTS: LocalPrefs = {
   selectedShareFrame: 'midnight', // DEFAULT_SHARE_FRAME_ID
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
+  firstGameplayTipsSeen: false,
   blockedPlayers: [],
   notifPermissionAsked: false,
   dailyChallenge: { ...DEFAULT_DAILY_CHALLENGE },
@@ -114,6 +117,8 @@ export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs(
 export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });
 export const isFirstRunCoachDismissed = () => getPrefs().firstRunCoachDismissed;
 export const markFirstRunCoachDismissed = () => setPrefs({ firstRunCoachDismissed: true });
+export const isFirstGameplayTipsSeen = () => getPrefs().firstGameplayTipsSeen;
+export const markFirstGameplayTipsSeen = () => setPrefs({ firstGameplayTipsSeen: true });
 
 // ── Daily Challenge (device-local progress) ───────────────────────────────────
 export const getDailyChallengeLocal = (): DailyChallengeLocal => ({
