@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NATIONAL_GROUPS } from '../game/config';
+import { NATIONAL_GROUPS, groupDisplayName } from '../game/config';
 import { CANDIDATE_MAP } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
 import { useGameStore, usePlayerColors } from '../game/store';
@@ -12,7 +12,7 @@ const STATE_NAME: Record<string, string> = Object.fromEntries(
   ALL_STATES.map((s) => [s.id, s.name]),
 );
 const NAT_NAME: Record<string, string> = Object.fromEntries(
-  NATIONAL_GROUPS.map((g) => [g.id, g.id]),
+  NATIONAL_GROUPS.map((g) => [g.id, groupDisplayName(g)]),
 );
 
 export function RoundResolution() {

@@ -11,6 +11,8 @@ const KEY = 'election-sim-prefs-v1';
 export interface LocalPrefs {
   tutorialSeen: boolean;
   muted: boolean;
+  /** Master audio volume, 0–1. Scales every sound; `muted` overrides it. */
+  volume: number;
   /** gameId of the most recent game whose reward was already granted (idempotency). */
   lastAwardedGameId: string | null;
   /** Equipped victory-message cosmetic id (see game/victoryMessages.ts). */
@@ -28,6 +30,7 @@ export interface LocalPrefs {
 const DEFAULTS: LocalPrefs = {
   tutorialSeen: false,
   muted: false,
+  volume: 0.8,
   lastAwardedGameId: null,
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
   pendingReferralCode: null,
@@ -60,6 +63,10 @@ export const isTutorialSeen = () => getPrefs().tutorialSeen;
 export const markTutorialSeen = () => setPrefs({ tutorialSeen: true });
 export const isMuted = () => getPrefs().muted;
 export const setMuted = (muted: boolean) => setPrefs({ muted });
+export const getVolume = () => getPrefs().volume;
+/** Persist master volume, clamped to 0–1. */
+export const setVolume = (volume: number) =>
+  setPrefs({ volume: Math.min(1, Math.max(0, volume)) });
 export const getLastAwardedGameId = () => getPrefs().lastAwardedGameId;
 export const setLastAwardedGameId = (lastAwardedGameId: string) => setPrefs({ lastAwardedGameId });
 export const getSelectedVictoryMessage = () => getPrefs().selectedVictoryMessage;

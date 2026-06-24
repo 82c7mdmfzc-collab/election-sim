@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { NATIONAL_GROUPS, STATE_GROUPS } from '../game/config';
+import { NATIONAL_GROUPS, STATE_GROUPS, groupDisplayName } from '../game/config';
 import { CANDIDATE_MAP, groupImageUrl } from '../game/candidates';
 import {
   useActivePlayer,
@@ -62,12 +62,12 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         <img
           className="group-icon group-icon--sm"
           src={groupImageUrl('national', group.id)}
-          alt={group.id}
+          alt={groupDisplayName(group)}
           draggable={false}
           loading="lazy"
           decoding="async"
         />
-        <span className="nat-ladder__name">{group.id}</span>
+        <span className="nat-ladder__name">{groupDisplayName(group)}</span>
         {canBuy ? (
           <span className={`nat-ladder__next${aff.affordable ? '' : ' is-blocked'}`}>
             {aff.atMax ? 'Maxed' : aff.affordable ? `Next $${aff.nextCost}k` : aff.reason}

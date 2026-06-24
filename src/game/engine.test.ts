@@ -188,7 +188,7 @@ describe('computeWalletSplit', () => {
 
 describe('calcNationalCost', () => {
   it('flat cost = rungCost * rungs * (1 - affinity)', () => {
-    const g = NATIONAL_GROUPS[0]; // Gun Lobby, rungCost = 25
+    const g = NATIONAL_GROUPS[0]; // Gun Lobby, rungCost = 55
     const player = makePlayer('p1', { affinities: { [g.id]: 0.20 } });
     const cost = calcNationalCost(g.id, 0, 2, player);
     expect(cost).toBeCloseTo(g.rungCost * 2 * 0.80);

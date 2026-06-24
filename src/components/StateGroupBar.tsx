@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { STATE_GROUPS } from '../game/config';
+import { STATE_GROUPS, groupDisplayName } from '../game/config';
 import { groupImageUrl } from '../game/candidates';
 import { InfoIcon } from './icons';
 import {
@@ -35,6 +35,7 @@ function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps
 
   const activeIsDominant = !!activePlayer && dominantId === activePlayer.id;
   const dominantColor = dominantId ? (colors[dominantId]?.hex ?? null) : null;
+  const name = groupDisplayName(group);
 
   return (
     <div
@@ -49,18 +50,18 @@ function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps
         type="button"
         className="sg-chip__main"
         onClick={() => { AudioManager.play('click'); onHighlight(); }}
-        title={`${group.id} — click to highlight states on map`}
+        title={`${name} — click to highlight states on map`}
       >
         <img
           className="sg-chip__icon"
           src={groupImageUrl('state', group.id)}
-          alt={group.id}
+          alt={name}
           draggable={false}
           loading="lazy"
           decoding="async"
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
-        <span className="sg-chip__name">{group.id}</span>
+        <span className="sg-chip__name">{name}</span>
         <span className="sg-chip__bal">${balance.toFixed(0)}k</span>
         {dominantId && (
           <span
@@ -74,7 +75,7 @@ function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps
         className="sg-chip__info"
         onClick={(e) => { e.stopPropagation(); AudioManager.play('click'); onInfo(); }}
         title="View group details"
-        aria-label={`${group.id} details`}
+        aria-label={`${name} details`}
       >
         <InfoIcon size={15} />
       </button>

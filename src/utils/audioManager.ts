@@ -36,6 +36,9 @@ class _AudioManager {
   // explicit play() of the same sound collapse into one instead of doubling up.
   private readonly lastPlayed = new Map<string, number>();
   private muted = false;
+  // Master volume, 0–1. Applied to every clip at play time and live-pushed to any
+  // currently-playing nodes by setVolume(). `muted` is a separate hard override.
+  private volume = 1;
 
   init(): void {
     for (const [id, path] of Object.entries(MANIFEST)) {
@@ -59,6 +62,22 @@ class _AudioManager {
     return this.muted;
   }
 
+  /**
+   * Set master volume (0–1). Applies immediately to every preloaded node and any
+   * track currently looping, so a change while audio is playing is audible at once.
+   * Note: cloneNode() does NOT copy the `volume` property, so play() also sets it
+   * on each fresh clone — without that, volume changes would silently do nothing.
+   */
+  setVolume(volume: number): void {
+    this.volume = Math.min(1, Math.max(0, volume));
+    for (const node of this.sounds.values()) node.volume = this.volume;
+    for (const node of this.looping.values()) node.volume = this.volume;
+  }
+
+  getVolume(): number {
+    return this.volume;
+  }
+
   play(soundId: string, loop = false): void {
     if (this.muted) return;
     const src = this.sounds.get(soundId);
@@ -68,6 +87,7 @@ class _AudioManager {
       // Reuse the canonical node for looping so stop() always finds it.
       src.loop = true;
       src.currentTime = 0;
+      src.volume = this.volume;
       src.play().catch(() => {/* autoplay policy — silently ignore */});
       this.looping.set(soundId, src);
     } else {
@@ -77,7 +97,9 @@ class _AudioManager {
       if (now - (this.lastPlayed.get(soundId) ?? -Infinity) < 80) return;
       this.lastPlayed.set(soundId, now);
       // Clone so simultaneous rapid clicks don't interrupt each other.
+      // cloneNode() drops the volume property, so set it explicitly on the clone.
       const clone = src.cloneNode() as HTMLAudioElement;
+      clone.volume = this.volume;
       clone.play().catch(() => {});
     }
   }

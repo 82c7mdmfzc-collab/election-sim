@@ -6,10 +6,11 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastHost } from './components/ToastHost'
 import { OrientationGate } from './components/OrientationGate'
 import { AudioManager } from './utils/audioManager'
-import { isMuted } from './utils/localPrefs'
+import { isMuted, getVolume } from './utils/localPrefs'
 import { initAnalytics } from './utils/analytics'
 
 AudioManager.init();
+AudioManager.setVolume(getVolume());
 AudioManager.setMuted(isMuted());
 initAnalytics();
 

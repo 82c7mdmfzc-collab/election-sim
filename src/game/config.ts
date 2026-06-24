@@ -6,12 +6,13 @@
  * the wallet-drain order for multi-group states is alphabetical by group ID.
  *
  * National Groups are 10-rung side-battles distinct from the electoral map.
- * rungCost = turnBonus * 0.5 per the spec.
  *
- * Economy ($1k units):
+ * Economy ($1k units) — all the tunable balance numbers live in the RAW_STATE_GROUPS
+ * and RAW_NATIONAL tables below (look for the ⚖️ markers):
  *   nationalCash income:  250/turn flat
  *   group wallet income:  bonusPayout/turn while dominant
  *   national-group bonus: turnBonus/turn while rung≥5 and leading
+ *   national rung price:  rungCost per rung
  */
 
 import type { NationalGroup, StateGroup } from './types';
@@ -26,47 +27,59 @@ export const BOSS_RUNG_IDS = new Set(['CA', 'TX']); // only these have 4× boss 
 export const BOSS_RUNG_MULTIPLIER = 4.0;
 
 // ── State Groups ──────────────────────────────────────────────────────────────
-// bonusPayout = Math.round(totalEV / 2) — tunable, computed below once totalEV is known.
+// ⚖️  ECONOMY KNOB — `bonusPayout` is the per-turn cash the dominant player banks
+//     to this group's wallet ($1k units). Edit it right here; `totalEV` is still
+//     derived from `members` below for the dominance math.
 
-const RAW_STATE_GROUPS: Array<Omit<StateGroup, 'totalEV' | 'bonusPayout'>> = [
+const RAW_STATE_GROUPS: Array<Omit<StateGroup, 'totalEV'>> = [
   {
     id: 'African American',
+    bonusPayout: 100,
     members: ['AL','AZ','DE','DC','FL','GA','IL','LA','MD','MI','MS','NY','NC','SC','TN','VA'],
   },
   {
     id: 'Latino',
+    bonusPayout: 80,
     members: ['AZ','CA','CO','FL','IL','NV','NJ','NM','NY','TX'],
   },
   {
     id: 'Oil and Gas',
+    bonusPayout: 75,
     members: ['AK','CA','CO','LA','NM','ND','OK','SD','TX','WV','WY'],
   },
   {
     id: 'High Tech',
+    bonusPayout: 110,
     members: ['CA','CT','DE','MD','MA','MI','NH','NY','PA','UT','VA','WA'],
   },
   {
     id: 'Agriculture',
+    bonusPayout: 50,
     members: ['CA','FL','HI','ID','IL','IA','KS','MN','NE','NC','TX','WI'],
   },
   {
     id: 'Manufacturing Base',
+    bonusPayout: 75,
     members: ['IL','IN','KY','MI','NC','OH','PA','TX','WI'],
   },
   {
     id: 'Old South',
+    bonusPayout: 40,
     members: ['AL','AR','GA','LA','MD','MS','NC','SC','VA'],
   },
   {
     id: 'Swing States',
+    bonusPayout: 80,
     members: ['AZ','CO','FL','IA','NH','NM','NC','OH','PA','VA','WI'],
   },
   {
     id: 'Town and Gown',
+    bonusPayout: 100,
     members: ['AZ','DC','IA','ME','MA','MN','MO','NE','NH','NY','ND','RI','UT','VT'],
   },
   {
     id: 'Export Driven',
+    bonusPayout: 80,
     members: ['LA','CA','TX','FL','NY','WA'],
   },
 ];
@@ -85,7 +98,7 @@ const EV: Record<string, number> = {
 
 export const STATE_GROUPS: StateGroup[] = RAW_STATE_GROUPS.map((g) => {
   const totalEV = g.members.reduce((sum, id) => sum + (EV[id] ?? 0), 0);
-  return { ...g, totalEV, bonusPayout: Math.round(totalEV / 2) };
+  return { ...g, totalEV };
 });
 
 // Reverse index: stateId → alphabetically-sorted list of StateGroupIds it belongs to.
@@ -102,18 +115,21 @@ for (const sid of Object.keys(STATE_GROUPS_BY_STATE)) {
 
 // ── National Groups ───────────────────────────────────────────────────────────
 
-const RAW_NATIONAL: Array<{ id: string; turnBonus: number }> = [
-  { id: 'Gun Lobby',       turnBonus: 50 },
-  { id: 'Youth Vote',      turnBonus: 40 },
-  { id: 'Big Conservative',turnBonus: 50 },
-  { id: 'Environmental',   turnBonus: 40 },
-  { id: "Women's Vote",    turnBonus: 60 },
+// ⚖️  ECONOMY KNOB — `turnBonus` is the per-turn cash the rung≥5 leader banks;
+//     `rungCost` is the price of each rung on this ladder (both $1k units). Edit
+//     them here. `label`, when set, is the polished player-facing name while the
+//     `id` stays stable (it keys candidate affinities and icon assets).
+const RAW_NATIONAL: Array<Omit<NationalGroup, 'maxRungs'>> = [
+  { id: 'Gun Lobby',        turnBonus: 30, rungCost: 55 },
+  { id: 'Youth Vote',       turnBonus: 30, rungCost: 55 },
+  { id: 'Big Conservative', turnBonus: 50, rungCost: 90 },
+  { id: 'Environmental',    turnBonus: 50, rungCost: 90, label: 'Labour and Environment' },
+  { id: "Women's Vote",     turnBonus: 40, rungCost: 80, label: 'Womens Movement' },
 ];
 
 export const NATIONAL_GROUPS: NationalGroup[] = RAW_NATIONAL.map((g) => ({
   ...g,
   maxRungs: 10 as const,
-  rungCost: g.turnBonus * 0.5,
 }));
 
 // Quick lookup by id
@@ -122,6 +138,15 @@ export const NATIONAL_GROUP_MAP: Record<string, NationalGroup> =
 
 export const STATE_GROUP_MAP: Record<string, StateGroup> =
   Object.fromEntries(STATE_GROUPS.map((g) => [g.id, g]));
+
+/**
+ * Player-facing name for a group. Falls back to the internal `id` (which keys
+ * candidate affinities, icon-asset slugs and saved game state) when no polished
+ * `label` is set — so renaming a group's display text never breaks those.
+ */
+export function groupDisplayName(g: { id: string; label?: string }): string {
+  return g.label ?? g.id;
+}
 
 // ── Rung-tier helpers ─────────────────────────────────────────────────────────
 

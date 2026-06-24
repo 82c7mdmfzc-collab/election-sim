@@ -16,6 +16,8 @@ export interface US_State {
 // ── Economy entities ──────────────────────────────────────────────────────────
 export interface StateGroup {
   readonly id: StateGroupId;
+  /** Polished player-facing name; falls back to `id` when absent. */
+  readonly label?: string;
   readonly members: readonly StateId[];
   readonly totalEV: number;
   /** Cash deposited to dominant player's group wallet each turn ($1k units). */
@@ -24,10 +26,12 @@ export interface StateGroup {
 
 export interface NationalGroup {
   readonly id: NationalGroupId;
+  /** Polished player-facing name; falls back to `id` when absent. */
+  readonly label?: string;
   readonly maxRungs: 10;
-  /** Cash to nationalCash for rung≥5 leader each turn. */
+  /** Cash to nationalCash for rung≥5 leader each turn ($1k units). */
   readonly turnBonus: number;
-  /** == turnBonus * 0.5 */
+  /** Cost per rung to climb this national ladder ($1k units). */
   readonly rungCost: number;
 }
 

@@ -6,7 +6,7 @@
  * A compact member-state list sits below for the underlying detail.
  */
 
-import { minRungsForDominance } from '../game/config';
+import { minRungsForDominance, groupDisplayName } from '../game/config';
 import { groupDominanceProgress } from '../game/engine';
 import { groupImageUrl } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
@@ -57,16 +57,16 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
           <img
             className="group-icon group-icon--sm"
             src={groupImageUrl('state', group.id)}
-            alt={group.id}
+            alt={groupDisplayName(group)}
             draggable={false}
             loading="lazy"
             decoding="async"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
           <div className="sg-detail__title-block">
-            <div className="sg-detail__title">{group.id}</div>
+            <div className="sg-detail__title">{groupDisplayName(group)}</div>
             <div className="sg-detail__meta">
-              {group.members.length} states · {totalEV} total EV · +${group.bonusPayout}k/turn bonus
+              {group.members.length} states · {totalEV} EV · +${group.bonusPayout}k/turn
             </div>
           </div>
           <button type="button" className="sg-detail__close" onClick={onClose} aria-label="Close">×</button>
@@ -122,9 +122,6 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
               </div>
             );
           })}
-          <div className="sg-progress__legend">
-            <span className="sg-progress__legend-line" /> Dominance line ({needToDominate} EV)
-          </div>
         </div>
 
         {/* ── Member states (compact) ─────────────────────────────────────── */}
