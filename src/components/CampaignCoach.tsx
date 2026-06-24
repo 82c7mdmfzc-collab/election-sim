@@ -68,7 +68,7 @@ export function CampaignCoach() {
     accent = `${projectedEV}/270 EV`;
   } else if (pendingRungs > 0) {
     title = 'Turn Ready';
-    body = `${pendingRungs} rung${pendingRungs === 1 ? '' : 's'} queued across ${hasStatePending && hasNationalPending ? 'states and national groups' : hasNationalPending ? 'national groups' : 'states'}. Resolve, then watch clashes, income, and new leads.`;
+    body = `${pendingRungs} campaign level${pendingRungs === 1 ? '' : 's'} queued across ${hasStatePending && hasNationalPending ? 'states and national groups' : hasNationalPending ? 'national groups' : 'states'}. Resolve, then watch clashes, income, and new leads.`;
     accent = 'Resolve';
   } else if (turn === 1) {
     accent = 'State + national';
@@ -78,7 +78,7 @@ export function CampaignCoach() {
     accent = 'State group';
   } else if (earningNationalGroups.length === 0 && turn > 1) {
     title = 'Claim Flexible Cash';
-    body = 'National groups are side ladders. Lead one with 4+ rungs to earn flexible national cash that spends anywhere.';
+    body = 'National groups are side ladders. Lead one to Level 4+ to earn flexible national cash that spends anywhere.';
     accent = 'National group';
   } else if (projectedEV < 180) {
     title = 'Convert Income Into EV';
@@ -91,7 +91,7 @@ export function CampaignCoach() {
   }
 
   const goals = [
-    { label: 'Queue rungs', done: pendingRungs > 0 || turn > 1 },
+    { label: 'Fund a campaign', done: pendingRungs > 0 || turn > 1 },
     { label: 'Dominate state group', done: dominatedGroups.length > 0 },
     { label: 'Earn national cash', done: earningNationalGroups.length > 0 },
     { label: 'Secure a state', done: securedStates > 0 },

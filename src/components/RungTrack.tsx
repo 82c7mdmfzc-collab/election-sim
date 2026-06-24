@@ -26,6 +26,8 @@ interface RungTrackProps {
   onBuyNext?: () => void;
   /** Retract the most-recently queued (top pending) rung. */
   onRetractLast?: () => void;
+  /** When false, the next pip is not buyable (e.g. can't afford it). Default true. */
+  nextAffordable?: boolean;
   clashing?: boolean;
   size?: 'sm' | 'md';
 }
@@ -39,13 +41,14 @@ export function RungTrack({
   securedBy = null,
   onBuyNext,
   onRetractLast,
+  nextAffordable = true,
   clashing = false,
   size = 'md',
 }: RungTrackProps) {
   const activeSettled = activePlayerId ? (settledByPlayer[activePlayerId] ?? 0) : 0;
   const activeColor = activePlayerId ? colors[activePlayerId]?.hex : undefined;
   const nextIndex = activeSettled + pendingRungs + 1;
-  const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs;
+  const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs && nextAffordable;
   // The topmost pending pip is click-to-retract (rung-by-rung undo).
   const topPendingIndex = pendingRungs > 0 ? activeSettled + pendingRungs : -1;
 
@@ -92,8 +95,8 @@ export function RungTrack({
               ].filter(Boolean).join(' ')}
               disabled={!handleClick}
               onClick={handleClick}
-              title={state === 'next' ? `Buy rung ${idx}` : isRetractable ? `Undo rung ${idx}` : `Rung ${idx}`}
-              aria-label={state === 'next' ? `Buy rung ${idx} of ${maxRungs}` : isRetractable ? `Undo rung ${idx}` : `Rung ${idx} of ${maxRungs}`}
+              title={state === 'next' ? `Fund campaign — level ${idx}` : isRetractable ? `Undo level ${idx}` : `Campaign level ${idx}`}
+              aria-label={state === 'next' ? `Fund campaign to level ${idx} of ${maxRungs}` : isRetractable ? `Undo level ${idx}` : `Campaign level ${idx} of ${maxRungs}`}
             />
           );
         })}

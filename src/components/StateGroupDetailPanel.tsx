@@ -139,8 +139,8 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
                 <span className="sg-member__name">{state.name}</span>
                 <span className="sg-member__ev">{state.electoralVotes} EV</span>
                 {activePlayer && (
-                  <span className="sg-member__rungs" title={`You: ${myR} of ${minR} rungs needed`}>
-                    {myR}/{minR}r{qualifies ? ' ✓' : ''}
+                  <span className="sg-member__rungs" title={`You: Campaign Level ${myR} of ${minR} needed`}>
+                    {myR}/{minR}{qualifies ? ' ✓' : ''}
                   </span>
                 )}
               </div>

@@ -218,7 +218,7 @@ function PlanningControls() {
         ) : (
           chips.map(([tid, { kind, rungs, cost }]) => (
             <span key={tid} className="alloc-chip">
-              {tid}: {rungs} rung{rungs === 1 ? '' : 's'} (${cost.toFixed(0)}k)
+              {tid}: {rungs} level{rungs === 1 ? '' : 's'} (${cost.toFixed(0)}k)
               <button
                 type="button"
                 className="alloc-chip__x"

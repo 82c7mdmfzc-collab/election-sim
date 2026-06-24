@@ -36,6 +36,12 @@ import {
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
+import {
+  computeAffordability,
+  AFFORDABILITY_UNAVAILABLE,
+  type Affordability,
+  type WorkingCash,
+} from './affordability';
 import { rpcSetLobbyStatus } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
@@ -57,11 +63,7 @@ import type {
 // Re-export so existing imports of GamePhase from this module still compile.
 export type { GamePhase } from './types';
 
-// ── Working-cash snapshot (applied during allocation, before resolution) ──────
-interface WorkingCash {
-  nationalCash: number;
-  groupWallets: Record<string, number>;
-}
+// WorkingCash is defined in ./affordability (the post-pending cash snapshot).
 
 // ── Store shape ───────────────────────────────────────────────────────────────
 
@@ -343,18 +345,20 @@ export const useGameStore = create<GameStore>()(
             (p) => p.targetId === targetId,
           );
           const pendingRungs = pendingForTarget.reduce((s, p) => s + p.rungs, 0);
-          const pendingCost = (snap.pendingByPlayer[player.id] ?? []).reduce(
-            (s, p) => s + p.cost,
-            0,
-          );
 
+          // workingCash already nets out every pending purchase queued this turn,
+          // so the proxy below reflects post-pending balances. Pass 0 as the
+          // already-committed total: passing the pending sum again would
+          // double-count it and wrongly reject affordable buys. (The server
+          // resolver in lobbySecurity.ts validates the same way — player snapshot
+          // drained per purchase, pendingCostTotal 0.)
           const playerProxy: PlayerState = {
             ...player,
             nationalCash: wc.nationalCash,
             groupWallets: wc.groupWallets,
           };
 
-          const err = validatePurchase(playerProxy, pendingCost, {
+          const err = validatePurchase(playerProxy, 0, {
             kind,
             targetId,
             rungsToBuy: rungs,
@@ -362,7 +366,7 @@ export const useGameStore = create<GameStore>()(
             pendingRungs,
           });
           if (err) {
-            console.warn('allocate rejected:', err.reason);
+            if (import.meta.env.DEV) console.warn('allocate rejected:', err.reason);
             return false;
           }
 
@@ -976,6 +980,35 @@ export function usePendingRungs(kind: 'state' | 'national', targetId: string): n
       .filter((pp) => pp.kind === kind && pp.targetId === targetId)
       .reduce((sum, pp) => sum + pp.rungs, 0);
   });
+}
+
+// ── Affordability (single source of truth for buy-button state) ────────────────
+
+/**
+ * Live affordability for the active player + a buy target. Drives disabled buy
+ * buttons. MUST agree with allocate(): the pure core (computeAffordability in
+ * ./affordability) uses the same ground-truth funds check allocate() relies on,
+ * so if `affordable` is true the action will succeed, and if false the button is
+ * disabled with a `reason`.
+ */
+export function useAffordability(kind: 'state' | 'national', targetId: string): Affordability {
+  const player = useActivePlayer();
+  const pendingRungs = usePendingRungs(kind, targetId);
+  const wc = useGameStore((s) => (player ? s.workingCash[player.id] : undefined));
+  const startRung = useGameStore((s) =>
+    player
+      ? kind === 'state'
+        ? (s.rungs[targetId]?.[player.id] ?? 0)
+        : (s.natRungs[targetId]?.[player.id] ?? 0)
+      : 0,
+  );
+  const secured = useGameStore((s) =>
+    kind === 'state' ? !!s.securedBy[targetId] : !!s.natSecuredBy[targetId],
+  );
+  return useMemo(() => {
+    if (!player || !wc) return AFFORDABILITY_UNAVAILABLE;
+    return computeAffordability({ kind, targetId, player, workingCash: wc, startRung, pendingRungs, secured });
+  }, [kind, targetId, player, wc, startRung, pendingRungs, secured]);
 }
 
 export function useElectoralResult(): ElectoralResult {

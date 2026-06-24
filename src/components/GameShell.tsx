@@ -22,6 +22,7 @@ import { HandoffCurtain } from './HandoffCurtain';
 import { RoundResolution } from './RoundResolution';
 import { SecuredToast } from './SecuredToast';
 import { WaitingOnPlayers } from './WaitingOnPlayers';
+import { FirstGameplayTips } from './FirstGameplayTips';
 import { useActivePlayer, useGameStore } from '../game/store';
 import { useTurnTimer } from '../game/useTurnTimer';
 import { useMultiplayerSync } from '../hooks/useMultiplayerSync';
@@ -113,6 +114,7 @@ export function GameShell() {
       <RoundResolution />
       <SecuredToast />
       <HandoffCurtain />
+      <FirstGameplayTips />
     </div>
   );
 }

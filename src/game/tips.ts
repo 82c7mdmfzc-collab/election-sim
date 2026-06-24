@@ -21,8 +21,8 @@ export const TIPS: readonly Tip[] = [
   { category: 'map', text: 'California, Florida, New York, Texas, and North Carolina each anchor 5 coalition groups — dominating one unlocks five income streams at once.' },
   { category: 'map', text: 'Florida sits where African American, Agriculture, Export Driven, Latino, and Swing States all meet. A true 5-way hub.' },
   { category: 'map', text: 'Pennsylvania anchors three groups: High Tech, Manufacturing Base, and Swing States.' },
-  { category: 'map', text: 'Arizona packs African American, Latino, Swing States, and Town and Gown into one cheap state — just 46k per rung early.' },
-  { category: 'map', text: 'A state pays its electoral votes to whoever holds the most rungs there. Secure it and the EV is locked for good.' },
+  { category: 'map', text: 'Arizona packs African American, Latino, Swing States, and Town and Gown into one cheap state — just 46k per campaign level early.' },
+  { category: 'map', text: 'A state pays its electoral votes to whoever holds the highest Campaign Level there. Secure it and the EV is locked for good.' },
   { category: 'map', text: 'Big prizes draw big fights. California is worth the most EV — and invites the most expensive clashes.' },
 
   // ── Economy ───────────────────────────────────────────────────────────────
@@ -34,15 +34,15 @@ export const TIPS: readonly Tip[] = [
   { category: 'economy', text: 'Payout modifiers boost income from your strong coalitions. Lean into them — that compounding wins games.' },
 
   // ── Clash / denial ────────────────────────────────────────────────────────
-  { category: 'clash', text: 'Clashing on a state forfeits the rungs AND the cash for BOTH players. Reading your opponent avoids costly collisions.' },
+  { category: 'clash', text: 'Clashing on a state forfeits the campaign levels AND the cash for BOTH players. Reading your opponent avoids costly collisions.' },
   { category: 'clash', text: 'Losing coalition dominance triggers the Evaporation Penalty: that group wallet drops to $0 instantly. Defend your leads.' },
   { category: 'clash', text: 'You can clash on purpose to deny a rival a state they need — but you pay for it too. Spend denial only where it counts.' },
-  { category: 'clash', text: 'If a rival is one rung from securing a state, matching them forces a clash and resets the race. Sometimes worth it.' },
+  { category: 'clash', text: 'If a rival is one level from securing a state, matching them forces a clash and resets the race. Sometimes worth it.' },
 
   // ── Tempo / timing ────────────────────────────────────────────────────────
-  { category: 'tempo', text: 'Early rungs are capped per turn. Open many fronts early, then sprint the ones that matter as the cap lifts.' },
+  { category: 'tempo', text: 'Early campaign levels are capped per turn. Open many fronts early, then sprint the ones that matter as the cap lifts.' },
   { category: 'tempo', text: 'Spreading thin builds income; concentrating wins states. Shift from breadth to depth as the election clock ticks.' },
-  { category: 'tempo', text: 'Bank cash when you’re ahead. A late war chest lets you buy boss-rungs nobody else can afford.' },
+  { category: 'tempo', text: 'Bank cash when you’re ahead. A late war chest lets you buy the top campaign levels nobody else can afford.' },
   { category: 'tempo', text: 'Watch what your opponent secured last turn — it tells you where they’ll spend next.' },
 
   // ── Endgame / the 270 push ────────────────────────────────────────────────
@@ -75,11 +75,11 @@ export interface HelpSection {
 export const HOW_TO_PLAY: readonly HelpSection[] = [
   {
     title: 'Goal',
-    body: 'Reach 270 electoral votes. Each state awards its EV to whoever holds the most campaign rungs there when the election fires.',
+    body: 'Reach 270 electoral votes. Each state awards its EV to whoever holds the highest Campaign Level there when the election fires.',
   },
   {
-    title: 'Campaign (the rungs)',
-    body: 'On your turn, click a state or a national ladder to buy rungs. Rungs cost cash and rise in price as you climb. Whoever leads a state on election day takes its EV; lead it alone to the top and you SECURE it permanently.',
+    title: 'Campaign Levels',
+    body: 'On your turn, click a state or a national ladder to fund your campaign. Each Campaign Level costs cash and rises in price as you climb. Whoever leads a state on election day takes its EV; lead it alone to the top and you SECURE it permanently.',
   },
   {
     title: 'State groups & income',
@@ -87,7 +87,7 @@ export const HOW_TO_PLAY: readonly HelpSection[] = [
   },
   {
     title: 'National groups',
-    body: 'National ladders such as Gun Lobby, Youth Vote, and Women’s Vote are side battles. Lead one with 4+ rungs to earn flexible national cash that can be spent anywhere.',
+    body: 'National ladders such as Gun Lobby, Youth Vote, and Women’s Vote are side battles. Lead one to Level 4+ to earn flexible national cash that can be spent anywhere.',
   },
   {
     title: 'Wallets',
@@ -95,7 +95,7 @@ export const HOW_TO_PLAY: readonly HelpSection[] = [
   },
   {
     title: 'Clashes',
-    body: 'Allocations are simultaneous and hidden. If two players reach the same rung count on the same state, BOTH lose those rungs and the cash. Read your opponent before you commit.',
+    body: 'Allocations are simultaneous and hidden. If two players reach the same Campaign Level on the same state, BOTH lose those levels and the cash. Read your opponent before you commit.',
   },
   {
     title: 'Evaporation',

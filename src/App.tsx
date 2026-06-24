@@ -101,7 +101,7 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
 
       {signedIn && (
         <div className="home__progress">
-          <ProgressPanel compact showAll={false} />
+          <ProgressPanel compact showAll={false} onDailyStart={() => onSelect('bot')} />
           <NextChallengeHint />
         </div>
       )}

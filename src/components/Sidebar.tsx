@@ -15,6 +15,7 @@ import {
   useGameStore,
   usePlayerColors,
   usePendingRungs,
+  useAffordability,
 } from '../game/store';
 import type { NationalGroup } from '../game/types';
 import { isPlayerBlocked } from '../utils/localPrefs';
@@ -34,6 +35,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
   const pending = usePendingRungs('national', group.id);
+  const aff = useAffordability('national', group.id);
 
   // Leader = most rungs (tie → reached first).
   let leaderId: string | null = null;
@@ -66,7 +68,13 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
           decoding="async"
         />
         <span className="nat-ladder__name">{group.id}</span>
-        <span className="nat-ladder__bonus">${group.turnBonus}k/turn</span>
+        {canBuy ? (
+          <span className={`nat-ladder__next${aff.affordable ? '' : ' is-blocked'}`}>
+            {aff.atMax ? 'Maxed' : aff.affordable ? `Next $${aff.nextCost}k` : aff.reason}
+          </span>
+        ) : (
+          <span className="nat-ladder__bonus">${group.turnBonus}k/turn</span>
+        )}
       </div>
 
       <RungTrack
@@ -77,6 +85,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         activePlayerId={activePlayer?.id ?? null}
         colors={colors}
         securedBy={securedBy}
+        nextAffordable={aff.affordable}
         onBuyNext={canBuy ? () => allocate('national', group.id, 1) : undefined}
         onRetractLast={canBuy && pending > 0 ? () => retractLastAllocation('national', group.id) : undefined}
       />

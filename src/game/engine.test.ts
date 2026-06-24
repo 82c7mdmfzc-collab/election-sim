@@ -15,6 +15,7 @@ import {
   bestAffinityForState,
 } from './engine';
 import { ALL_STATES } from './statesData';
+import { computeAffordability } from './affordability';
 import { CANDIDATE_MAP } from './candidates';
 import { NATIONAL_GROUPS, STATE_GROUPS, STATE_GROUP_MAP, NATIONAL_GROUP_MAP, electionProbability, maxRungsFor } from './config';
 import type { GameState, PlayerState } from './types';
@@ -588,6 +589,91 @@ describe('validatePurchase', () => {
     });
     expect(err).not.toBeNull();
     expect(err!.reason).toMatch(/funds/i);
+  });
+
+  // Regression: allocate() decrements workingCash per queued purchase, then passes
+  // that post-pending player with pendingCostTotal 0. Passing the pending sum again
+  // would double-count it and wrongly reject affordable buys.
+  it('does not double-count pending spend (post-pending player + pendingCostTotal 0)', () => {
+    const base = ALL_STATES.find((s) => s.id === 'OH')!.baseCampaignCost;
+    const lvl2 = calcStateCost('OH', base, 1, 1, 0);
+    const lvl3 = calcStateCost('OH', base, 2, 1, 0);
+    // Funded for exactly two levels; after queueing level 2, workingCash holds lvl3.
+    const postPending = makePlayer('p1', { nationalCash: lvl3, groupWallets: {} });
+
+    // The fixed call (pendingCostTotal 0) allows the affordable next level.
+    expect(
+      validatePurchase(postPending, 0, {
+        kind: 'state', targetId: 'OH', rungsToBuy: 1, startRung: 1, pendingRungs: 1,
+      }),
+    ).toBeNull();
+
+    // The old buggy call (re-adding the pending sum) would have wrongly rejected it.
+    expect(
+      validatePurchase(postPending, lvl2, {
+        kind: 'state', targetId: 'OH', rungsToBuy: 1, startRung: 1, pendingRungs: 1,
+      }),
+    ).not.toBeNull();
+  });
+});
+
+// ── 11b. computeAffordability (buy-button single source of truth) ─────────────
+
+describe('computeAffordability', () => {
+  const OH = ALL_STATES.find((s) => s.id === 'OH')!;
+  const lvl1 = calcStateCost('OH', OH.baseCampaignCost, 0, 1, 0);
+
+  it('is affordable (reason null) when working cash covers the next level', () => {
+    const aff = computeAffordability({
+      kind: 'state', targetId: 'OH', player: makePlayer('p1'),
+      workingCash: { nationalCash: lvl1, groupWallets: {} },
+      startRung: 0, pendingRungs: 0, secured: false,
+    });
+    expect(aff.affordable).toBe(true);
+    expect(aff.reason).toBeNull();
+    expect(aff.nextCost).toBe(lvl1);
+  });
+
+  it('agrees with the funds ground truth right at the boundary', () => {
+    const short = computeAffordability({
+      kind: 'state', targetId: 'OH', player: makePlayer('p1'),
+      workingCash: { nationalCash: lvl1 - 1, groupWallets: {} },
+      startRung: 0, pendingRungs: 0, secured: false,
+    });
+    expect(short.affordable).toBe(false);
+    expect(short.reason).toMatch(/^Need \$\d+k$/);
+  });
+
+  it('reports the entry cap before max', () => {
+    const cap = maxBuyableThisTurn(0, OH.maxRungs);
+    const aff = computeAffordability({
+      kind: 'state', targetId: 'OH', player: makePlayer('p1', { nationalCash: 999999 }),
+      workingCash: { nationalCash: 999999, groupWallets: {} },
+      startRung: 0, pendingRungs: cap, secured: false,
+    });
+    expect(aff.capReached).toBe(true);
+    expect(aff.reason).toBe('Capped this turn');
+  });
+
+  it('reports Max Campaign Level at the ceiling', () => {
+    const aff = computeAffordability({
+      kind: 'state', targetId: 'OH', player: makePlayer('p1', { nationalCash: 999999 }),
+      workingCash: { nationalCash: 999999, groupWallets: {} },
+      startRung: OH.maxRungs, pendingRungs: 0, secured: false,
+    });
+    expect(aff.atMax).toBe(true);
+    expect(aff.affordable).toBe(false);
+    expect(aff.reason).toBe('Max Campaign Level');
+  });
+
+  it('a secured target is never affordable', () => {
+    const aff = computeAffordability({
+      kind: 'state', targetId: 'OH', player: makePlayer('p1', { nationalCash: 999999 }),
+      workingCash: { nationalCash: 999999, groupWallets: {} },
+      startRung: 1, pendingRungs: 0, secured: true,
+    });
+    expect(aff.affordable).toBe(false);
+    expect(aff.reason).toBe('Secured');
   });
 });
 

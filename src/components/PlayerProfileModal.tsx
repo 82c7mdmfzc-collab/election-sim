@@ -104,7 +104,7 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
             <div className="profile-modal__section-title">Candidate Perks</div>
             {affinityEntries.length > 0 && (
               <>
-                <div className="profile-perk-subhead">Rung Cost</div>
+                <div className="profile-perk-subhead">Campaign Cost</div>
                 {affinityEntries.map(([key, val]) => (
                   <div key={key} className="profile-perk-row">
                     <span className="profile-perk-row__key">{key}</span>

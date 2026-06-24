@@ -19,6 +19,8 @@ export interface LocalPrefs {
   pendingReferralCode: string | null;
   /** Whether the live first-campaign coach has been dismissed on this device. */
   firstRunCoachDismissed: boolean;
+  /** Whether the one-time first-gameplay tips overlay has been dismissed. */
+  firstGameplayTipsSeen: boolean;
   /** Normalized usernames the player has blocked online (Apple Guideline 1.2). */
   blockedPlayers: string[];
 }
@@ -30,6 +32,7 @@ const DEFAULTS: LocalPrefs = {
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
+  firstGameplayTipsSeen: false,
   blockedPlayers: [],
 };
 
@@ -66,6 +69,8 @@ export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs(
 export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });
 export const isFirstRunCoachDismissed = () => getPrefs().firstRunCoachDismissed;
 export const markFirstRunCoachDismissed = () => setPrefs({ firstRunCoachDismissed: true });
+export const isFirstGameplayTipsSeen = () => getPrefs().firstGameplayTipsSeen;
+export const markFirstGameplayTipsSeen = () => setPrefs({ firstGameplayTipsSeen: true });
 
 // ── Online safety: blocked players (Apple Guideline 1.2) ──────────────────────
 const normPlayerName = (name: string) => name.trim().toLowerCase();

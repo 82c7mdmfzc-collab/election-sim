@@ -15,22 +15,36 @@ import { track } from '../utils/analytics';
 interface ProgressPanelProps {
   compact?: boolean;
   showAll?: boolean;
+  /** When provided, the Daily Race strip shows a "Play today's race" CTA. */
+  onDailyStart?: () => void;
 }
 
-export function DailyStreakStrip({ compact = false }: { compact?: boolean }) {
+export function DailyStreakStrip({ compact = false, onStart }: { compact?: boolean; onStart?: () => void }) {
   const streak = useProfile((s) => s.profile.dailyStreak);
   const count = Math.min(streak.count, 14);
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
   const completedToday = streak.lastDate === today;
-  const nextDay = completedToday ? Math.min(streak.count + 1, 14) : Math.min(streak.count + 1 || 1, 14);
-  const nextReward = completedToday ? streakRewardForDay(Math.min(streak.count + 1, 14)) : streakRewardForDay(nextDay);
+  const nextDay = completedToday ? Math.min(streak.count + 1, 14) : Math.min((streak.count || 0) + 1, 14);
+  const nextReward = streakRewardForDay(nextDay);
+  const todayReward = streakRewardForDay(Math.max(1, Math.min(streak.count, 14)));
+  // Hours until the streak window rolls over (next UTC midnight, matching `today`).
+  const hoursToReset = Math.max(
+    1,
+    Math.ceil((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime()) / 3_600_000),
+  );
 
   return (
     <div className={`streak-strip${compact ? ' streak-strip--compact' : ''}`}>
       <div className="streak-strip__head">
-        <span>14-Day Finish Streak</span>
-        <strong>{completedToday ? `Day ${Math.max(streak.count, 1)} banked` : `Next +${nextReward}`}</strong>
+        <span className="streak-strip__title">Daily Race</span>
+        <strong>{completedToday ? `🔥 Day ${Math.max(streak.count, 1)}` : `Next +${nextReward}`}</strong>
       </div>
+      <p className="streak-strip__blurb">
+        {completedToday
+          ? `Today's race is done — +${todayReward} banked. Come back in ~${hoursToReset}h to keep the streak alive.`
+          : `Finish one game today to extend your streak and bank +${nextReward} Campaign Funds.`}
+      </p>
       <div className="streak-strip__days" aria-label={`${streak.count} day completion streak`}>
         {Array.from({ length: 14 }, (_, i) => {
           const day = i + 1;
@@ -49,11 +63,20 @@ export function DailyStreakStrip({ compact = false }: { compact?: boolean }) {
           );
         })}
       </div>
+      {onStart && !completedToday && (
+        <button
+          type="button"
+          className="streak-strip__cta"
+          onClick={() => { AudioManager.play('click'); onStart(); }}
+        >
+          Play today's race &rarr;
+        </button>
+      )}
     </div>
   );
 }
 
-export function ProgressPanel({ compact = false, showAll = true }: ProgressPanelProps) {
+export function ProgressPanel({ compact = false, showAll = true, onDailyStart }: ProgressPanelProps) {
   const profile = useProfile((s) => s.profile);
   const claimAchievement = useProfile((s) => s.claimAchievement);
   const [busy, setBusy] = useState<string | null>(null);
@@ -87,7 +110,7 @@ export function ProgressPanel({ compact = false, showAll = true }: ProgressPanel
 
   return (
     <div className={`progress-panel${compact ? ' progress-panel--compact' : ''}`}>
-      <DailyStreakStrip compact={compact} />
+      <DailyStreakStrip compact={compact} onStart={onDailyStart} />
 
       {claimable.length > 0 && (
         <div className="achievement-claim-row">

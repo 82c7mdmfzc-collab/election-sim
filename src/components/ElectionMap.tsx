@@ -17,7 +17,7 @@
 import { memo, useCallback, useEffect, useState } from 'react';
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import usAtlas from 'us-atlas/states-10m.json';
-import { WIN_THRESHOLD, calcStateCost, bestAffinityForState } from '../game/engine';
+import { WIN_THRESHOLD, bestAffinityForState } from '../game/engine';
 import { ALL_STATES } from '../game/statesData';
 import { STATE_GROUPS_BY_STATE, minRungsForDominance } from '../game/config';
 import { NEUTRAL_RGB, lerp, rgbStr, type ResolvedColor } from '../game/colors';
@@ -26,9 +26,11 @@ import {
   usePendingRungs,
   useActivePlayer,
   usePlayerColors,
+  useAffordability,
 } from '../game/store';
 import type { StateId, US_State } from '../game/types';
 import { AudioManager } from '../utils/audioManager';
+import { notifyOnce } from '../utils/toast';
 import { RungTrack } from './RungTrack';
 
 // ── Module-level stable lookups ───────────────────────────────────────────────
@@ -68,14 +70,27 @@ function stateColor(
   }
   if (!leader || lead === 0) return rgbStr(NEUTRAL_RGB);
 
+  // Stronger contrast than before: a clear lead now reads at a glance instead of
+  // washing out near neutral. Floor lifted to 0.4, slope steepened.
   const margin = (lead - second) / maxRungs;
-  const intensity = Math.min(0.25 + margin * 1.75, 1);
+  const intensity = Math.min(0.4 + margin * 1.9, 1);
   const c = colors[leader]?.rgb ?? NEUTRAL_RGB;
   return rgbStr([
     lerp(NEUTRAL_RGB[0], c[0], intensity),
     lerp(NEUTRAL_RGB[1], c[1], intensity),
     lerp(NEUTRAL_RGB[2], c[2], intensity),
   ]);
+}
+
+/** Top two campaign-level counts in a state (for the "heavily contested" cue). */
+function leadMargin(rungs: Record<string, number>): { lead: number; second: number } {
+  let lead = 0;
+  let second = 0;
+  for (const r of Object.values(rungs)) {
+    if (r > lead) { second = lead; lead = r; }
+    else if (r > second) second = r;
+  }
+  return { lead, second };
 }
 
 // ── Per-state path ────────────────────────────────────────────────────────────
@@ -94,11 +109,12 @@ interface StateGeoProps {
   tallyRevealedIds?: Set<string>;
   isGroupHighlighted?: boolean;
   isGroupDimmed?: boolean;
+  isSelected?: boolean;
 }
 
 const StateGeo = memo(function StateGeo({
   geo, stateId, isInteractive, colors, activePlayerHex, onHover, onLeave, onSelect,
-  tallyActiveStateId, tallyRevealedIds, isGroupHighlighted, isGroupDimmed,
+  tallyActiveStateId, tallyRevealedIds, isGroupHighlighted, isGroupDimmed, isSelected,
 }: StateGeoProps) {
   const rungs = useGameStore((s) => s.rungs[stateId] ?? {});
   const securedById = useGameStore((s) => s.securedBy[stateId]);
@@ -106,29 +122,43 @@ const StateGeo = memo(function StateGeo({
   const clashing = useGameStore(
     (s) => s.phase === 'RESOLUTION' && (s.lastTurnReport?.clashedStates.includes(stateId) ?? false),
   );
+  // A state that just locked in this turn gets a one-shot "recently changed" pulse.
+  const recentlySecured = useGameStore(
+    (s) => s.phase === 'RESOLUTION'
+      && (s.lastTurnReport?.newlySecured.some((e) => e.kind === 'state' && e.targetId === stateId) ?? false),
+  );
 
   const usState = STATES_BY_ID.get(stateId);
   const maxRungs = usState?.maxRungs ?? 8;
   const fill = stateColor(rungs, securedById, maxRungs, colors);
   const hasPending = pendingRungs > 0;
+  const { lead, second } = leadMargin(rungs);
+  const contested = !securedById && lead > 0 && second > 0 && lead - second <= 1;
 
   const isTallyActive = tallyActiveStateId === stateId;
   const isTallyRevealed = !isTallyActive && (tallyRevealedIds?.has(stateId) ?? false);
   const className = [
     clashing ? 'state-geo--clash' : '',
+    recentlySecured ? 'state-geo--recent' : '',
+    isSelected ? 'state-geo--selected' : '',
+    contested && !isSelected ? 'state-geo--contested' : '',
     isTallyActive ? 'state-geo--tally-active' : '',
     isTallyRevealed ? 'state-geo--tally-revealed' : '',
     isGroupHighlighted ? 'state-geo--group-highlight' : '',
     isGroupDimmed ? 'state-geo--group-dim' : '',
   ].filter(Boolean).join(' ') || undefined;
 
-  const stroke = isGroupHighlighted
-    ? '#facc15'
-    : hasPending
-      ? activePlayerHex
-      : '#0f172a';
-  const strokeWidth = isGroupHighlighted ? 2.5 : hasPending ? 1.6 : 0.5;
+  const stroke = isSelected
+    ? 'var(--brand)'
+    : isGroupHighlighted
+      ? '#facc15'
+      : hasPending
+        ? activePlayerHex
+        : '#0f172a';
+  const strokeWidth = isSelected ? 2.4 : isGroupHighlighted ? 2.5 : hasPending ? 1.6 : 0.5;
   const opacity = isGroupDimmed ? 0.3 : 1;
+  // Glow filter is applied ONLY to the selected state (≤1 path) — never the whole map.
+  const filter = isSelected ? 'url(#sel-glow)' : undefined;
 
   return (
     <Geography
@@ -143,15 +173,17 @@ const StateGeo = memo(function StateGeo({
           stroke,
           strokeWidth,
           opacity,
+          filter,
           outline: 'none',
           cursor: isInteractive ? 'pointer' : 'default',
         },
         hover: {
           fill,
-          stroke: isGroupHighlighted ? '#facc15' : '#ffffff',
-          strokeWidth: isGroupHighlighted ? 2.5 : 1.5,
+          stroke: isSelected ? 'var(--brand)' : isGroupHighlighted ? '#facc15' : '#ffffff',
+          strokeWidth: isSelected ? 2.4 : isGroupHighlighted ? 2.5 : 1.5,
           outline: 'none',
-          opacity: isGroupDimmed ? 0.5 : 0.85,
+          opacity: isGroupDimmed ? 0.5 : 0.9,
+          filter,
           cursor: isInteractive ? 'pointer' : 'default',
         },
         pressed: { fill, stroke: '#ffffff', strokeWidth: 2, outline: 'none', opacity: 0.9 },
@@ -181,6 +213,8 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
   const pendingRungs = usePendingRungs('state', stateId);
+  const aff = useAffordability('state', stateId);
+  const [nudge, setNudge] = useState(false);
 
   useEffect(() => {
     if (!interactive) return;
@@ -189,24 +223,50 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
     return () => window.removeEventListener('keydown', onKey);
   }, [interactive, onClose]);
 
+  useEffect(() => {
+    if (!nudge) return;
+    const t = window.setTimeout(() => setNudge(false), 450);
+    return () => window.clearTimeout(t);
+  }, [nudge]);
+
   if (!usState) return null;
 
   const maxRungs = usState.maxRungs;
   const tier = maxRungs === 16 ? 'Megastate' : maxRungs === 8 ? 'Small' : 'Mid-Tier';
   const canBuy = interactive && phase === 'PLANNING' && !!activePlayer && !securedById;
-
   const discount = activePlayer ? bestAffinityForState(activePlayer, stateId) : 0;
-  const settled = activePlayer ? (rungs[activePlayer.id] ?? 0) : 0;
-  const nextRungCost = activePlayer
-    ? calcStateCost(stateId, usState.baseCampaignCost, settled + pendingRungs, 1, discount)
-    : usState.baseCampaignCost;
 
+  // Who currently leads this state (by settled campaign levels)?
+  const live = players.filter((p) => !p.eliminated);
+  let leaderId: string | null = null;
+  let lead = 0;
+  let tied = false;
+  for (const p of live) {
+    const r = rungs[p.id] ?? 0;
+    if (r > lead) { lead = r; leaderId = p.id; tied = false; }
+    else if (r === lead && r > 0) { tied = true; }
+  }
+  const leaderIsYou = !securedById && !!leaderId && leaderId === activePlayer?.id && !tied;
   const securedName = securedById
     ? players.find((p) => p.id === securedById)?.name ?? securedById
     : null;
+  const leaderName = leaderId ? players.find((p) => p.id === leaderId)?.name ?? leaderId : null;
 
   const cardX = Math.max(8, Math.min(x + 16, window.innerWidth - 300));
   const cardY = Math.max(y - 20, 8);
+
+  // Single funding path: only allocate when the action is genuinely affordable;
+  // otherwise nudge + one (deduped) toast so rapid taps never stack warnings.
+  const tryFund = () => {
+    if (aff.affordable) {
+      AudioManager.play('buy');
+      const ok = allocate('state', stateId, 1);
+      if (!ok) { setNudge(true); notifyOnce('error', 'Not enough campaign funds'); }
+    } else {
+      setNudge(true);
+      if (aff.reason) notifyOnce('error', aff.reason);
+    }
+  };
 
   return (
     <>
@@ -223,28 +283,22 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
           )}
         </div>
 
-        <div className="state-card__meta">
-          <span className="state-card__tier">{tier} · {maxRungs} rungs</span>
-          <span className="state-card__cost">Base ${usState.baseCampaignCost}k/rung</span>
+        <div className="state-card__leader">
+          {securedName ? (
+            <span className="state-card__leader-tag is-secured">🔒 Secured by {securedName}</span>
+          ) : leaderIsYou ? (
+            <span className="state-card__leader-tag is-you">You're leading</span>
+          ) : leaderName && !tied ? (
+            <span className="state-card__leader-tag is-opp">{leaderName} leading</span>
+          ) : lead > 0 ? (
+            <span className="state-card__leader-tag is-contested">Contested — too close to call</span>
+          ) : (
+            <span className="state-card__leader-tag is-neutral">Neutral — not yet contested</span>
+          )}
         </div>
 
-        {securedName && (
-          <div className="state-card__locked">🔒 Secured by {securedName}</div>
-        )}
-
-        <RungTrack
-          maxRungs={maxRungs}
-          settledByPlayer={rungs}
-          pendingRungs={activePlayer ? pendingRungs : 0}
-          activePlayerId={activePlayer?.id ?? null}
-          colors={colors}
-          securedBy={securedById}
-          onBuyNext={canBuy ? () => allocate('state', stateId, 1) : undefined}
-          onRetractLast={canBuy && pendingRungs > 0 ? () => retractLastAllocation('state', stateId) : undefined}
-        />
-
         <div className="state-card__standings">
-          {players.filter((p) => !p.eliminated).map((p) => {
+          {live.map((p) => {
             const isActive = p.id === activePlayer?.id;
             const r = rungs[p.id] ?? 0;
             const pen = isActive ? pendingRungs : 0;
@@ -267,18 +321,39 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
                     style={{ width: `${pct}%`, background: colors[p.id]?.hex }}
                   />
                 </div>
-                <span className="sc-standing__count">{r}{pen > 0 ? `+${pen}` : ''}/{maxRungs}</span>
+                <span className="sc-standing__count">Lvl {r}{pen > 0 ? `+${pen}` : ''}/{maxRungs}</span>
               </div>
             );
           })}
         </div>
 
+        <RungTrack
+          maxRungs={maxRungs}
+          settledByPlayer={rungs}
+          pendingRungs={activePlayer ? pendingRungs : 0}
+          activePlayerId={activePlayer?.id ?? null}
+          colors={colors}
+          securedBy={securedById}
+          nextAffordable={aff.affordable}
+          onBuyNext={canBuy ? () => allocate('state', stateId, 1) : undefined}
+          onRetractLast={canBuy && pendingRungs > 0 ? () => retractLastAllocation('state', stateId) : undefined}
+        />
+
         {canBuy && (
-          <div className="state-card__buy">
-            <span>
-              Next rung: <strong>${nextRungCost.toFixed(0)}k</strong>
-              {discount > 0 && <span className="state-card__disc"> (−{Math.round(discount * 100)}%)</span>}
-              {discount < 0 && <span className="state-card__pen"> (+{Math.round(-discount * 100)}% penalty)</span>}
+          <div className={`state-card__buy${nudge ? ' state-card__buy--nudge' : ''}`}>
+            <span className="state-card__cost">
+              {aff.atMax ? (
+                <span className="state-card__cost-max">Maxed out</span>
+              ) : (
+                <>
+                  Next level{' '}
+                  <strong className={aff.reason?.startsWith('Need') ? 'is-short' : undefined}>
+                    ${aff.nextCost}k
+                  </strong>
+                  {discount > 0 && <span className="state-card__disc"> (−{Math.round(discount * 100)}%)</span>}
+                  {discount < 0 && <span className="state-card__pen"> (+{Math.round(-discount * 100)}%)</span>}
+                </>
+              )}
             </span>
             <div className="state-card__buy-actions">
               {pendingRungs > 0 && (
@@ -286,23 +361,31 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
                   type="button"
                   className="state-card__undo-btn"
                   onClick={() => { AudioManager.play('quit'); retractLastAllocation('state', stateId); }}
-                  title="Undo the last rung queued this turn"
+                  title="Undo the last campaign level queued this turn"
                 >
                   ↩ Undo
                 </button>
               )}
               <button
                 type="button"
-                className="state-card__buy-btn"
-                onClick={() => { AudioManager.play('buy'); allocate('state', stateId, 1); }}
+                className={`state-card__buy-btn${aff.affordable ? '' : ' is-disabled'}`}
+                aria-disabled={!aff.affordable}
+                onClick={tryFund}
               >
-                Buy rung →
+                {aff.affordable ? 'Fund Campaign →' : aff.reason ?? 'Unavailable'}
               </button>
             </div>
           </div>
         )}
 
+        {interactive && (
+          <p className="state-card__explainer">
+            Campaign Level = your standing here. The highest level on election day wins the state.
+          </p>
+        )}
+
         <div className="state-card__groups">
+          <span className="state-card__tier">{tier} · max Lvl {maxRungs}</span>
           {(STATE_GROUPS_BY_STATE[stateId] ?? []).map((g) => {
             const minR = minRungsForDominance(stateId, usState.electoralVotes);
             const myR = activePlayer ? ((rungs[activePlayer.id] ?? 0) + pendingRungs) : 0;
@@ -310,7 +393,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
             return (
               <span key={g} className={`state-card__tag${qualifies ? ' state-card__tag--ok' : ''}`}>
                 {g}
-                <span className="state-card__tag-min"> {qualifies ? '✓' : `${myR}/${minR}r`}</span>
+                <span className="state-card__tag-min"> {qualifies ? '✓' : `${myR}/${minR}`}</span>
               </span>
             );
           })}
@@ -389,7 +472,7 @@ export function ElectionOverlay() {
             {eliminatedId && (
               <p>
                 <strong>{players.find((p) => p.id === eliminatedId)?.name}</strong> is eliminated.
-                Their rungs are wiped and states revert to contest.
+                Their campaign levels are wiped and states revert to contest.
               </p>
             )}
           </div>
@@ -465,6 +548,12 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
           height={500}
           style={{ width: '100%', height: '100%' }}
         >
+          <defs>
+            {/* Brand-orange glow, applied only to the selected state (perf-safe). */}
+            <filter id="sel-glow" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#f59022" floodOpacity="0.95" />
+            </filter>
+          </defs>
           <ZoomableGroup
             zoom={position.zoom}
             center={position.coordinates}
@@ -494,6 +583,7 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
                       tallyRevealedIds={tallyRevealedIds}
                       isGroupHighlighted={!!highlightedStateIds?.has(stateId)}
                       isGroupDimmed={!!highlightedStateIds && !highlightedStateIds.has(stateId)}
+                      isSelected={pinned?.stateId === stateId}
                     />
                   );
                 })

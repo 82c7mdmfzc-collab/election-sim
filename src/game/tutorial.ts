@@ -26,9 +26,9 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   },
   {
     id: 'rungs',
-    art: 'R',
-    title: 'Buy Rungs On The Map',
-    body: 'Click a state to buy campaign rungs. More rungs means a stronger lead, and climbing to the top alone SECURES the state permanently.',
+    art: 'LVL',
+    title: 'Fund Your Campaign',
+    body: 'Click a state to fund your campaign and raise your Campaign Level there. A higher level means a stronger lead, and climbing to the top alone SECURES the state permanently.',
   },
   {
     id: 'coalitions',
@@ -40,7 +40,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'national',
     art: '$',
     title: 'National Groups Pay Flexible Cash',
-    body: 'The national ladders are side battles. Lead groups like Gun Lobby, Youth Vote, or Women’s Vote with 4+ rungs to earn national cash that spends anywhere.',
+    body: 'The national ladders are side battles. Lead groups like Gun Lobby, Youth Vote, or Women’s Vote to Level 4+ to earn national cash that spends anywhere.',
   },
   {
     id: 'wallets',
@@ -52,7 +52,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'clash',
     art: '!',
     title: 'Beware the Clash',
-    body: 'Everyone allocates secretly and at the same time. If two players land on the exact same rung count in a state, BOTH lose those rungs AND the cash spent. Read your opponent — clashing by accident is the costliest mistake in the game.',
+    body: 'Everyone allocates secretly and at the same time. If two players land on the exact same Campaign Level in a state, BOTH lose those levels AND the cash spent. Read your opponent — clashing by accident is the costliest mistake in the game.',
   },
   {
     id: 'election',
