@@ -37,7 +37,7 @@ import {
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
 import { getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
-import { rpcSetLobbyStatus } from '../utils/supabaseClient';
+import { rpcForfeitAndFinish } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
 import { saveSession, clearSession } from '../utils/sessionStore';
@@ -738,9 +738,9 @@ export const useGameStore = create<GameStore>()(
           clearSession();
           const snap = get();
           trackAbandonedGame(snap, 'abort');
-          // Mark the online lobby as finished before leaving (host-only, server-enforced)
+          // Forfeit the online lobby (awards wins to remaining players) before leaving
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
-            void rpcSetLobbyStatus(snap.lobbyId, 'finished');
+            void rpcForfeitAndFinish(snap.lobbyId);
           }
           const fresh = createInitialGameState();
           set({
@@ -778,7 +778,7 @@ export const useGameStore = create<GameStore>()(
           const snap = get();
           trackAbandonedGame(snap, 'return_to_menu');
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
-            void rpcSetLobbyStatus(snap.lobbyId, 'finished');
+            void rpcForfeitAndFinish(snap.lobbyId);
           }
           clearSession();
           const fresh = createInitialGameState();
@@ -962,6 +962,7 @@ export const useGameStore = create<GameStore>()(
               k !== 'hasSubmittedLocalTurn' &&
               k !== 'versusPending' &&
               k !== 'viewingGame' &&
+              k !== 'phase' &&
               k !== 'localPlayerId' &&
               k !== 'lobbyId' &&
               k !== 'hostPlayerId' &&

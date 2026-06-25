@@ -247,6 +247,29 @@ as $$
   limit 20;
 $$;
 
+-- ── RPC: cleanup_stale_lobbies — expire and delete inactive lobbies ───────────
+-- Called at the start of create_lobby so cleanup piggybacks on normal usage.
+create or replace function public.cleanup_stale_lobbies()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Waiting rooms nobody joined/started within 30 minutes
+  update public.lobbies set status = 'finished', updated_at = now()
+  where status = 'waiting' and updated_at < now() - interval '30 minutes';
+
+  -- In-progress games with no activity for 2 hours (host disconnected without aborting)
+  update public.lobbies set status = 'finished', updated_at = now()
+  where status = 'in_progress' and updated_at < now() - interval '2 hours';
+
+  -- Delete finished rows older than 24 hours to keep the table lean
+  delete from public.lobbies
+  where status = 'finished' and updated_at < now() - interval '24 hours';
+end;
+$$;
+
 -- ── RPC: create_lobby — caller becomes the host ───────────────────────────────
 create or replace function public.create_lobby(
   p_room_code    text,
@@ -270,6 +293,10 @@ begin
   if v_uid is null then
     raise exception 'auth required';
   end if;
+
+  -- Expire abandoned lobbies on each create (no cron needed)
+  perform public.cleanup_stale_lobbies();
+
   if v_cap is null or v_cap < 2 or v_cap > 4 then
     raise exception 'invalid player_count';
   end if;
@@ -543,6 +570,71 @@ begin
 end;
 $$;
 
+-- ── RPC: forfeit_and_finish — any participant can quit; remaining players win ──
+-- Sets phase=GAME_OVER in game_state and marks the lobby finished. The remaining
+-- players receive the update via Realtime → useGameRewards fires → win credited.
+create or replace function public.forfeit_and_finish(
+  p_lobby_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid        uuid := auth.uid();
+  v_player_id  text;
+  v_state      jsonb;
+  v_status     text;
+  v_victors    text[];
+  v_winner     text;
+  v_result     jsonb;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+
+  -- Identify the forfeiting player
+  select player_id into v_player_id
+    from public.lobby_participants
+    where lobby_id = p_lobby_id and auth_uid = v_uid;
+
+  if v_player_id is null then raise exception 'not a participant'; end if;
+
+  select game_state, status into v_state, v_status
+    from public.lobbies where id = p_lobby_id for update;
+
+  if v_state is null then raise exception 'lobby not found'; end if;
+
+  -- If already ended or never started, just ensure the row is finished
+  if (v_state->>'phase') in ('GAME_OVER', 'MENU', 'SETUP') or v_status = 'waiting' then
+    update public.lobbies set status = 'finished', updated_at = now() where id = p_lobby_id;
+    return;
+  end if;
+
+  -- Collect all non-eliminated players other than the forfeiter
+  select array_agg(p->>'id' order by (p->>'id'))
+    into v_victors
+    from jsonb_array_elements(coalesce(v_state->'players', '[]'::jsonb)) p
+    where (p->>'id') <> v_player_id
+      and coalesce((p->>'eliminated')::boolean, false) = false;
+
+  -- First remaining player is the UI winner shown on the podium
+  v_winner := v_victors[1];
+
+  v_result := jsonb_build_object(
+    'winner',        v_winner,
+    'forfeitVictors', to_jsonb(coalesce(v_victors, '{}'::text[])),
+    'evByPlayer',    '{}'::jsonb,
+    'stateLeaders',  '{}'::jsonb
+  );
+
+  update public.lobbies
+    set game_state  = (v_state || jsonb_build_object('phase', 'GAME_OVER', 'electionResult', v_result)),
+        status      = 'finished',
+        updated_at  = now()
+    where id = p_lobby_id;
+end;
+$$;
+
 -- ── Grants: authenticated clients use narrow RPCs; service_role performs
 --    authoritative Edge Function writes. Tables are not directly writable. ─────
 revoke execute on function public.is_known_candidate(text) from public, anon, authenticated;
@@ -564,6 +656,9 @@ revoke execute on function public.ensure_participant(uuid, text) from public, an
 grant execute on function public.ensure_participant(uuid, text)                   to authenticated;
 revoke execute on function public.set_lobby_status(uuid, text) from public, anon;
 grant execute on function public.set_lobby_status(uuid, text)                     to authenticated;
+revoke execute on function public.cleanup_stale_lobbies() from public, anon, authenticated;
+revoke execute on function public.forfeit_and_finish(uuid) from public, anon;
+grant execute on function public.forfeit_and_finish(uuid)                         to authenticated;
 -- push_game_state is deprecated/disabled — revoke so no client can call it.
 revoke execute on function public.push_game_state(uuid, jsonb) from public, anon, authenticated;
 revoke execute on function public.is_lobby_participant(uuid) from public, anon;
