@@ -270,12 +270,11 @@ function App() {
 
   function continueAsGuest() {
     setGuestContinued(true);
-    if (isTutorialSeen()) {
-      startPracticeGame();
-      return;
+    if (!isTutorialSeen()) {
+      setTutorialSource('onboarding');
+      setAppMode('tutorial');
     }
-    setTutorialSource('onboarding');
-    setAppMode('tutorial');
+    // appMode stays 'mode-select' → home menu shown
   }
 
   function openTutorial() {
