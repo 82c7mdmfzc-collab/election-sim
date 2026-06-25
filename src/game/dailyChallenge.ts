@@ -70,11 +70,53 @@ export function getDailyChallengeConfig(dateKey: string): DailyChallengeConfig {
   return { dateKey, opponentCount, difficulty, turnTimeLimit };
 }
 
+// ── Rival + stat boost ──────────────────────────────────────────────────────────
+/**
+ * The day's fixed RIVAL — one candidate chosen purely from the date seed,
+ * INDEPENDENT of the player's pick. It's the same headline opponent for everyone
+ * today (so the player can be barred from picking it), and may be ANY candidate,
+ * including locked/unowned ones. Deterministic given dateKey.
+ */
+export function getDailyRival(dateKey: string, roster: readonly CandidateDef[] = CANDIDATES): CandidateDef {
+  const rng = seededRng(`elector-daily-rival:${dateKey}`);
+  return roster[Math.floor(rng() * roster.length)];
+}
+
+/**
+ * A copy of `c` with every POSITIVE (beneficial) modifier DOUBLED and every
+ * penalty (≤ 0) left untouched — the boosted Daily rival's stats. Pure: returns a
+ * NEW object and never mutates the base candidate (no structuredClone — iOS 14
+ * WebViews lack it). affinities > 0 = cheaper buy-in and payoutModifiers > 0 =
+ * extra profit, so doubling only those is a strict, one-sided buff; weaknesses
+ * never get worse.
+ */
+export function boostPositiveStats(c: CandidateDef): CandidateDef {
+  const doublePositives = (mods: Record<string, number>): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const key of Object.keys(mods)) {
+      const v = mods[key];
+      out[key] = v > 0 ? v * 2 : v;
+    }
+    return out;
+  };
+  return {
+    ...c,
+    affinities: doublePositives(c.affinities),
+    payoutModifiers: doublePositives(c.payoutModifiers),
+  };
+}
+
 // ── Opponents ─────────────────────────────────────────────────────────────────
 /**
- * The day's opponents for a given player candidate: a deterministic seed-shuffle
- * of the roster, excluding the player's own pick, truncated to opponentCount.
- * Deterministic given (dateKey, playerCandidateId); never collides with the pick.
+ * The day's opponents for a given player candidate. Opponent #1 is always the
+ * fixed daily RIVAL (getDailyRival) with its positive stats DOUBLED
+ * (boostPositiveStats) — the "Boosted Challenge Opponent". Any remaining slots
+ * are a deterministic seed-shuffle of the roster, excluding both the player's pick
+ * and the rival. Deterministic given (dateKey, playerCandidateId). The boost rides
+ * on a clone, so the base roster is never mutated (normal modes keep normal stats).
+ *
+ * The player is barred from picking the rival in the UI; if called with the rival
+ * as the pick anyway, the boosted rival is still returned as opponent #1.
  */
 export function resolveDailyOpponents(
   dateKey: string,
@@ -82,9 +124,12 @@ export function resolveDailyOpponents(
   roster: readonly CandidateDef[] = CANDIDATES,
 ): CandidateDef[] {
   const { opponentCount } = getDailyChallengeConfig(dateKey);
-  const pool = roster.filter((c) => c.id !== playerCandidateId);
+  const rival = getDailyRival(dateKey, roster);
+  const boostedRival = boostPositiveStats(rival);
+  const pool = roster.filter((c) => c.id !== playerCandidateId && c.id !== rival.id);
   const shuffled = shuffleSeeded(pool, seededRng(`elector-daily-opp:${dateKey}`));
-  return shuffled.slice(0, Math.min(opponentCount, shuffled.length));
+  const others = shuffled.slice(0, Math.max(0, opponentCount - 1));
+  return [boostedRival, ...others];
 }
 
 /** In-place-safe Fisher–Yates over a copy, using the injected deterministic rng. */

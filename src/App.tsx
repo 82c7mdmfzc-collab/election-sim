@@ -76,6 +76,11 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
   const signedIn = useProfile(selectIsSignedIn);
   const native = isNativeRuntime();
   const [progressOpen, setProgressOpen] = useState(false);
+  // A persisted in-progress game is offered as an explicit Resume on Home, rather
+  // than auto-reopening the board on launch (see the viewingGame gate in App).
+  const phase = useGameStore((s) => s.phase);
+  const resumeGame = useGameStore((s) => s.resumeGame);
+  const hasResumableGame = phase === 'PLANNING' || phase === 'RESOLUTION' || phase === 'ELECTION';
   return (
     <div className="home">
       <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
@@ -100,6 +105,16 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
         />
         <BrandMark />
       </div>
+
+      {hasResumableGame && (
+        <button
+          type="button"
+          className="home__resume btn-cta"
+          onClick={() => { AudioManager.play('confirm'); resumeGame(); }}
+        >
+          Resume Campaign →
+        </button>
+      )}
 
       <div className="home__modes">
         {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
@@ -176,6 +191,7 @@ function App() {
   useGameRewards();
   const phase = useGameStore((s) => s.phase);
   const versusPending = useGameStore((s) => s.versusPending);
+  const viewingGame = useGameStore((s) => s.viewingGame);
   const initProfile = useProfile((s) => s.init);
   const ready = useProfile((s) => s.ready);
   const signedIn = useProfile(selectIsSignedIn);
@@ -276,14 +292,17 @@ function App() {
   let screen: ReactNode;
   let screenKey: string;
 
-  // Once a game is running, route to the correct view regardless of appMode.
-  if (phase === 'ELECTION_TALLY') {
+  // Once a game is running AND the player is actively viewing it this session,
+  // route to the correct view regardless of appMode. `viewingGame` is never
+  // persisted, so on a cold boot a saved in-progress game does NOT auto-open — the
+  // player lands on Home and resumes explicitly (see ModeSelect's Resume CTA).
+  if (viewingGame && phase === 'ELECTION_TALLY') {
     screen = <ElectionTallyView />;
     screenKey = 'tally';
-  } else if (phase === 'GAME_OVER') {
+  } else if (viewingGame && phase === 'GAME_OVER') {
     screen = <VictoryPodium />;
     screenKey = 'gameover';
-  } else if (phase !== 'SETUP' && phase !== 'MENU') {
+  } else if (viewingGame && phase !== 'SETUP' && phase !== 'MENU') {
     // Show the matchup intro once at the start of a game, before the board.
     if (versusPending) {
       screen = <VersusScreen />;

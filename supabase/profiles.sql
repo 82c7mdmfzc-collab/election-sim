@@ -15,12 +15,13 @@ returns public.profiles language plpgsql security definer set search_path = publ
 declare prof public.profiles; v_cost integer;
 begin
   v_cost := case p_character
+    when 'tooley'        then 1500
     when 'joe_biden'     then 1500
-    when 'ronald_reagan' then 1500
-    when 'washington'    then 1500
-    when 'starmer'       then 1500
-    when 'farage'        then 1500
-    when 'jfk'           then 1500
+    when 'ronald_reagan' then 4500
+    when 'washington'    then 4500
+    when 'starmer'       then 4500
+    when 'jfk'           then 4500
+    when 'farage'        then 10000
     else null end;
   if v_cost is null then raise exception 'unlock_character: unknown character %', p_character; end if;
 
@@ -40,3 +41,34 @@ end; $$;
 
 revoke execute on function public.unlock_character(text) from public, anon;
 grant  execute on function public.unlock_character(text) to anon, authenticated;
+
+-- ── RPC: claim_free_character ────────────────────────────────────────────────
+-- Time-limited FREE claim (George Washington, July only). The SERVER owns the
+-- "is it free right now?" rule so the client cannot spoof the month. Grants the
+-- character for 0 funds; idempotent if already owned. Mirrors
+-- isCandidateFreeClaimAvailable() in src/game/promos.ts.
+create or replace function public.claim_free_character(p_character text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare prof public.profiles;
+begin
+  if p_character <> 'washington' then
+    raise exception 'claim_free_character: % is not claimable', p_character;
+  end if;
+  if extract(month from now()) <> 7 then
+    raise exception 'claim_free_character: not available outside July';
+  end if;
+
+  select * into prof from public.profiles where id = auth.uid() for update;
+  if prof.id is null then raise exception 'claim_free_character: no profile'; end if;
+  if p_character = any(prof.unlocked_characters) then return prof; end if;       -- already owned (no-op)
+
+  update public.profiles
+    set unlocked_characters = array_append(unlocked_characters, p_character),
+        updated_at          = now()
+    where id = auth.uid()
+    returning * into prof;
+  return prof;
+end; $$;
+
+revoke execute on function public.claim_free_character(text) from public, anon;
+grant  execute on function public.claim_free_character(text) to authenticated;

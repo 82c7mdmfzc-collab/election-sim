@@ -84,6 +84,13 @@ interface GameStore extends GameState {
   versusPending: boolean;
   /** True while the current game is today's Daily Challenge (drives local streak + analytics). */
   isDailyChallenge: boolean;
+  /**
+   * True only while the player is actively viewing the in-game board this session.
+   * NOT persisted, so it is false on every cold boot — a persisted in-progress
+   * `phase` therefore no longer auto-reopens the game; the app lands on Home and
+   * offers an explicit Resume. Set true by startGame/resumeGame.
+   */
+  viewingGame: boolean;
 
   /** Unique id for the current game, set at start. Keys the once-per-game reward. */
   gameId: string | null;
@@ -137,6 +144,8 @@ interface GameStore extends GameState {
   reset(): void;
   abortGame(): void;
   returnToMenu(): void;
+  /** Re-enter a persisted in-progress game from Home (sets viewingGame true). */
+  resumeGame(): void;
 
   // ── Multiplayer actions ──────────────────────────────────────────────────────
   /** Set session metadata after joining/creating a lobby. */
@@ -280,6 +289,7 @@ export const useGameStore = create<GameStore>()(
         hasSubmittedLocalTurn: false,
         versusPending: false,
         isDailyChallenge: false,
+        viewingGame: false,
         gameId: null,
         multiplayerMode: 'single',
         localPlayerId: null,
@@ -326,6 +336,7 @@ export const useGameStore = create<GameStore>()(
             handoffAckKey: '1:0',
             versusPending: true,
             isDailyChallenge: false,
+            viewingGame: true,
           });
         },
 
@@ -343,6 +354,14 @@ export const useGameStore = create<GameStore>()(
         // ── clearVersus ───────────────────────────────────────────────────────
         clearVersus() {
           set({ versusPending: false });
+        },
+
+        // ── resumeGame ────────────────────────────────────────────────────────
+        // Re-enter a persisted in-progress game from Home. viewingGame is the only
+        // gate (never persisted → cold boot shows Home, not the board), so flipping
+        // it true drops the player back into their saved game.
+        resumeGame() {
+          set({ viewingGame: true });
         },
 
         // ── allocate ──────────────────────────────────────────────────────────
@@ -899,6 +918,7 @@ export const useGameStore = create<GameStore>()(
             handoffAckKey: '1:0',
             versusPending: true,
             isDailyChallenge: false,
+            viewingGame: true,
           });
         },
 
@@ -941,6 +961,7 @@ export const useGameStore = create<GameStore>()(
               k !== 'resolutionTickerDone' &&
               k !== 'hasSubmittedLocalTurn' &&
               k !== 'versusPending' &&
+              k !== 'viewingGame' &&
               k !== 'localPlayerId' &&
               k !== 'lobbyId' &&
               k !== 'hostPlayerId' &&

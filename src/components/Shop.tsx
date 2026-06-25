@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PREMIUM_CANDIDATES, PLAYER_COLORS } from '../game/candidates';
+import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
@@ -269,6 +270,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
   const unlock = useProfile((s) => s.unlock);
+  const claimFreeCharacter = useProfile((s) => s.claimFreeCharacter);
   const unlockCosmetic = useProfile((s) => s.unlockCosmetic);
   const guest = useProfile((s) => s.guest);
   const refresh = useProfile((s) => s.refresh);
@@ -353,6 +355,18 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         item_type: 'candidate',
         price_funds: candidate?.unlockCost ?? 0,
       });
+    }
+    setBusy(null);
+  }
+
+  // Free-claim path (e.g. George Washington in July): zero-cost, server-validated.
+  async function claim(id: string) {
+    setBusy(id);
+    AudioManager.play('click');
+    const ok = await claimFreeCharacter(id);
+    if (ok) {
+      AudioManager.play('victory');
+      track('item_unlocked', { item_id: id, item_type: 'candidate', price_funds: 0 });
     }
     setBusy(null);
   }
@@ -498,6 +512,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
           <div className="shop__grid shop-rail">
             {PREMIUM_CANDIDATES.map((c) => {
               const owned = unlocked.includes(c.id);
+              const freeClaim = !owned && isCandidateFreeClaimAvailable(c.id);
               const affordable = funds >= c.unlockCost;
               const pct = Math.min(100, Math.round((funds / c.unlockCost) * 100));
               return (
@@ -519,8 +534,21 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                   <div className="shop-card__foot">
                     {owned ? (
                       <div className="shop-card__owned">Owned ✓</div>
+                    ) : freeClaim ? (
+                      <>
+                        <span className="shop-card__price shop-card__price--free">Free in July</span>
+                        <button
+                          type="button"
+                          className="shop-card__unlock shop-card__unlock--free"
+                          disabled={busy === c.id}
+                          onClick={() => claim(c.id)}
+                        >
+                          {busy === c.id ? 'Claiming…' : 'Claim Free'}
+                        </button>
+                      </>
                     ) : (
                       <>
+                        <span className="shop-card__price">{c.unlockCost.toLocaleString()} Credits</span>
                         <button
                           type="button"
                           className="shop-card__unlock"
@@ -530,8 +558,8 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                           {busy === c.id
                             ? 'Unlocking…'
                             : affordable
-                              ? `Unlock — ${c.unlockCost.toLocaleString()} Credits`
-                              : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Credits`}
+                              ? 'Unlock'
+                              : `Need ${(c.unlockCost - funds).toLocaleString()}`}
                         </button>
                         {!affordable && (
                           <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>

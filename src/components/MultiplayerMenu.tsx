@@ -112,6 +112,10 @@ interface Props {
 export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   const setMultiplayerMeta = useGameStore((s) => s.setMultiplayerMeta);
   const syncFromPayload    = useGameStore((s) => s.syncFromPayload);
+  // Live game entry — flip viewingGame so App.tsx routes to the board now. (Cold-boot
+  // reconnect goes through useSessionRestore, which intentionally does NOT, so a
+  // refreshed player lands on Home with an explicit Resume instead.)
+  const resumeGame         = useGameStore((s) => s.resumeGame);
 
   // Online play requires a signed-in account with a claimed permanent username;
   // the username is used as this player's display name in the lobby.
@@ -184,6 +188,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
               hostPlayerId: fullGs.hostPlayerId,
             });
             syncFromPayload(fullGs);
+            resumeGame();
           }
         },
       )
@@ -255,6 +260,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     try {
       const gameState = await rpcStartGame(lobby.id, useGameStore.getState().turnTimeLimit);
       syncFromPayload(gameState);
+      resumeGame();
     } catch (e) {
       setLoading(false);
       setErrorMsg(`Could not start game: ${(e as Error).message}`);

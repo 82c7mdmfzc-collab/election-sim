@@ -26,6 +26,7 @@ import {
   dailyDateKey,
   getDailyChallengeConfig,
   resolveDailyOpponents,
+  getDailyRival,
 } from '../game/dailyChallenge';
 import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/localPrefs';
 import { Portrait } from './Portrait';
@@ -66,13 +67,20 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const status = serverStatus ?? local;
   const streak = status.streak;
 
+  // Today's fixed rival is barred from the player's roster (Part 4 rule). It can
+  // be any candidate — including ones the player hasn't unlocked.
+  const rival = useMemo(() => getDailyRival(dateKey), [dateKey]);
   const ownedCandidates = useMemo(
-    () => CANDIDATES.filter((c) => isCandidateAvailable(c, unlocked)),
-    [unlocked],
+    () => CANDIDATES.filter((c) => isCandidateAvailable(c, unlocked) && c.id !== rival.id),
+    [unlocked, rival.id],
   );
 
-  const [myId, setMyId] = useState(ownedCandidates[0]?.id ?? CANDIDATES[0].id);
-  const me = CANDIDATE_MAP[myId];
+  // ownedCandidates already excludes the rival, so the first pick is always a
+  // valid non-rival candidate; `unlocked` only ever grows, so it stays valid.
+  const [myId, setMyId] = useState(
+    () => ownedCandidates[0]?.id ?? CANDIDATES.find((c) => c.id !== rival.id)!.id,
+  );
+  const me = CANDIDATE_MAP[myId] ?? ownedCandidates[0] ?? CANDIDATES[0];
   const opponents = useMemo(() => resolveDailyOpponents(dateKey, myId), [dateKey, myId]);
 
   const playedToday = status.lastPlayedDate === dateKey;
@@ -113,16 +121,21 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
             <span className="daily__chip">{timerLabel(config.turnTimeLimit)}</span>
           </div>
           <div className="daily__opponents" aria-label="Today's opponents">
-            {opponents.map((o) => (
-              <div
-                key={o.id}
-                className="daily__opponent"
-                style={{ ['--p-color' as string]: PLAYER_COLORS[o.color] }}
-              >
-                <Portrait className="daily__opponent-portrait" src={o.portraitUrl} initials={o.portrait} name={o.name} />
-                <span className="daily__opponent-name">{o.name}</span>
-              </div>
-            ))}
+            {opponents.map((o) => {
+              const isRival = o.id === rival.id;
+              return (
+                <div
+                  key={o.id}
+                  className={`daily__opponent${isRival ? ' daily__opponent--rival' : ''}`}
+                  style={{ ['--p-color' as string]: PLAYER_COLORS[o.color] }}
+                  title={isRival ? `${o.name} — today's rival, 2× positive stats` : o.name}
+                >
+                  <Portrait className="daily__opponent-portrait" src={o.portraitUrl} initials={o.portrait} name={o.name} />
+                  <span className="daily__opponent-name">{o.name}</span>
+                  {isRival && <span className="daily__rival-badge">Daily Rival · 2× stats</span>}
+                </div>
+              );
+            })}
           </div>
           <div className="daily__status">{statusText}</div>
         </div>
@@ -147,6 +160,9 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
         </div>
 
         <p className="mp-hint">Your Candidate</p>
+        <p className="mp-hint daily__rival-hint">
+          Unavailable: today’s rival <strong>{rival.name}</strong> — a boosted challenge opponent (2× positive stats).
+        </p>
         <div className="setup__roster candidate-rail">
           {ownedCandidates.map((c) => {
             const chosen = c.id === myId;

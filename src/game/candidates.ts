@@ -88,6 +88,22 @@ export function groupImageUrl(kind: 'state' | 'national', id: string): string {
   return `/assets/groups/${kind}/${slugifyGroupId(id)}.png`;
 }
 
+/**
+ * ── Candidate price tiers (Campaign Funds) ──────────────────────────────────
+ * The ONE place to set how much each character costs to unlock in the Shop.
+ * Every candidate's `unlockCost` below is set from one of these tiers.
+ *
+ * ⚠️ Mirror any price change in BOTH server copies or purchases break / desync:
+ *   • supabase/profiles.sql            → unlock_character() catalog
+ *   • supabase/functions/resolve-turn/_engine/candidates.ts → unlockCost field
+ */
+export const CANDIDATE_PRICE = {
+  FREE: 0,
+  TIER1: 1500,
+  TIER2: 4500,
+  TIER3: 10000,
+} as const;
+
 export const CANDIDATES: readonly CandidateDef[] = [
   {
     id: 'tooley',
@@ -99,7 +115,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'independent',
     color: 'green',
     tagline: 'The Baseline — completely neutral across every track.',
-    unlockCost: 0,
+    // Premium: the highest starting cash ($300k) makes the neutral baseline a paid pick.
+    unlockCost: CANDIDATE_PRICE.TIER1,
     affinities: {},
     payoutModifiers: {},
   },
@@ -113,7 +130,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'republican',
     color: 'red',
     tagline: 'The Industrial Populist.',
-    unlockCost: 0,
+    unlockCost: CANDIDATE_PRICE.FREE,
     affinities: {
       // cost reductions (Gun Lobby overridden 0.20 → 0.15)
       'Gun Lobby': 0.15,
@@ -143,7 +160,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'democrat',
     color: 'blue',
     tagline: 'The Metro Coalition.',
-    unlockCost: 0,
+    unlockCost: CANDIDATE_PRICE.FREE,
     affinities: {
       'Environmental': 0.20,
       'High Tech': 0.15,
@@ -169,7 +186,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'republican',
     color: 'red',
     tagline: 'The Centrist Unifier.',
-    unlockCost: 0,
+    unlockCost: CANDIDATE_PRICE.FREE,
     affinities: {
       'African American': 0.15,
       'Manufacturing Base': 0.10,
@@ -196,7 +213,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'democrat',
     color: 'blue',
     tagline: 'The Union Hall Veteran.',
-    unlockCost: 1500,
+    unlockCost: CANDIDATE_PRICE.TIER1,
     affinities: {
       // cheaper buy-in
       'Manufacturing Base': 0.15,
@@ -224,20 +241,21 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'republican',
     color: 'red',
     tagline: 'The Sun Belt Optimist.',
-    unlockCost: 1500,
+    unlockCost: CANDIDATE_PRICE.TIER2,
+    // Positive (good) modifiers buffed +5pp; penalties unchanged.
     affinities: {
-      'Swing States': 0.15,
-      'Old South': 0.15,
-      'Big Conservative': 0.10,
-      'Oil and Gas': 0.10,
+      'Swing States': 0.20,
+      'Old South': 0.20,
+      'Big Conservative': 0.15,
+      'Oil and Gas': 0.15,
       'High Tech': -0.10,
       'Town and Gown': -0.15,
     },
     payoutModifiers: {
-      'Big Conservative': 0.25,
-      'Old South': 0.15,
-      'Swing States': 0.10,
-      'Oil and Gas': 0.10,
+      'Big Conservative': 0.30,
+      'Old South': 0.20,
+      'Swing States': 0.15,
+      'Oil and Gas': 0.15,
       'Environmental': -0.20,
     },
   },
@@ -252,7 +270,9 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'independent',
     color: 'green',
     tagline: 'The Nonpartisan Founder — a balanced sidegrade.',
-    unlockCost: 1500,
+    // 4,500 normally; free to CLAIM during July (see isCandidateFreeClaimAvailable +
+    // the claim_free_character RPC). Stats unchanged — must stay net-neutral.
+    unlockCost: CANDIDATE_PRICE.TIER2,
     // ⚖️ Cosmetic/sidegrade ONLY. A free (July-grant) character must not hand out a
     // concentrated economic edge, so these modifiers are deliberately small and sum
     // to ZERO on each axis: every perk is offset by an equal penalty. Net-neutral.
@@ -279,19 +299,20 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'democrat',
     color: 'blue',
     tagline: 'The Technocratic Centre.',
-    unlockCost: 1500,
+    unlockCost: CANDIDATE_PRICE.TIER2,
+    // Positive (good) modifiers buffed +5pp; penalties unchanged.
     affinities: {
-      'High Tech': 0.15,
-      'Town and Gown': 0.15,
-      'Manufacturing Base': 0.10,
+      'High Tech': 0.20,
+      'Town and Gown': 0.20,
+      'Manufacturing Base': 0.15,
       'Big Conservative': -0.20,
       'Oil and Gas': -0.15,
       'Old South': -0.10,
     },
     payoutModifiers: {
-      "Women's Vote": 0.15,
-      'High Tech': 0.15,
-      'Export Driven': 0.10,
+      "Women's Vote": 0.20,
+      'High Tech': 0.20,
+      'Export Driven': 0.15,
       'Gun Lobby': -0.20,
     },
   },
@@ -305,19 +326,21 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'republican',
     color: 'red',
     tagline: 'The Insurgent Populist.',
-    unlockCost: 1500,
+    unlockCost: CANDIDATE_PRICE.TIER3,
+    // Positive modifiers buffed +5pp; penalties unchanged. Standout: his signature
+    // Big Conservative payout gets +20pp (0.25 → 0.45) instead of the small bump.
     affinities: {
-      'Gun Lobby': 0.15,
-      'Old South': 0.15,
-      'Big Conservative': 0.10,
-      'Oil and Gas': 0.10,
+      'Gun Lobby': 0.20,
+      'Old South': 0.20,
+      'Big Conservative': 0.15,
+      'Oil and Gas': 0.15,
       'High Tech': -0.20,
       'Town and Gown': -0.15,
     },
     payoutModifiers: {
-      'Big Conservative': 0.25,
-      'Gun Lobby': 0.15,
-      'Old South': 0.10,
+      'Big Conservative': 0.45,
+      'Gun Lobby': 0.20,
+      'Old South': 0.15,
       'Environmental': -0.20,
     },
   },
@@ -331,19 +354,20 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'democrat',
     color: 'blue',
     tagline: 'The New Frontier.',
-    unlockCost: 1500,
+    unlockCost: CANDIDATE_PRICE.TIER2,
+    // Positive (good) modifiers buffed +5pp; penalties unchanged.
     affinities: {
-      'High Tech': 0.15,
-      'Youth Vote': 0.15,
-      'African American': 0.10,
+      'High Tech': 0.20,
+      'Youth Vote': 0.20,
+      'African American': 0.15,
       'Big Conservative': -0.20,
       'Oil and Gas': -0.15,
       'Old South': -0.10,
     },
     payoutModifiers: {
-      'Youth Vote': 0.20,
-      'High Tech': 0.15,
-      "Women's Vote": 0.10,
+      'Youth Vote': 0.25,
+      'High Tech': 0.20,
+      "Women's Vote": 0.15,
       'Gun Lobby': -0.20,
     },
   },

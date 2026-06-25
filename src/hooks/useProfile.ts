@@ -27,6 +27,7 @@ import {
   fetchAdRewardStatusRemote,
   claimAdRewardRemote,
   unlockCharacterRemote,
+  claimFreeCharacterRemote,
   unlockCosmeticRemote,
   deleteAccountRemote,
   type AdRewardClaimRemote,
@@ -109,6 +110,8 @@ interface ProfileStore {
   refreshAdRewardStatus(): Promise<AdRewardStatus | null>;
   claimAdReward(args: { placement: string; provider?: string | null; adUnit?: string | null }): Promise<AdRewardClaimResult>;
   unlock(characterId: string): Promise<boolean>;
+  /** Server-validated FREE claim (account-only; server owns the "free now" rule). */
+  claimFreeCharacter(characterId: string): Promise<boolean>;
   /** Server-validated cosmetic unlock (account-only; server owns the price). */
   unlockCosmetic(cosmeticId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
@@ -160,6 +163,28 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/**
+ * Whether a Supabase auth session is persisted locally (the v2 client stores it
+ * under `sb-<ref>-auth-token`). Used so a slow/failed getSession() on boot doesn't
+ * flash the sign-in screen at an already-signed-in user — we keep the branded
+ * splash and let onAuthChange (INITIAL_SESSION, read from that same storage) in.
+ */
+function hasPersistedSession(): boolean {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return false;
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const v = window.localStorage.getItem(k);
+        if (v && v !== 'null' && v !== '[]') return true;
+      }
+    }
+  } catch {
+    /* storage unavailable (private mode / SSR) — treat as no session */
+  }
+  return false;
+}
+
 const EMPTY_REWARD: ProgressRewardBreakdown = {
   base: 0,
   winBonus: 0,
@@ -200,18 +225,22 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     // a no-op on web. Runs in init() so cold-start (app launched by the link) works.
     void initNativeAuthCallback();
 
-    // Boot is gated on `ready`; it must NEVER hang. Read the session from local
-    // storage (no mandatory network round-trip) and bound both the session read
-    // and the account hydration with a timeout. If anything stalls or throws —
-    // e.g. flaky cell signal on a phone — the `finally` forces a guest boot so the
-    // app always leaves the splash instead of sitting on a blank screen.
+    // Boot is gated on `ready`; it must NEVER hang. getSession() reads the session
+    // from local storage (no mandatory network round-trip), so for a signed-in user
+    // it resolves fast and hydrateForUser sets { guest:false, ready:true } together —
+    // no sign-in flash. Both calls are timeout-bounded so flaky signal can't trap us.
     try {
       const session = await withTimeout(getSession(), 5000);
       await withTimeout(hydrateForUser(session?.user ?? null, set), 5000);
     } catch {
       /* auth/network unavailable or timed out — fall through to the guest guard */
     } finally {
-      if (!get().ready) {
+      // Only declare a guest boot when auth is STILL unresolved AND no session is
+      // persisted locally. A signed-in user whose getSession() stalled then keeps
+      // seeing the branded splash (never the sign-in screen); the pending
+      // onAuthChange (INITIAL_SESSION, from that same storage) hydrates them in. A
+      // genuinely signed-out user has no token and falls through to guest as before.
+      if (!get().ready && !hasPersistedSession()) {
         set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, adRewardStatus: null });
       }
     }
@@ -381,6 +410,18 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     if (!userId) return false; // unlocks are account-only
 
     const updated = await unlockCharacterRemote(characterId);
+    if (updated) {
+      set({ profile: updated });
+      return true;
+    }
+    return false;
+  },
+
+  async claimFreeCharacter(characterId) {
+    const { profile, userId } = get();
+    if (profile.unlockedCharacters.includes(characterId)) return true;
+    if (!userId) return false; // claims are account-only
+    const updated = await claimFreeCharacterRemote(characterId);
     if (updated) {
       set({ profile: updated });
       return true;

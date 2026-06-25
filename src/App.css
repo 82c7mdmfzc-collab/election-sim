@@ -2942,6 +2942,14 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   font-size: clamp(0.85rem, 2.4vw, 1.05rem); letter-spacing: 0.06em;
 }
 
+/* Explicit "resume the saved in-progress game" CTA — shown on Home instead of
+   auto-reopening the board on launch (see the viewingGame gate in App.tsx). */
+.home__resume {
+  width: min(420px, 92vw);
+  margin-bottom: 0.2rem;
+  font-size: 1.05rem;
+  padding: 0.85rem 1rem;
+}
 .home__modes {
   display: flex; flex-direction: column; gap: 0.7rem; width: min(420px, 92vw);
 }
@@ -3840,6 +3848,14 @@ html.native .shop {
 .shop-card__unlock:active:not(:disabled) { transform: scale(0.97); }
 .shop-card__unlock:disabled { background: var(--panel-2); color: var(--muted); cursor: default; }
 .shop-card__owned { text-align: center; color: var(--green); font-weight: 800; padding: 0.5rem; }
+/* Always-visible price tag above the action button (price stays readable even when
+   the button says "Need …"); the --free variant marks Washington's July claim. */
+.shop-card__price {
+  display: block; text-align: center; font-size: 0.78rem; font-weight: 700;
+  color: var(--gold); margin-bottom: 0.35rem; letter-spacing: 0.01em;
+}
+.shop-card__price--free { color: var(--green); text-transform: uppercase; letter-spacing: 0.06em; }
+.shop-card__unlock--free { background: var(--green); }
 .shop-card__progress {
   height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-top: 0.4rem;
 }
@@ -6065,6 +6081,27 @@ html.native .native-state-summary {
   border: 2px solid var(--p-color, var(--panel-2)); object-fit: cover;
 }
 .daily__opponent-name { font-size: 0.66rem; color: var(--muted); text-align: center; line-height: 1.1; }
+/* The fixed daily rival — boosted "boss" opponent, visually emphasised. */
+.daily__opponent--rival { width: auto; min-width: 64px; }
+.daily__opponent--rival .daily__opponent-portrait {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand), 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+.daily__opponent--rival .daily__opponent-name { color: var(--text); font-weight: 700; }
+.daily__rival-badge {
+  margin-top: 0.1rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
+  color: var(--brand-top);
+  font-size: 0.56rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.daily__rival-hint { margin-top: 0.3rem; opacity: 0.9; }
+.daily__rival-hint strong { color: var(--brand-top); }
 .daily__status { font-size: 0.82rem; color: var(--text); font-weight: 600; }
 
 /* ── Cosmetics shop pane ──────────────────────────────────────────────────── */

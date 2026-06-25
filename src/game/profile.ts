@@ -344,6 +344,19 @@ export async function unlockCharacterRemote(characterId: string): Promise<Profil
   return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
 }
 
+/** Server-validated FREE claim (server owns the "free right now" rule — e.g. George
+ *  Washington in July). Grants the character for 0 funds. Returns updated profile.
+ *  See claim_free_character in supabase/profiles.sql + isCandidateFreeClaimAvailable. */
+export async function claimFreeCharacterRemote(characterId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('claim_free_character', { p_character: characterId });
+  if (error) {
+    console.warn('claimFreeCharacterRemote failed:', error.message);
+    return null;
+  }
+  return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
+}
+
 /** Server-validated cosmetic unlock (server owns the price; stores a `cosmetic:<id>`
  *  token in unlocked_characters). Returns the updated profile. See supabase/cosmetics.sql. */
 export async function unlockCosmeticRemote(cosmeticId: string): Promise<Profile | null> {

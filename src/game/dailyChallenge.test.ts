@@ -3,9 +3,11 @@ import {
   dailyDateKey,
   getDailyChallengeConfig,
   resolveDailyOpponents,
+  getDailyRival,
+  boostPositiveStats,
   seededRng,
 } from './dailyChallenge';
-import { CANDIDATES } from './candidates';
+import { CANDIDATES, CANDIDATE_MAP } from './candidates';
 
 describe('dailyChallenge', () => {
   it('dailyDateKey returns a UTC YYYY-MM-DD string', () => {
@@ -40,9 +42,21 @@ describe('dailyChallenge', () => {
     }
   });
 
+  it('getDailyRival is deterministic and independent of the player pick', () => {
+    const key = '2026-06-22';
+    expect(getDailyRival(key).id).toBe(getDailyRival(key).id);
+    const rivalId = getDailyRival(key).id;
+    // Same headline rival as opponent #1 regardless of who the player picks.
+    const pickA = CANDIDATES.find((c) => c.id !== rivalId)!.id;
+    const pickB = [...CANDIDATES].reverse().find((c) => c.id !== rivalId)!.id;
+    expect(resolveDailyOpponents(key, pickA)[0].id).toBe(rivalId);
+    expect(resolveDailyOpponents(key, pickB)[0].id).toBe(rivalId);
+  });
+
   it('resolveDailyOpponents is deterministic, excludes the player pick, and is distinct', () => {
     const key = '2026-06-22';
-    const pick = CANDIDATES[0].id;
+    const rivalId = getDailyRival(key).id;
+    const pick = CANDIDATES.find((c) => c.id !== rivalId)!.id;
     const a = resolveDailyOpponents(key, pick);
     const b = resolveDailyOpponents(key, pick);
 
@@ -52,13 +66,44 @@ describe('dailyChallenge', () => {
     expect(new Set(a.map((c) => c.id)).size).toBe(a.length);
   });
 
-  it('never collides with the chosen candidate for any roster pick', () => {
+  it('never collides with the chosen candidate for any non-rival pick; rival is opponent #1', () => {
     const key = '2026-07-04';
+    const rivalId = getDailyRival(key).id;
     for (const player of CANDIDATES) {
+      if (player.id === rivalId) continue; // the player is barred from picking the rival
       const opps = resolveDailyOpponents(key, player.id);
       expect(opps.some((c) => c.id === player.id)).toBe(false);
+      expect(opps[0].id).toBe(rivalId);
       expect(opps.length).toBeGreaterThanOrEqual(1);
       expect(opps.length).toBeLessThanOrEqual(3);
     }
+  });
+
+  it('the daily rival is boosted: positive stats doubled, penalties unchanged', () => {
+    const key = '2026-06-22';
+    const base = CANDIDATE_MAP[getDailyRival(key).id];
+    const pick = CANDIDATES.find((c) => c.id !== base.id)!.id;
+    const boosted = resolveDailyOpponents(key, pick)[0];
+    expect(boosted.id).toBe(base.id);
+    for (const k of Object.keys(base.affinities)) {
+      const v = base.affinities[k];
+      expect(boosted.affinities[k]).toBe(v > 0 ? v * 2 : v);
+    }
+    for (const k of Object.keys(base.payoutModifiers)) {
+      const v = base.payoutModifiers[k];
+      expect(boosted.payoutModifiers[k]).toBe(v > 0 ? v * 2 : v);
+    }
+  });
+
+  it('boostPositiveStats doubles positives only and never mutates the source', () => {
+    const reagan = CANDIDATE_MAP['ronald_reagan'];
+    const beforeAff = { ...reagan.affinities };
+    const beforePay = { ...reagan.payoutModifiers };
+    const boosted = boostPositiveStats(reagan);
+    expect(boosted.payoutModifiers['Big Conservative']).toBe(reagan.payoutModifiers['Big Conservative'] * 2);
+    expect(boosted.affinities['High Tech']).toBe(reagan.affinities['High Tech']); // penalty (<0) unchanged
+    expect(reagan.affinities).toEqual(beforeAff); // base untouched
+    expect(reagan.payoutModifiers).toEqual(beforePay);
+    expect(boosted).not.toBe(reagan);
   });
 });
