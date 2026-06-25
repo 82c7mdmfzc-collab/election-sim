@@ -3068,6 +3068,12 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   gap: clamp(0.8rem, 4vw, 2.6rem); width: 100%;
 }
 .versus__cards--duel { align-items: center; }
+/* 3–4 players: smaller frames + tighter gap so four portraits fit a phone width
+   without clipping (the 2-player duel keeps its larger frames above). */
+.versus__cards:not(.versus__cards--duel) { gap: clamp(0.5rem, 2.6vw, 1.8rem); }
+.versus__cards:not(.versus__cards--duel) .versus__frame {
+  width: clamp(60px, min(20vw, 26vh), 150px);
+}
 .versus__card {
   display: flex; flex-direction: column; align-items: center; gap: 0.45rem;
   min-width: 0; flex: 0 1 auto;
