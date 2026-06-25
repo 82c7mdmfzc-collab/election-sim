@@ -88,13 +88,13 @@ as $$
 declare
   v_uid          uuid := auth.uid();
   -- formula constants (keep in sync with src/game/rewards.ts)
-  c_base         constant integer := 100;
-  c_win          constant integer := 400;
-  c_per_secured  constant integer := 10;
-  c_per_coalition constant integer := 50;
-  c_per_streak   constant integer := 50;
+  c_base         constant integer := 5;
+  c_win          constant integer := 20;
+  c_per_secured  constant integer := 1;
+  c_per_coalition constant integer := 3;
+  c_per_streak   constant integer := 5;
   c_max_streak   constant integer := 5;
-  c_reward_cap   constant integer := 5000;   -- per-game cap (matches REWARD_CAP)
+  c_reward_cap   constant integer := 60;     -- per-game cap (matches REWARD_CAP)
   c_daily_cap    constant integer := 20000;  -- rolling 24h cap per account
   v_secured      integer;
   v_coalitions   integer;
@@ -173,13 +173,13 @@ as $$
 declare
   v_uid          uuid := auth.uid();
   prof           public.profiles;
-  c_base         constant integer := 100;
-  c_win          constant integer := 400;
-  c_per_secured  constant integer := 10;
-  c_per_coalition constant integer := 50;
-  c_per_streak   constant integer := 50;
+  c_base         constant integer := 5;
+  c_win          constant integer := 20;
+  c_per_secured  constant integer := 1;
+  c_per_coalition constant integer := 3;
+  c_per_streak   constant integer := 5;
   c_max_streak   constant integer := 5;
-  c_reward_cap   constant integer := 5000;
+  c_reward_cap   constant integer := 60;
   c_daily_cap    constant integer := 20000;
   v_secured      integer := greatest(0, least(coalesce(p_secured, 0), 56));
   v_coalitions   integer := greatest(0, least(coalesce(p_coalitions, 0), 20));
