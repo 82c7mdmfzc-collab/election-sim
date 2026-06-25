@@ -33,13 +33,13 @@ export interface RewardBreakdown {
 }
 
 /** Matches the per-game cap enforced server-side in claim_game_reward(). */
-export const REWARD_CAP = 5000;
+export const REWARD_CAP = 60;
 
-const BASE_FINISH = 100;       // just for completing a game
-const WIN_BONUS = 400;         // winning the presidency
-const PER_SECURED_STATE = 10;  // each state locked by the owner
-const PER_COALITION = 50;      // each coalition dominated at the end
-const PER_STREAK = 50;         // per consecutive win, capped
+const BASE_FINISH = 5;         // just for completing a game
+const WIN_BONUS = 20;          // winning the presidency
+const PER_SECURED_STATE = 1;   // each state locked by the owner
+const PER_COALITION = 3;       // each coalition dominated at the end
+const PER_STREAK = 5;          // per consecutive win, capped
 const MAX_STREAK_STEPS = 5;    // streak bonus stops compounding past 5
 
 /**
