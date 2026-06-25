@@ -79,7 +79,7 @@ function useResolutionStage(hasClash: boolean): Stage {
   return stage;
 }
 
-function ResolutionView() {
+export function ResolutionRecap({ className }: { className?: string }) {
   const turn = useGameStore((s) => s.turn);
   const hungColleges = useGameStore((s) => s.hungColleges);
   const players = useGameStore((s) => s.players);
@@ -116,14 +116,14 @@ function ResolutionView() {
   const active = players.filter((p) => !p.eliminated);
 
   return (
-    <div className="resolution">
-      <div className="resolution__title">Resolution — Turn {turn}</div>
+    <div className={['resolution', className].filter(Boolean).join(' ')}>
+      <div className="resolution__title">Turn {turn} results</div>
 
       {clashes.length > 0 && (stage === 'clash' || stage === 'income' || stage === 'done') && (
         <div className={`resolution__clash${stage === 'clash' ? ' is-active' : ''}`}>
-          <span className="resolution__clash-label">⚠ CLASH</span>
+          <span className="resolution__clash-label">Collision</span>
           {clashes.map((c) => (
-            <span key={c} className="clash-chip">{c} — cash forfeit</span>
+            <span key={c} className="clash-chip">{c} — spend burned</span>
           ))}
         </div>
       )}
@@ -154,13 +154,17 @@ function ResolutionView() {
       <div className="resolution__foot">
         <span className="resolution__chance">
           {electionChance > 0
-            ? `${Math.round(electionChance * 100)}% election chance`
-            : `Election possible from turn ${ELECTION_START_TURN}`}
+            ? `Election chance: ${Math.round(electionChance * 100)}%`
+            : `Election Night from Turn ${ELECTION_START_TURN}`}
         </span>
         <HostOnlyResolutionButton ready={ready} turn={turn} onConfirm={confirmResolution} />
       </div>
     </div>
   );
+}
+
+function ResolutionView() {
+  return <ResolutionRecap />;
 }
 
 function PlanningControls() {
@@ -209,16 +213,16 @@ function PlanningControls() {
         {totalCommitted > 0 && (
           <span className="footer__committed">Committed: ${totalCommitted.toFixed(0)}k</span>
         )}
-        <span className="planning__hint">Click a state or national ladder to campaign</span>
+        <span className="planning__hint">Click a state or network track to build influence</span>
       </div>
 
       <div className="planning__chips">
         {chips.length === 0 ? (
-          <span className="planning__empty">No allocations yet</span>
+          <span className="planning__empty">No operation plan yet</span>
         ) : (
           chips.map(([tid, { kind, rungs, cost }]) => (
             <span key={tid} className="alloc-chip">
-              {tid}: {rungs} level{rungs === 1 ? '' : 's'} (${cost.toFixed(0)}k)
+              {tid}: {rungs} Influence Level{rungs === 1 ? '' : 's'} (${cost.toFixed(0)}k)
               <button
                 type="button"
                 className="alloc-chip__x"
@@ -237,7 +241,7 @@ function PlanningControls() {
         onClick={() => { if (!alreadySubmitted) { AudioManager.play('confirm'); submitTurn(); } }}
       >
         {multiplayerMode === 'online'
-          ? (alreadySubmitted ? 'Waiting for others…' : 'Submit Turn →')
+          ? (alreadySubmitted ? 'Waiting for others…' : 'Submit Plan →')
           : (nextPlayer ? `Hand to ${nextPlayer.name} →` : 'Resolve Turn →')}
       </button>
     </div>

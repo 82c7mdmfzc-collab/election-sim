@@ -10,12 +10,47 @@
  */
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ShareCard, SHARE_CARD_W, SHARE_CARD_H, type ShareCardProps } from '../components/ShareCard';
+import {
+  ShareCard,
+  SHARE_CARD_W,
+  SHARE_CARD_H,
+  SHARE_CARD_PORTRAIT_W,
+  SHARE_CARD_PORTRAIT_H,
+  type ShareCardProps,
+  type ShareCardVariant,
+} from '../components/ShareCard';
 
 /** Footer hook generated from the final result. */
 export function shareLine(winnerName: string | null, ev: number): string {
-  if (!winnerName) return 'A hung Electoral College — nobody reached 270.';
+  if (!winnerName) return 'A Deadlocked Election — nobody reached 270.';
   return `${winnerName} swept to ${ev} electoral votes. Think you can do better?`;
+}
+
+export interface DramaticInput {
+  winnerName: string | null;
+  /** States the owner locked permanently. */
+  secured: number;
+  /** Coalitions the owner dominated at game end. */
+  coalitions: number;
+  /** Optional standout clash state name. */
+  biggestClashState?: string | null;
+}
+
+/** A punchy one-liner for the share card, derived from the final standings. Pure + testable. */
+export function dramaticEvent({ winnerName, secured, coalitions, biggestClashState }: DramaticInput): string {
+  if (!winnerName) return 'No majority — Deadlocked Election';
+  const parts: string[] = [];
+  if (secured > 0) parts.push(`🔒 ${secured} ${secured === 1 ? 'state' : 'states'} called`);
+  if (coalitions > 0) parts.push(`🏛 ${coalitions} ${coalitions === 1 ? 'coalition' : 'coalitions'}`);
+  if (biggestClashState) parts.push(`⚔ ${biggestClashState} collision`);
+  return parts.length ? parts.join(' · ') : 'Wire-to-wire to 270';
+}
+
+/** Pixel dimensions for a card variant (feed straight into svgToPngBlob). */
+export function shareCardDims(variant: ShareCardVariant): { width: number; height: number } {
+  return variant === 'portrait'
+    ? { width: SHARE_CARD_PORTRAIT_W, height: SHARE_CARD_PORTRAIT_H }
+    : { width: SHARE_CARD_W, height: SHARE_CARD_H };
 }
 
 export function renderShareCardSvg(props: ShareCardProps): string {

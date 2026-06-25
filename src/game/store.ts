@@ -36,12 +36,7 @@ import {
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
-import {
-  computeAffordability,
-  AFFORDABILITY_UNAVAILABLE,
-  type Affordability,
-  type WorkingCash,
-} from './affordability';
+import { getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
 import { rpcSetLobbyStatus } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
@@ -63,7 +58,11 @@ import type {
 // Re-export so existing imports of GamePhase from this module still compile.
 export type { GamePhase } from './types';
 
-// WorkingCash is defined in ./affordability (the post-pending cash snapshot).
+// ── Working-cash snapshot (applied during allocation, before resolution) ──────
+interface WorkingCash {
+  nationalCash: number;
+  groupWallets: Record<string, number>;
+}
 
 // ── Store shape ───────────────────────────────────────────────────────────────
 
@@ -83,6 +82,8 @@ interface GameStore extends GameState {
   hasSubmittedLocalTurn: boolean;
   /** True right after a game starts, until the VS matchup intro is dismissed. */
   versusPending: boolean;
+  /** True while the current game is today's Daily Challenge (drives local streak + analytics). */
+  isDailyChallenge: boolean;
 
   /** Unique id for the current game, set at start. Keys the once-per-game reward. */
   gameId: string | null;
@@ -117,7 +118,13 @@ interface GameStore extends GameState {
     turnTimeLimit?: number | null,
     botSeats?: Record<string, BotDifficulty>,
   ): void;
-  allocate(kind: 'state' | 'national', targetId: string, rungs: number): boolean;
+  /**
+   * Start today's Daily Challenge: the player brings their own candidate, and the
+   * opposition (count, difficulty, turn timer, opponents) is derived from the UTC
+   * date seed. Reuses startGame, then flags the game as the daily challenge.
+   */
+  startDailyChallenge(playerCandidate: CandidateDef, dateKey: string): void;
+  allocate(kind: 'state' | 'national', targetId: string, rungs: number): { ok: boolean; reason?: string };
   cancelAllocation(kind: 'state' | 'national', targetId: string): void;
   /** Retract just the most-recently queued rung for a target (refunds it). */
   retractLastAllocation(kind: 'state' | 'national', targetId: string): void;
@@ -272,6 +279,7 @@ export const useGameStore = create<GameStore>()(
         resolutionTickerDone: false,
         hasSubmittedLocalTurn: false,
         versusPending: false,
+        isDailyChallenge: false,
         gameId: null,
         multiplayerMode: 'single',
         localPlayerId: null,
@@ -317,7 +325,19 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: null,
             handoffAckKey: '1:0',
             versusPending: true,
+            isDailyChallenge: false,
           });
+        },
+
+        // ── startDailyChallenge ─────────────────────────────────────────────────
+        startDailyChallenge(playerCandidate, dateKey) {
+          const cfg = getDailyChallengeConfig(dateKey);
+          const opponents = resolveDailyOpponents(dateKey, playerCandidate.id);
+          const chosen = [playerCandidate, ...opponents];
+          const botSeats = Object.fromEntries(opponents.map((o) => [o.id, cfg.difficulty]));
+          // Reuse the standard solo start path (sets isDailyChallenge:false), then flag it.
+          get().startGame(chosen, cfg.turnTimeLimit, botSeats);
+          set({ isDailyChallenge: true });
         },
 
         // ── clearVersus ───────────────────────────────────────────────────────
@@ -328,13 +348,13 @@ export const useGameStore = create<GameStore>()(
         // ── allocate ──────────────────────────────────────────────────────────
         allocate(kind, targetId, rungs) {
           const snap = get();
-          if (snap.phase !== 'PLANNING') return false;
+          if (snap.phase !== 'PLANNING') return { ok: false };
 
           const player = localPlayer(snap);
-          if (!player) return false;
+          if (!player) return { ok: false };
 
           const wc = snap.workingCash[player.id];
-          if (!wc) return false;
+          if (!wc) return { ok: false };
 
           const startRung =
             kind === 'state'
@@ -345,19 +365,16 @@ export const useGameStore = create<GameStore>()(
             (p) => p.targetId === targetId,
           );
           const pendingRungs = pendingForTarget.reduce((s, p) => s + p.rungs, 0);
-
-          // workingCash already nets out every pending purchase queued this turn,
-          // so the proxy below reflects post-pending balances. Pass 0 as the
-          // already-committed total: passing the pending sum again would
-          // double-count it and wrongly reject affordable buys. (The server
-          // resolver in lobbySecurity.ts validates the same way — player snapshot
-          // drained per purchase, pendingCostTotal 0.)
           const playerProxy: PlayerState = {
             ...player,
             nationalCash: wc.nationalCash,
             groupWallets: wc.groupWallets,
           };
 
+          // workingCash already nets out every pending purchase queued this turn,
+          // so the proxy above reflects post-pending balances. Pass 0 here —
+          // passing the pending-cost sum again would double-count it and wrongly
+          // reject affordable buys. Matches the server resolver (lobbySecurity.ts).
           const err = validatePurchase(playerProxy, 0, {
             kind,
             targetId,
@@ -366,8 +383,8 @@ export const useGameStore = create<GameStore>()(
             pendingRungs,
           });
           if (err) {
-            if (import.meta.env.DEV) console.warn('allocate rejected:', err.reason);
-            return false;
+            console.warn('allocate rejected:', err.reason);
+            return { ok: false, reason: err.reason };
           }
 
           let cost: number;
@@ -378,7 +395,7 @@ export const useGameStore = create<GameStore>()(
             const discount = bestAffinityForState(playerProxy, targetId);
             cost = calcStateCost(targetId, usState.baseCampaignCost, startRung + pendingRungs, rungs, discount);
             const split = computeWalletSplit(playerProxy, targetId, cost);
-            if (!split) return false;
+            if (!split) return { ok: false, reason: 'Insufficient funds.' };
             walletDraw = split.walletDraw;
           } else {
             cost = calcNationalCost(targetId, startRung + pendingRungs, rungs, playerProxy);
@@ -406,7 +423,7 @@ export const useGameStore = create<GameStore>()(
             },
             workingCash: { ...s.workingCash, [player.id]: nextWc },
           }));
-          return true;
+          return { ok: true };
         },
 
         // ── cancelAllocation ─────────────────────────────────────────────────
@@ -692,6 +709,7 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: null,
             turnDeadline: null,
             handoffAckKey: null,
+            isDailyChallenge: false,
           });
         },
 
@@ -730,6 +748,7 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: null,
             turnDeadline: null,
             handoffAckKey: null,
+            isDailyChallenge: false,
           });
           AudioManager.play('quit');
         },
@@ -768,6 +787,7 @@ export const useGameStore = create<GameStore>()(
             turnTimeLimit: null,
             turnDeadline: null,
             handoffAckKey: null,
+            isDailyChallenge: false,
           });
         },
 
@@ -878,6 +898,7 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: newDeadline,
             handoffAckKey: '1:0',
             versusPending: true,
+            isDailyChallenge: false,
           });
         },
 
@@ -980,35 +1001,6 @@ export function usePendingRungs(kind: 'state' | 'national', targetId: string): n
       .filter((pp) => pp.kind === kind && pp.targetId === targetId)
       .reduce((sum, pp) => sum + pp.rungs, 0);
   });
-}
-
-// ── Affordability (single source of truth for buy-button state) ────────────────
-
-/**
- * Live affordability for the active player + a buy target. Drives disabled buy
- * buttons. MUST agree with allocate(): the pure core (computeAffordability in
- * ./affordability) uses the same ground-truth funds check allocate() relies on,
- * so if `affordable` is true the action will succeed, and if false the button is
- * disabled with a `reason`.
- */
-export function useAffordability(kind: 'state' | 'national', targetId: string): Affordability {
-  const player = useActivePlayer();
-  const pendingRungs = usePendingRungs(kind, targetId);
-  const wc = useGameStore((s) => (player ? s.workingCash[player.id] : undefined));
-  const startRung = useGameStore((s) =>
-    player
-      ? kind === 'state'
-        ? (s.rungs[targetId]?.[player.id] ?? 0)
-        : (s.natRungs[targetId]?.[player.id] ?? 0)
-      : 0,
-  );
-  const secured = useGameStore((s) =>
-    kind === 'state' ? !!s.securedBy[targetId] : !!s.natSecuredBy[targetId],
-  );
-  return useMemo(() => {
-    if (!player || !wc) return AFFORDABILITY_UNAVAILABLE;
-    return computeAffordability({ kind, targetId, player, workingCash: wc, startRung, pendingRungs, secured });
-  }, [kind, targetId, player, wc, startRung, pendingRungs, secured]);
 }
 
 export function useElectoralResult(): ElectoralResult {

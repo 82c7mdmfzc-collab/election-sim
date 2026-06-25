@@ -17,7 +17,7 @@ import {
 import { ALL_STATES } from './statesData';
 import { computeAffordability } from './affordability';
 import { CANDIDATE_MAP } from './candidates';
-import { NATIONAL_GROUPS, STATE_GROUPS, STATE_GROUP_MAP, NATIONAL_GROUP_MAP, electionProbability, maxRungsFor } from './config';
+import { NATIONAL_GROUPS, STATE_GROUPS, STATE_GROUP_MAP, NATIONAL_GROUP_MAP, NATIONAL_INCOME, electionProbability, maxRungsFor } from './config';
 import type { GameState, PlayerState } from './types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -693,8 +693,8 @@ describe('payTurnIncome — profit modifiers', () => {
     const natRungs = { 'Gun Lobby': { p1: 6 } };
     const natReachSeq = { 'Gun Lobby': { p1: 1 } };
     payTurnIncome([p1], {}, natRungs, natReachSeq);
-    // National flat income (250) + boosted Gun Lobby bonus
-    expect(p1.nationalCash).toBe(250 + Math.round(g.turnBonus * 1.15));
+    // National flat income + boosted Gun Lobby bonus
+    expect(p1.nationalCash).toBe(NATIONAL_INCOME + Math.round(g.turnBonus * 1.15));
   });
 
   it('negative modifier reduces the payout', () => {
@@ -703,14 +703,14 @@ describe('payTurnIncome — profit modifiers', () => {
     const natRungs = { 'Gun Lobby': { p1: 6 } };
     const natReachSeq = { 'Gun Lobby': { p1: 1 } };
     payTurnIncome([p1], {}, natRungs, natReachSeq);
-    expect(p1.nationalCash).toBe(250 + Math.round(g.turnBonus * 0.80));
+    expect(p1.nationalCash).toBe(NATIONAL_INCOME + Math.round(g.turnBonus * 0.80));
   });
 
   it('no modifier = unchanged base payout', () => {
     const g = NATIONAL_GROUP_MAP['Gun Lobby'];
     const p1 = makePlayer('p1', { nationalCash: 0 });
     payTurnIncome([p1], {}, { 'Gun Lobby': { p1: 6 } }, { 'Gun Lobby': { p1: 1 } });
-    expect(p1.nationalCash).toBe(250 + g.turnBonus);
+    expect(p1.nationalCash).toBe(NATIONAL_INCOME + g.turnBonus);
   });
 });
 

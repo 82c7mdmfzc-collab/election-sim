@@ -58,9 +58,9 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
   return (
     <div className="wallet-drawer" style={{ ['--p-color' as string]: color?.hex ?? '#64748b' }}>
       <div className="wallet-drawer__head">
-        <span className="wallet-drawer__title">{player.name} — State Group Wallets</span>
+        <span className="wallet-drawer__title">{player.name} — Coalition Reserves</span>
         <span className="wallet-drawer__total">
-          National ${animatedNational.toFixed(0)}k
+          War Chest ${animatedNational.toFixed(0)}k
         </span>
         <button type="button" className="wallet-drawer__close" onClick={() => { AudioManager.play('click'); onClose(); }}>×</button>
       </div>
@@ -98,7 +98,7 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
               <span className="wallet-cell__name">{g.id}</span>
               <WalletBalance value={bal} />
               {isDominant && <span className="wallet-cell__tag">+${g.bonusPayout}k/turn</span>}
-              {evaporated && <span className="wallet-cell__evap">EVAPORATED</span>}
+              {evaporated && <span className="wallet-cell__evap">Reserve collapsed</span>}
             </div>
           );
         })}

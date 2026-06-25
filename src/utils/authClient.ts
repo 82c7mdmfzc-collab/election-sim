@@ -14,6 +14,7 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { isNativeRuntime } from './platform';
 
 export type { Session, User };
 
@@ -22,10 +23,9 @@ export type { Session, User };
 // the friendly "coming soon" message (no OAuth error) if the provider is ever removed.
 export const APPLE_SIGNIN_ENABLED = true;
 
-/** True inside a Tauri native webview. */
-export function isNativeRuntime(): boolean {
-  return typeof window !== 'undefined' && window.location.protocol.startsWith('tauri');
-}
+// Platform detection lives in ./platform (single source of truth). Re-exported
+// here so the many modules importing isNativeRuntime from authClient keep working.
+export { isNativeRuntime };
 
 // Native OAuth is wired: the deep-link plugin (registered in src-tauri/src/lib.rs)
 // catches the com.playelector.app://auth-callback return and src/utils/nativeAuthCallback

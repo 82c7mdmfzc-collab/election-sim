@@ -18,6 +18,7 @@ import { HeaderHud } from './HeaderHud';
 import { StateGroupBar } from './StateGroupBar';
 import { Sidebar } from './Sidebar';
 import { PhaseFooter } from './PhaseFooter';
+import { NativeGameHud } from './NativeGameHud';
 import { HandoffCurtain } from './HandoffCurtain';
 import { RoundResolution } from './RoundResolution';
 import { SecuredToast } from './SecuredToast';
@@ -83,6 +84,12 @@ export function GameShell() {
           <Sidebar />
         </div>
       </main>
+
+      <NativeGameHud
+        timer={timer}
+        highlightedGroupId={highlightedGroupId}
+        onHighlightGroup={setHighlightedGroupId}
+      />
 
       {/* Mobile-only: backdrop + FAB to open the National Groups panel sheet. */}
       {panelOpen && (

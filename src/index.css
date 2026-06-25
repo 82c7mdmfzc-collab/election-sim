@@ -66,11 +66,11 @@ html.native textarea {
   user-select: text;
 }
 
-/* With the document pinned, #root is the scroll container so tall menu screens
-   (e.g. the sign-in form in landscape) stay reachable. The in-game .shell is exactly
-   100dvh and owns its own internal scroll regions, so it never page-scrolls. */
+/* With the document pinned, each native screen owns its own viewport. Tall
+   content must use in-screen rails, tabs, or local panes instead of turning the
+   whole app into a webpage. */
 html.native #root {
   height: 100dvh;
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
 }

@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AudioManager } from '../utils/audioManager';
 import { HowToPlayPanel } from './HowToPlayPanel';
 import { HelpIcon } from './icons';
@@ -25,12 +26,16 @@ export function HelpButton() {
       >
         <HelpIcon size={18} />
       </button>
-      {open && (
+      {open && createPortal(
+        // Portal to <body>: mounted inside the in-game options sheet, which uses a
+        // CSS transform — a transformed ancestor traps position:fixed children, so
+        // without the portal this full-screen overlay would be confined to the sheet.
         <div className="help-overlay" role="dialog" aria-modal="true" onClick={hide}>
           <div className="help-overlay__panel" onClick={(e) => e.stopPropagation()}>
             <HowToPlayPanel onClose={hide} />
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

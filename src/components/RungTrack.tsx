@@ -23,11 +23,9 @@ interface RungTrackProps {
   activePlayerId: string | null;
   colors: Record<string, ResolvedColor>;
   securedBy?: string | null;
-  onBuyNext?: () => void;
+  onBuyNext?: () => boolean | void;
   /** Retract the most-recently queued (top pending) rung. */
   onRetractLast?: () => void;
-  /** When false, the next pip is not buyable (e.g. can't afford it). Default true. */
-  nextAffordable?: boolean;
   clashing?: boolean;
   size?: 'sm' | 'md';
 }
@@ -41,14 +39,13 @@ export function RungTrack({
   securedBy = null,
   onBuyNext,
   onRetractLast,
-  nextAffordable = true,
   clashing = false,
   size = 'md',
 }: RungTrackProps) {
   const activeSettled = activePlayerId ? (settledByPlayer[activePlayerId] ?? 0) : 0;
   const activeColor = activePlayerId ? colors[activePlayerId]?.hex : undefined;
   const nextIndex = activeSettled + pendingRungs + 1;
-  const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs && nextAffordable;
+  const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs;
   // The topmost pending pip is click-to-retract (rung-by-rung undo).
   const topPendingIndex = pendingRungs > 0 ? activeSettled + pendingRungs : -1;
 
@@ -78,7 +75,7 @@ export function RungTrack({
           const isRetractable = !!onRetractLast && idx === topPendingIndex;
 
           const handleClick = state === 'next'
-            ? () => { AudioManager.play('buy'); onBuyNext?.(); }
+            ? () => { const ok = onBuyNext?.(); if (ok === false) AudioManager.play('clash'); else AudioManager.play('buy'); }
             : isRetractable
               ? () => { AudioManager.play('quit'); onRetractLast?.(); }
               : undefined;
@@ -95,8 +92,8 @@ export function RungTrack({
               ].filter(Boolean).join(' ')}
               disabled={!handleClick}
               onClick={handleClick}
-              title={state === 'next' ? `Fund campaign — level ${idx}` : isRetractable ? `Undo level ${idx}` : `Campaign level ${idx}`}
-              aria-label={state === 'next' ? `Fund campaign to level ${idx} of ${maxRungs}` : isRetractable ? `Undo level ${idx}` : `Campaign level ${idx} of ${maxRungs}`}
+              title={state === 'next' ? `Build Influence Level ${idx}` : isRetractable ? `Undo Influence Level ${idx}` : `Influence Level ${idx}`}
+              aria-label={state === 'next' ? `Build Influence Level ${idx} of ${maxRungs}` : isRetractable ? `Undo Influence Level ${idx}` : `Influence Level ${idx} of ${maxRungs}`}
             />
           );
         })}

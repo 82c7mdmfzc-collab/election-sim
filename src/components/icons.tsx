@@ -111,3 +111,11 @@ export const LockIcon = (p: IconProps) => (
     <path d="M8 11V8a4 4 0 0 1 8 0v3" />
   </svg>
 );
+
+export const TrophyIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M7 4h10v5a5 5 0 0 1-10 0V4z" />
+    <path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3" />
+    <path d="M12 14v3M9 21h6M9.5 17h5" />
+  </svg>
+);

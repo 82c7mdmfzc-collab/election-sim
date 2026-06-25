@@ -9,7 +9,7 @@ This is the copy-paste handoff for building the first iOS TestFlight release fro
 - Temporary native icon source: `public/assets/brand/icon-1024.png`
 - Generated native icons: `src-tauri/icons/`
 - iOS priority: TestFlight first; Android remains visually prepared by the same icon set.
-- Native paid Campaign Funds are release-gated. Stripe remains web-only, and iOS/Android purchase bundles stay hidden unless a reviewed native billing bridge injects `window.__ELECTOR_IAP__`.
+- Native in-app purchases are enabled on iOS: the Shop shows consumable Campaign Funds bundles via Apple StoreKit (`tauri-plugin-iap`). There is no Stripe or web purchase link inside the native app. (Android Play Billing remains deferred.) Purchases credit only once the Apple App Store Server API secrets are configured — see `MONETIZATION_SETUP.md` / `APPLE_SETUP.md`.
 
 Toolchain status (updated 2026-06-20):
 - ✅ **Rust + iOS targets installed** (`aarch64-apple-ios`, `aarch64-apple-ios-sim`, `x86_64-apple-ios`).
@@ -69,9 +69,12 @@ Open `src-tauri/gen/apple` after `npm run tauri:ios:init`.
 - Signing Team: your Apple Developer team
 - Signing: automatically manage signing
 - Deployment target: iOS `15.0` or newer
-- Device orientation:
-  - iPhone: Landscape Left, Landscape Right only
-  - iPad: Landscape Left, Landscape Right only
+- Device orientation: handled in version control via `src-tauri/Info.ios.plist`
+  (landscape-only on iPhone **and** iPad, plus `UIRequiresFullScreen = true`).
+  Tauri merges that file into the generated Info.plist on every `ios build`, so
+  do **not** set orientation manually in Xcode — and do **not** restrict iPad to
+  landscape-only without `UIRequiresFullScreen = true`, or App Store validation
+  rejects the bundle ("must include all four orientations for iPad multitasking").
 - App icon:
   - Source icons are generated in `src-tauri/icons/ios/`
   - Xcode asset catalog is generated under `src-tauri/gen/apple` during init
@@ -91,14 +94,14 @@ Open `src-tauri/gen/apple` after `npm run tauri:ios:init`.
 - Privacy Policy URL: `https://playelector.com/privacy`
 - Account deletion URL: `https://playelector.com/delete-account`
 - Age rating: complete from gameplay content; no real-money gambling.
-- App Privacy: declare account identifiers, gameplay/profile data, product analytics, optional rewarded ads/advertising identifiers, and purchases if native IAP is later enabled.
+- App Privacy: declare account identifiers, gameplay/profile data, product analytics, optional rewarded ads/advertising identifiers, and **Purchase History** (native StoreKit IAP is enabled in this build).
 
 Reviewer note:
 
 ```text
 Elector can be played in Solo and pass-and-play without an account. Online play, roster sync, Campaign Funds, and the shop require a free account. This iOS build uses email-code account sign-in; Google/Apple OAuth is disabled in the native app until the app-return deep-link flow is wired and reviewed.
 
-This iOS build does not use Stripe inside the native app. Paid Campaign Funds bundles are hidden unless native StoreKit support is present and verified. Players can still earn Campaign Funds through gameplay and use earned funds for unlocks.
+This iOS build includes native in-app purchases via Apple StoreKit: optional consumable Campaign Funds bundles in the Shop. There is no Stripe or external/web purchase link inside the native app. Players can also earn Campaign Funds through gameplay and use earned funds for unlocks.
 
 This build includes optional rewarded ads in the Shop. Ads are user-initiated only, never automatic, and rewards are capped server-side.
 ```
@@ -110,6 +113,6 @@ This build includes optional rewarded ads in the Shop. Ads are user-initiated on
 - Home, Solo setup, gameplay shell, account/progression, shop, and victory all fit phone landscape.
 - Guest Solo game completes with no sign-in requirement.
 - Sign-in/account panel opens, uses email-code auth, and shows progression, streak, achievements, support/privacy/delete-account links.
-- Shop hides paid Campaign Funds on iOS unless native billing is wired; earned-fund unlocks remain available.
+- Shop shows the native StoreKit Campaign Funds bundles on iOS; earned-fund unlocks also remain available. (Purchases credit only once the Apple App Store Server API secrets are set — see `MONETIZATION_SETUP.md`.)
 - Support URL, privacy URL, and delete-account URL open from the live domain.
 - Capture iPhone landscape screenshots for Home, Solo setup, gameplay, account/progression, shop, and victory.

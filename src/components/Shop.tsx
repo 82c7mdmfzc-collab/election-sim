@@ -15,7 +15,8 @@ import { VICTORY_MESSAGES } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
-import { getSelectedVictoryMessage, setSelectedVictoryMessage } from '../utils/localPrefs';
+import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
+import { cosmeticsByCategory, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
 import {
   AD_REWARD_LIMIT,
   AD_REWARD_MAX,
@@ -38,6 +39,8 @@ interface ShopProps {
   source?: 'menu' | 'locked_candidate' | 'victory' | 'account';
   onBack: () => void;
 }
+
+type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages' | 'cosmetics';
 
 function priceValue(priceLabel: string): number {
   const n = Number(priceLabel.replace(/[^0-9.]/g, ''));
@@ -99,7 +102,7 @@ function RewardedAdCard() {
       if (userId) recordLocalAdReward(userId);
       setLocalSnapshot({ userId, status: result.adStatus });
       setLastReward(result.amount);
-      setMessage(`+${result.amount} Funds added.`);
+      setMessage(`+${result.amount} Credits added.`);
       AudioManager.play('victory');
       track('rewarded_ad_claimed', {
         placement: 'shop',
@@ -117,7 +120,7 @@ function RewardedAdCard() {
       });
     } else if (result.status === 'auth_required') {
       setLastReward(null);
-      setMessage('Sign in to earn Campaign Funds from ads.');
+      setMessage('Sign in to earn Campaign Credits from ads.');
     } else {
       setLastReward(null);
       setMessage(result.message);
@@ -149,7 +152,7 @@ function RewardedAdCard() {
 
   async function beginAd() {
     if (guest || !userId) {
-      setMessage('Sign in to earn Campaign Funds from ads.');
+      setMessage('Sign in to earn Campaign Credits from ads.');
       return;
     }
     if (limitReached) {
@@ -195,7 +198,7 @@ function RewardedAdCard() {
     claimStarted.current = false;
     watchedMeta.current = {};
     setPhase('idle');
-    setMessage('Ad cancelled. No Funds claimed.');
+    setMessage('Ad cancelled. No Credits claimed.');
     track('rewarded_ad_cancelled', {
       placement: 'shop',
       provider: 'inline_sponsor',
@@ -218,7 +221,7 @@ function RewardedAdCard() {
         <div>
           <h3 className="rewarded-ad__title">Watch an ad</h3>
           <p className="rewarded-ad__copy">
-            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Funds.
+            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Credits.
           </p>
         </div>
         <span className="rewarded-ad__quota">
@@ -266,11 +269,15 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
   const unlock = useProfile((s) => s.unlock);
+  const unlockCosmetic = useProfile((s) => s.unlockCosmetic);
   const guest = useProfile((s) => s.guest);
   const refresh = useProfile((s) => s.refresh);
   const [busy, setBusy] = useState<string | null>(null);
   const [buyingSku, setBuyingSku] = useState<string | null>(null);
+  const [cosmeticBusy, setCosmeticBusy] = useState<string | null>(null);
+  const [cosmeticMsg, setCosmeticMsg] = useState<string | null>(null);
   const [equippedVM, setEquippedVM] = useState(getSelectedVictoryMessage);
+  const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
   const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
   const billingPlatform = iapPlatform();
@@ -278,6 +285,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
   const nativeBillingHeld = (billingPlatform === 'ios' || billingPlatform === 'android') && !hasNativeBilling;
   const showAdRewards = rewardedAdBridgeAvailable() || inlineRewardedAdsEnabled();
+  const [tab, setTab] = useState<ShopTab>('recruit');
 
   useEffect(() => {
     track('shop_opened', {
@@ -296,6 +304,42 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   useEffect(() => {
     void getFundsPrices().then(setNativePrices);
   }, []);
+
+  function selectTab(next: ShopTab) {
+    if (next === 'cosmetics') track('cosmetic_shop_opened', { source });
+    setTab(next);
+  }
+
+  function equipFrame(id: string) {
+    AudioManager.play('click');
+    setSelectedShareFrame(id);
+    setEquippedFrame(id);
+    setCosmeticMsg(null);
+    track('cosmetic_previewed', { cosmetic_id: id, category: 'share_frame' });
+  }
+
+  async function unlockOrEquipFrame(c: CosmeticDef) {
+    if (isCosmeticAvailable(c.id, unlocked)) { equipFrame(c.id); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
+    if (funds < c.unlockCost) {
+      setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Funds to unlock ${c.name}.`);
+      return;
+    }
+    setCosmeticBusy(c.id);
+    setCosmeticMsg(null);
+    AudioManager.play('click');
+    const ok = await unlockCosmetic(c.id);
+    if (ok) {
+      AudioManager.play('victory');
+      setSelectedShareFrame(c.id);
+      setEquippedFrame(c.id);
+      setCosmeticMsg(`Unlocked ${c.name} — equipped.`);
+      track('cosmetic_unlocked', { cosmetic_id: c.id, category: c.category, price_funds: c.unlockCost });
+    } else {
+      setCosmeticMsg('Could not unlock — please try again.');
+    }
+    setCosmeticBusy(null);
+  }
 
   async function buy(id: string) {
     const candidate = PREMIUM_CANDIDATES.find((c) => c.id === id);
@@ -362,132 +406,220 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   }
 
   return (
-    <div className="shop">
+    <div className="shop native-screen">
       <div className="shop__header">
-        <h1 className="shop__title">Campaign Shop</h1>
+        <button type="button" className="mp-back native-only" onClick={onBack}>← Back</button>
+        <h1 className="shop__title">Campaign Store</h1>
         <span className="shop__balance">
           <span className="coin-inline" aria-hidden />
-          {funds.toLocaleString()} Funds
+          {funds.toLocaleString()} Credits
         </span>
       </div>
-      <p className="shop__sub">Win games to earn Campaign Funds, then recruit new candidates to your roster.</p>
 
-      {showPaidFunds && (
-        <>
-          <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Campaign Funds</h2>
-          <p className="shop__sub">Top up instantly to recruit candidates faster.</p>
-        </>
-      )}
-      {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
-      {showPaidFunds ? (
-        <div className="funds-grid">
-          {FUNDS_BUNDLES.map((b) => (
-            <div key={b.sku} className="funds-card">
-              {b.badge && <span className="funds-card__badge">{b.badge}</span>}
-              <img
-                className="funds-card__img"
-                src={b.imageUrl}
-                alt=""
-                draggable={false}
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
-              <div className="funds-card__amount">
-                <span className="coin-inline coin-inline--large" aria-hidden />
-                {b.funds.toLocaleString()}
-              </div>
-              <div className="funds-card__label">Campaign Funds</div>
-              <button
-                type="button"
-                className="funds-card__buy"
-                disabled={buyingSku === b.sku}
-                onClick={() => buyFunds(b.sku)}
-              >
-                {buyingSku === b.sku ? 'Processing…' : (nativePrices[b.sku] ?? b.priceLabel)}
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : nativeBillingHeld ? null : null}
-
-      {showAdRewards && (
-        <>
-          <h2 className="shop__section">Earn Campaign Funds</h2>
-          <RewardedAdCard />
-        </>
-      )}
-
-      <h2 className="shop__section">Recruit Candidates</h2>
-      <div className="shop__grid">
-        {PREMIUM_CANDIDATES.map((c) => {
-          const owned = unlocked.includes(c.id);
-          const affordable = funds >= c.unlockCost;
-          const pct = Math.min(100, Math.round((funds / c.unlockCost) * 100));
-          return (
-            <div
-              key={c.id}
-              className={`shop-card${owned ? ' is-owned' : ''}`}
-              style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-            >
-              <div className="shop-card__top">
-                <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
-                <div>
-                  <span className="shop-card__name">{c.name}</span>
-                  <span className="shop-card__tag">{c.tagline}</span>
-                </div>
-              </div>
-              <div className="shop-card__cash">${c.startingCash}k starting cash</div>
-              <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
-
-              <div className="shop-card__foot">
-                {owned ? (
-                  <div className="shop-card__owned">Owned ✓</div>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="shop-card__unlock"
-                      disabled={!affordable || busy === c.id}
-                      onClick={() => buy(c.id)}
-                    >
-                      {busy === c.id
-                        ? 'Unlocking…'
-                        : affordable
-                          ? `Unlock — ${c.unlockCost.toLocaleString()} Funds`
-                          : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Funds`}
-                    </button>
-                    {!affordable && (
-                      <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div className="shop__tabs native-only" role="tablist" aria-label="Store sections">
+        {[
+          ['funds', 'Credits'],
+          ['recruit', 'Recruit'],
+          ['cosmetics', 'Cosmetics'],
+          ['earn', 'Earn'],
+          ['messages', 'Messages'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={`shop__tab${tab === id ? ' is-active' : ''}`}
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => selectTab(id as ShopTab)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <InviteFriend />
+      <div className="shop__body">
+        <p className="shop__sub">Win games to earn Campaign Credits, then recruit new candidates to your roster.</p>
 
-      <h2 className="shop__section">Victory Messages</h2>
-      <p className="shop__sub">Choose the speech your winner delivers on the victory screen.</p>
-      <div className="shop__vm-list">
-        {VICTORY_MESSAGES.map((m) => {
-          const equipped = equippedVM === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              className={`vm-card${equipped ? ' is-equipped' : ''}`}
-              onClick={() => { AudioManager.play('click'); setSelectedVictoryMessage(m.id); setEquippedVM(m.id); }}
-            >
-              <span className="vm-card__label">
-                {m.label}
-                {equipped && <span className="vm-card__badge">Equipped</span>}
-              </span>
-              <span className="vm-card__text">“{m.text}”</span>
-            </button>
-          );
-        })}
+        <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}`}>
+          {showPaidFunds && (
+            <>
+              <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Get Campaign Credits</h2>
+              <p className="shop__sub">Top up instantly to unlock new campaign styles faster.</p>
+            </>
+          )}
+          {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
+          {showPaidFunds ? (
+            <div className="funds-grid shop-rail">
+              {FUNDS_BUNDLES.map((b) => (
+                <div key={b.sku} className="funds-card">
+                  {b.badge && <span className="funds-card__badge">{b.badge}</span>}
+                  <img
+                    className="funds-card__img"
+                    src={b.imageUrl}
+                    alt=""
+                    draggable={false}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <div className="funds-card__amount">
+                    <span className="coin-inline coin-inline--large" aria-hidden />
+                    {b.funds.toLocaleString()}
+                  </div>
+                  <div className="funds-card__label">Campaign Credits</div>
+                  <button
+                    type="button"
+                    className="funds-card__buy"
+                    disabled={buyingSku === b.sku}
+                    onClick={() => buyFunds(b.sku)}
+                  >
+                    {buyingSku === b.sku ? 'Processing…' : (nativePrices[b.sku] ?? b.priceLabel)}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : nativeBillingHeld ? (
+            <p className="shop__sub">Campaign Credits purchases are not available in this build.</p>
+          ) : (
+            <p className="shop__sub">Campaign Credits purchases are available in the native app build.</p>
+          )}
+        </section>
+
+        <section className={`shop__pane shop__pane--earn${tab === 'earn' ? ' is-active' : ''}`}>
+          {showAdRewards && (
+            <>
+              <h2 className="shop__section">Earn Campaign Credits</h2>
+              <RewardedAdCard />
+            </>
+          )}
+          <InviteFriend />
+        </section>
+
+        <section className={`shop__pane shop__pane--recruit${tab === 'recruit' ? ' is-active' : ''}`}>
+          <h2 className="shop__section">Recruit Candidates</h2>
+          <div className="shop__grid shop-rail">
+            {PREMIUM_CANDIDATES.map((c) => {
+              const owned = unlocked.includes(c.id);
+              const affordable = funds >= c.unlockCost;
+              const pct = Math.min(100, Math.round((funds / c.unlockCost) * 100));
+              return (
+                <div
+                  key={c.id}
+                  className={`shop-card${owned ? ' is-owned' : ''}`}
+                  style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                >
+                  <div className="shop-card__top">
+                    <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                    <div>
+                      <span className="shop-card__name">{c.name}</span>
+                      <span className="shop-card__tag">{c.tagline}</span>
+                    </div>
+                  </div>
+                  <div className="shop-card__cash">${c.startingCash}k starting cash</div>
+                  <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+
+                  <div className="shop-card__foot">
+                    {owned ? (
+                      <div className="shop-card__owned">Owned ✓</div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="shop-card__unlock"
+                          disabled={!affordable || busy === c.id}
+                          onClick={() => buy(c.id)}
+                        >
+                          {busy === c.id
+                            ? 'Unlocking…'
+                            : affordable
+                              ? `Unlock — ${c.unlockCost.toLocaleString()} Credits`
+                              : `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Credits`}
+                        </button>
+                        {!affordable && (
+                          <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className={`shop__pane shop__pane--messages${tab === 'messages' ? ' is-active' : ''}`}>
+          <h2 className="shop__section">Victory Messages</h2>
+          <p className="shop__sub">Choose the speech your winner delivers on the victory screen.</p>
+          <div className="shop__vm-list shop-rail">
+            {VICTORY_MESSAGES.map((m) => {
+              const equipped = equippedVM === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`vm-card${equipped ? ' is-equipped' : ''}`}
+                  onClick={() => { AudioManager.play('click'); setSelectedVictoryMessage(m.id); setEquippedVM(m.id); }}
+                >
+                  <span className="vm-card__label">
+                    {m.label}
+                    {equipped && <span className="vm-card__badge">Equipped</span>}
+                  </span>
+                  <span className="vm-card__text">“{m.text}”</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className={`shop__pane shop__pane--cosmetics${tab === 'cosmetics' ? ' is-active' : ''}`}>
+          <h2 className="shop__section">Result Card Frames</h2>
+          <p className="shop__sub">Pick the look of your end-game share card. Purely cosmetic — no gameplay effect.</p>
+          {cosmeticMsg && <div className="shop__purchase-msg">{cosmeticMsg}</div>}
+          <div className="shop__cosmetics shop-rail">
+            {cosmeticsByCategory('share_frame').map((c) => {
+              const owned = isCosmeticAvailable(c.id, unlocked);
+              const equipped = equippedFrame === c.id;
+              const affordable = funds >= c.unlockCost;
+              const foot = owned
+                ? (equipped ? 'Equipped' : 'Equip')
+                : cosmeticBusy === c.id
+                  ? 'Unlocking…'
+                  : guest
+                    ? 'Sign in to unlock'
+                    : `Unlock — ${c.unlockCost.toLocaleString()} Funds`;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`cosmetic-card${equipped ? ' is-equipped' : ''}${owned ? '' : ' is-locked'}`}
+                  disabled={cosmeticBusy !== null}
+                  onClick={() => unlockOrEquipFrame(c)}
+                >
+                  <span className="cosmetic-card__name">
+                    {c.name}
+                    {equipped && <span className="cosmetic-card__badge">Equipped</span>}
+                  </span>
+                  <span className="cosmetic-card__desc">{c.description}</span>
+                  <span className={`cosmetic-card__foot${!owned && !affordable && !guest ? ' is-dim' : ''}`}>{foot}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <h2 className="shop__section">More Cosmetics</h2>
+          <p className="shop__sub">Map themes and profile banners are on the way.</p>
+          <div className="shop__cosmetics shop-rail">
+            {[...cosmeticsByCategory('map_theme'), ...cosmeticsByCategory('profile_banner')].map((c) => (
+              <div key={c.id} className="cosmetic-card is-soon">
+                <span className="cosmetic-card__name">{c.name}</span>
+                <span className="cosmetic-card__desc">{c.description}</span>
+                <span className="cosmetic-card__foot">Coming soon</span>
+              </div>
+            ))}
+          </div>
+          {/* Priced share-frame unlocks are now server-validated via the `unlock_cosmetic` RPC
+              (supabase/cosmetics.sql), which grants a `cosmetic:<id>` token. The map_theme /
+              profile_banner categories above remain `comingSoon` placeholders until their render
+              surfaces exist; extend the cosmetics.sql price catalog when they ship. */}
+        </section>
       </div>
 
       <div className="setup__foot" style={{ marginTop: '1.5rem' }}>

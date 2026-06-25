@@ -1,0 +1,11 @@
+{
+  "identifier": "mobile",
+  "description": "Permissions for mobile-only plugins (haptics). Platform-scoped to iOS/Android so desktop builds never try to resolve mobile-only plugin permissions.",
+  "platforms": ["iOS", "android"],
+  "windows": ["main"],
+  "permissions": [
+    "haptics:allow-impact-feedback",
+    "haptics:allow-notification-feedback",
+    "haptics:allow-selection-feedback"
+  ]
+}

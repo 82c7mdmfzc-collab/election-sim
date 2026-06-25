@@ -1,89 +1,146 @@
 /**
- * MuteButton — the header audio control. The speaker button opens a small
- * popover with a master-volume slider and a mute toggle; both persist to
- * localPrefs and drive the AudioManager. Mute is a hard override of volume.
- * Mounted in the HeaderHud beside the help affordance.
+ * Volume controls — exported as three components:
+ *   SfxVolumeBar   — slider + icon for sound effects volume
+ *   MusicVolumeBar — slider + icon for music volume
+ *   MuteButton     — legacy global mute (kept for web header compat)
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
-import { isMuted, setMuted, getVolume, setVolume } from '../utils/localPrefs';
+import {
+  isMuted, setMuted,
+  isSfxMuted, setSfxMuted, getSfxVolume, setSfxVolumeLevel,
+  isMusicMuted, setMusicMuted, getMusicVolume, setMusicVolumeLevel,
+} from '../utils/localPrefs';
 import { VolumeOnIcon, VolumeOffIcon } from './icons';
 
-export function MuteButton() {
-  const [open, setOpen] = useState(false);
-  const [muted, setMutedState] = useState<boolean>(() => isMuted());
-  const [volume, setVolumeState] = useState<number>(() => Math.round(getVolume() * 100));
-  const rootRef = useRef<HTMLDivElement>(null);
+export function SfxVolumeBar() {
+  const [volume, setVolumeState] = useState<number>(() => getSfxVolume());
+  const [muted, setMutedState] = useState<boolean>(() => isSfxMuted());
 
-  // Close the popover on any pointer-down outside it.
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
-  }, [open]);
+  function onSlider(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = Number(e.target.value);
+    setVolumeState(v);
+    setSfxVolumeLevel(v);
+    AudioManager.setSfxVolume(v / 100);
+    if (v > 0 && muted) {
+      setMutedState(false);
+      setSfxMuted(false);
+      AudioManager.setSfxMuted(false);
+    }
+  }
 
   function toggleMute() {
     const next = !muted;
     setMutedState(next);
-    setMuted(next);
-    AudioManager.setMuted(next);
-    if (!next) AudioManager.play('click'); // audible confirmation when un-muting
+    setSfxMuted(next);
+    AudioManager.setSfxMuted(next);
+    if (!next) AudioManager.play('click');
   }
 
-  function changeVolume(next: number) {
-    setVolumeState(next);
-    const frac = next / 100;
-    setVolume(frac);                 // persist (clamped in localPrefs)
-    AudioManager.setVolume(frac);    // apply live
-    AudioManager.play('tick');       // feedback at the new level (de-duped; muted stays silent)
-  }
-
-  // Speaker icon reflects "no audible sound": muted or volume at zero.
-  const silent = muted || volume === 0;
+  const effectiveVolume = muted ? 0 : volume;
 
   return (
-    <div className="audio-ctl" ref={rootRef}>
+    <div className="vol-bar">
       <button
         type="button"
-        className="mute-btn"
-        onClick={() => setOpen((o) => !o)}
-        aria-label="Audio settings"
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        title={muted ? 'Sound off' : `Volume ${volume}%`}
+        className="vol-bar__icon"
+        onClick={toggleMute}
+        aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+        aria-pressed={muted}
       >
-        {silent ? <VolumeOffIcon size={18} /> : <VolumeOnIcon size={18} />}
+        {effectiveVolume === 0 ? <VolumeOffIcon size={18} /> : <VolumeOnIcon size={18} />}
       </button>
-
-      {open && (
-        <div className="audio-pop" role="dialog" aria-label="Audio settings">
-          <button
-            type="button"
-            className={`audio-pop__mute${muted ? ' is-muted' : ''}`}
-            onClick={toggleMute}
-            aria-pressed={muted}
-          >
-            {muted ? <VolumeOffIcon size={16} /> : <VolumeOnIcon size={16} />}
-            <span>{muted ? 'Muted' : 'Sound on'}</span>
-          </button>
-          <input
-            className="audio-pop__slider"
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={volume}
-            onChange={(e) => changeVolume(Number(e.target.value))}
-            aria-label="Master volume"
-            disabled={muted}
-          />
-          <span className="audio-pop__pct">{volume}%</span>
-        </div>
-      )}
+      <span className="vol-bar__label">SFX</span>
+      <input
+        type="range"
+        className="vol-bar__slider"
+        min="0"
+        max="100"
+        step="5"
+        value={volume}
+        onChange={onSlider}
+        aria-label="Sound effects volume"
+        style={{ '--vol-pct': `${volume}%` } as React.CSSProperties}
+      />
     </div>
+  );
+}
+
+export function MusicVolumeBar() {
+  const [volume, setVolumeState] = useState<number>(() => getMusicVolume());
+  const [muted, setMutedState] = useState<boolean>(() => isMusicMuted());
+
+  function onSlider(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = Number(e.target.value);
+    setVolumeState(v);
+    setMusicVolumeLevel(v);
+    AudioManager.setMusicVolume(v / 100);
+    if (v > 0 && muted) {
+      setMutedState(false);
+      setMusicMuted(false);
+      AudioManager.setMusicMuted(false);
+    }
+  }
+
+  function toggleMute() {
+    const next = !muted;
+    setMutedState(next);
+    setMusicMuted(next);
+    AudioManager.setMusicMuted(next);
+  }
+
+  const effectiveVolume = muted ? 0 : volume;
+
+  return (
+    <div className="vol-bar">
+      <button
+        type="button"
+        className="vol-bar__icon"
+        onClick={toggleMute}
+        aria-label={muted ? 'Unmute music' : 'Mute music'}
+        aria-pressed={muted}
+      >
+        {effectiveVolume === 0 ? <VolumeOffIcon size={18} /> : <VolumeOnIcon size={18} />}
+      </button>
+      <span className="vol-bar__label">Music</span>
+      <input
+        type="range"
+        className="vol-bar__slider"
+        min="0"
+        max="100"
+        step="5"
+        value={volume}
+        onChange={onSlider}
+        aria-label="Music volume"
+        style={{ '--vol-pct': `${volume}%` } as React.CSSProperties}
+      />
+    </div>
+  );
+}
+
+/** Legacy global mute — kept so web HeaderHud still compiles. */
+export function MuteButton() {
+  const [muted, setMutedState] = useState<boolean>(() => isMuted());
+
+  function toggle() {
+    const next = !muted;
+    setMutedState(next);
+    setMuted(next);
+    AudioManager.setMuted(next);
+    if (!next) AudioManager.play('click');
+  }
+
+  return (
+    <button
+      type="button"
+      className="mute-btn"
+      onClick={toggle}
+      aria-label={muted ? 'Unmute sound' : 'Mute sound'}
+      aria-pressed={muted}
+      title={muted ? 'Sound off' : 'Sound on'}
+    >
+      {muted ? <VolumeOffIcon size={18} /> : <VolumeOnIcon size={18} />}
+    </button>
   );
 }

@@ -1,8 +1,8 @@
 /**
  * FirstGameplayTips — a one-time, dismissible welcome overlay shown the very
- * first time a player reaches the gameplay map. Three short tips, then it never
- * shows again (persisted via localPrefs). Kept lightweight on purpose: this is
- * NOT a tutorial rebuild — the full walkthrough lives in Tutorial.tsx.
+ * first time a player reaches the gameplay board. Three short tips, then it
+ * never shows again (persisted via localPrefs). Intentionally lightweight — the
+ * full walkthrough lives in the tutorial; the live coach handles strategy.
  *
  * Gated to a local/solo first turn so it never blocks a timed online turn.
  */
@@ -14,8 +14,8 @@ import { AudioManager } from '../utils/audioManager';
 
 const TIPS: readonly { lead: string; rest: string }[] = [
   { lead: 'Reach 270 electoral votes', rest: 'to win the election — that’s your Victory Target.' },
-  { lead: 'Fund campaigns in states', rest: 'to raise your Campaign Level and build influence.' },
-  { lead: 'Watch your funds', rest: '— every campaign move has a cost, so spend where it counts.' },
+  { lead: 'Spend in states', rest: 'to build Influence Levels and lead the map.' },
+  { lead: 'Watch your funds', rest: '— every move costs, so spend your War Chest where it counts.' },
 ];
 
 export function FirstGameplayTips() {
@@ -49,7 +49,7 @@ export function FirstGameplayTips() {
             </li>
           ))}
         </ol>
-        <button type="button" className="btn-cta btn-cta--block first-tips__btn" onClick={dismiss}>
+        <button type="button" className="first-tips__btn" onClick={dismiss}>
           Got it &rarr;
         </button>
       </div>

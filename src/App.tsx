@@ -10,16 +10,20 @@ import { Tutorial } from './components/Tutorial';
 import { AuthGate } from './components/AuthGate';
 import { Shop } from './components/Shop';
 import { BotSetup } from './components/BotSetup';
+import { DailyChallenge } from './components/DailyChallenge';
 import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
+import { ScreenTransition } from './components/ScreenTransition';
+import { isNativeRuntime } from './utils/platform';
 import { useGameStore } from './game/store';
 import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
-import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon } from './components/icons';
-import { isTutorialSeen } from './utils/localPrefs';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon } from './components/icons';
+import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
+import { AudioManager } from './utils/audioManager';
 import { NextChallengeHint, ProgressPanel } from './components/ProgressPanel';
 import {
   identifyAccount,
@@ -27,10 +31,10 @@ import {
   setAnalyticsAccountState,
   track,
 } from './utils/analytics';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { BotDifficulty } from './game/types';
 
-type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot';
+type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily';
 type TutorialSource = 'menu' | 'onboarding';
 type ShopSource = 'menu' | 'locked_candidate' | 'account';
 
@@ -40,13 +44,23 @@ interface ModeDef {
   Icon: ComponentType<{ size?: number }>;
   chip: 'orange' | 'blue';
   primary?: boolean;
+  /** Small overlay pill (e.g. the Daily streak/"New" hook). */
+  badge?: string;
+}
+
+/** The Daily tile's live badge: the active streak, or "New" until first played. */
+function dailyBadge(): string | undefined {
+  const d = getDailyChallengeLocal();
+  if (d.streak > 0) return `🔥 ${d.streak}`;
+  return d.lastPlayedDate == null ? 'New' : undefined;
 }
 
 const MODES: ModeDef[] = [
   { mode: 'bot',    label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
-  { mode: 'single', label: 'Pass & Play', Icon: MonitorIcon, chip: 'blue' },
+  { mode: 'daily',  label: 'Daily Race',  Icon: TrophyIcon,  chip: 'orange' },
+  { mode: 'single', label: 'Local',       Icon: MonitorIcon, chip: 'blue' },
   { mode: 'online', label: 'Online',      Icon: GlobeIcon,   chip: 'orange' },
-  { mode: 'shop',   label: 'Shop',        Icon: CartIcon,    chip: 'blue' },
+  { mode: 'shop',   label: 'Store',       Icon: CartIcon,    chip: 'blue' },
 ];
 
 function appModeToShopSource(mode: AppMode): ShopSource {
@@ -60,6 +74,8 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
 }) {
   const funds = useProfile(selectFunds);
   const signedIn = useProfile(selectIsSignedIn);
+  const native = isNativeRuntime();
+  const [progressOpen, setProgressOpen] = useState(false);
   return (
     <div className="home">
       <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
@@ -86,28 +102,52 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
       </div>
 
       <div className="home__modes">
-        {MODES.map(({ mode, label, Icon, chip, primary }) => (
-          <button
-            key={mode}
-            type="button"
-            className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
-            onClick={() => onSelect(mode)}
-          >
-            <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
-            <span className="menu-btn__label">{label}</span>
-          </button>
-        ))}
+        {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
+          const b = native && signedIn && mode === 'daily' ? undefined : (mode === 'daily' ? dailyBadge() : badge);
+          return (
+            <button
+              key={mode}
+              type="button"
+              className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
+              onClick={() => { AudioManager.play('click'); onSelect(mode); }}
+            >
+              <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
+              <span className="menu-btn__label">{label}</span>
+              {b && <span className="menu-btn__badge">{b}</span>}
+            </button>
+          );
+        })}
       </div>
 
       {signedIn && (
-        <div className="home__progress">
-          <ProgressPanel compact showAll={false} onDailyStart={() => onSelect('bot')} />
-          <NextChallengeHint />
-        </div>
+        native ? (
+          <div className="home__progress-native">
+            <button
+              type="button"
+              className="home__progress-toggle"
+              aria-expanded={progressOpen}
+              onClick={() => { AudioManager.play('click'); setProgressOpen((o) => !o); }}
+            >
+              Your progress
+              <span className="home__progress-chevron" aria-hidden>{progressOpen ? '▴' : '▾'}</span>
+            </button>
+            {progressOpen && (
+              <div className="home__progress-panel">
+                <ProgressPanel compact showAll={false} />
+                <NextChallengeHint />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="home__progress">
+            <ProgressPanel compact showAll={false} />
+            <NextChallengeHint />
+          </div>
+        )
       )}
 
       <button type="button" className="home__link" onClick={onTutorial}>
-        How to Play
+        Campaign Guide
       </button>
     </div>
   );
@@ -175,8 +215,26 @@ function App() {
     });
   }, [ready, signedIn]);
 
+  // Native keyboard avoidance: when a text field is focused the on-screen keyboard
+  // can cover it (sign-in email/code, username, lobby code). One global handler
+  // scrolls the focused input into view once the keyboard has animated in. Native
+  // only — the website relies on normal browser behavior.
+  useEffect(() => {
+    if (!isNativeRuntime()) return;
+    function onFocusIn(e: FocusEvent) {
+      const t = e.target as HTMLElement | null;
+      if (!t || (t.tagName !== 'INPUT' && t.tagName !== 'TEXTAREA')) return;
+      window.setTimeout(() => {
+        t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 280);
+    }
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+
   function selectMode(mode: AppMode) {
     if (mode === 'shop') setShopSource(appModeToShopSource(appMode));
+    if (mode === 'daily') track('daily_challenge_opened', { entry_surface: 'menu' });
     setAppMode(mode);
   }
 
@@ -209,34 +267,48 @@ function App() {
     setAppMode('tutorial');
   }
 
-  // Once a game is running, route to the correct view regardless of appMode
-  if (phase === 'ELECTION_TALLY') return <ElectionTallyView />;
-  if (phase === 'GAME_OVER') return <VictoryPodium />;
-  if (phase !== 'SETUP' && phase !== 'MENU') {
+  // ── Decide which top-level screen to show ────────────────────────────────────
+  // Each branch sets `screen` + `screenKey`; the single <ScreenTransition> below
+  // animates whenever screenKey changes so navigation feels native, not web-y.
+  // The account modal (AuthGate) overlays independently, outside the transition.
+  const account = showAccount ? <AuthGate onClose={() => setShowAccount(false)} /> : null;
+
+  let screen: ReactNode;
+  let screenKey: string;
+
+  // Once a game is running, route to the correct view regardless of appMode.
+  if (phase === 'ELECTION_TALLY') {
+    screen = <ElectionTallyView />;
+    screenKey = 'tally';
+  } else if (phase === 'GAME_OVER') {
+    screen = <VictoryPodium />;
+    screenKey = 'gameover';
+  } else if (phase !== 'SETUP' && phase !== 'MENU') {
     // Show the matchup intro once at the start of a game, before the board.
-    if (versusPending) return <VersusScreen />;
-    return <GameShell />;
-  }
-
-  // Wait for the auth/profile check before deciding, so a signed-in user never
-  // flashes the landing page on load.
-  if (!ready) {
-    return <div className="landing landing--splash"><BrandMark /></div>;
-  }
-
-  // Signed-out front door — shown on every fresh load until "Continue as Guest".
-  if (!signedIn && !guestContinued) {
-    return (
+    if (versusPending) {
+      screen = <VersusScreen />;
+      screenKey = 'versus';
+    } else {
+      screen = <GameShell />;
+      screenKey = 'game';
+    }
+  } else if (!ready) {
+    // Wait for the auth/profile check before deciding, so a signed-in user never
+    // flashes the landing page on load.
+    screen = <div className="landing landing--splash"><BrandMark /></div>;
+    screenKey = 'splash';
+  } else if (!signedIn && !guestContinued) {
+    // Signed-out front door — shown on every fresh load until "Continue as Guest".
+    screen = (
       <Landing
         onContinueAsGuest={continueAsGuest}
         primaryLabel={isTutorialSeen() ? 'Start Solo' : 'Learn & Start'}
       />
     );
-  }
-
-  // One-time, mandatory username claim immediately after a new account signs in.
-  if (signedIn && !displayName) {
-    return (
+    screenKey = 'landing';
+  } else if (signedIn && !displayName) {
+    // One-time, mandatory username claim immediately after a new account signs in.
+    screen = (
       <div className="landing">
         <BrandMark />
         <div className="landing__card">
@@ -245,11 +317,9 @@ function App() {
         </div>
       </div>
     );
-  }
-
-  // Pre-game routing
-  if (appMode === 'tutorial') {
-    return (
+    screenKey = 'username';
+  } else if (appMode === 'tutorial') {
+    screen = (
       <Tutorial
         source={tutorialSource}
         onFinish={() => {
@@ -262,39 +332,61 @@ function App() {
         }}
       />
     );
-  }
-
-  const account = showAccount ? <AuthGate onClose={() => setShowAccount(false)} /> : null;
-
-  if (appMode === 'shop') {
-    return signedIn ? (
+    screenKey = 'tutorial';
+  } else if (appMode === 'shop') {
+    screen = signedIn ? (
       <Shop source={shopSource} onBack={() => setAppMode('mode-select')} />
     ) : (
-      <>
-        <GuestGate
-          title="Campaign Shop"
-          message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
-          onBack={() => setAppMode('mode-select')}
-          onSignIn={() => openAccount('shop_gate')}
-        />
-        {account}
-      </>
+      <GuestGate
+        title="Campaign Shop"
+        message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
+        onBack={() => setAppMode('mode-select')}
+        onSignIn={() => openAccount('shop_gate')}
+      />
     );
-  }
-  if (appMode === 'bot') return <BotSetup onBack={() => setAppMode('mode-select')} />;
-  if (appMode === 'online') return <><MultiplayerMenu onBack={() => setAppMode('mode-select')} onOpenAccount={() => openAccount('online_gate')} />{account}</>;
-  if (appMode === 'single') {
-    return (
-      <>
-        <CandidateSelect onBack={() => setAppMode('mode-select')} onOpenShop={() => {
+    screenKey = 'shop';
+  } else if (appMode === 'bot') {
+    screen = <BotSetup onBack={() => setAppMode('mode-select')} />;
+    screenKey = 'bot';
+  } else if (appMode === 'daily') {
+    screen = <DailyChallenge onBack={() => setAppMode('mode-select')} />;
+    screenKey = 'daily';
+  } else if (appMode === 'online') {
+    screen = (
+      <MultiplayerMenu
+        onBack={() => setAppMode('mode-select')}
+        onOpenAccount={() => openAccount('online_gate')}
+      />
+    );
+    screenKey = 'online';
+  } else if (appMode === 'single') {
+    screen = (
+      <CandidateSelect
+        onBack={() => setAppMode('mode-select')}
+        onOpenShop={() => {
           setShopSource('locked_candidate');
           setAppMode('shop');
-        }} />
-        {account}
-      </>
+        }}
+      />
     );
+    screenKey = 'single';
+  } else {
+    screen = (
+      <ModeSelect
+        onSelect={selectMode}
+        onTutorial={openTutorial}
+        onAccount={() => openAccount('account_button')}
+      />
+    );
+    screenKey = 'menu';
   }
-  return <><ModeSelect onSelect={selectMode} onTutorial={openTutorial} onAccount={() => openAccount('account_button')} />{account}</>;
+
+  return (
+    <>
+      <ScreenTransition screenKey={screenKey}>{screen}</ScreenTransition>
+      {account}
+    </>
+  );
 }
 
 export default App;

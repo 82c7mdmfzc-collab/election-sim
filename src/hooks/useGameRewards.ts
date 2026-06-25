@@ -13,13 +13,16 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../game/store';
 import { useProfile } from './useProfile';
-import { getLastAwardedGameId, setLastAwardedGameId } from '../utils/localPrefs';
+import { getLastAwardedGameId, setLastAwardedGameId, recordDailyChallengeResult } from '../utils/localPrefs';
 import { clearGameTiming, gameDurationSeconds, track } from '../utils/analytics';
 import { NATIONAL_GROUPS } from '../game/config';
+import { dailyDateKey } from '../game/dailyChallenge';
+import { recordDailyResultRemote } from '../game/profile';
 import type { BotDifficulty } from '../game/types';
 
 const inflightClaims = new Set<string>();
 const finishedTracked = new Set<string>();
+const dailyChallengeRecorded = new Set<string>();
 const DIFFICULTY_RANK: Record<BotDifficulty, number> = { easy: 1, medium: 2, hard: 3 };
 
 export function useGameRewards(): void {
@@ -75,6 +78,38 @@ export function useGameRewards(): void {
         opponent_count: Math.max(0, s.players.length - 1),
       });
       clearGameTiming(gameId);
+    }
+
+    // Daily Challenge: record the result device-locally (guest-compatible) and
+    // emit completion/win analytics. The Funds reward itself rides the normal
+    // applyGameResult path below — no separate economy wiring.
+    if (s.isDailyChallenge && !dailyChallengeRecorded.has(gameId)) {
+      dailyChallengeRecorded.add(gameId);
+      const dateKey = dailyDateKey();
+      const local = recordDailyChallengeResult(dateKey, won, electoralVotes);
+      track('daily_challenge_completed', {
+        game_id: gameId,
+        date_key: dateKey,
+        won,
+        final_ev_self: electoralVotes,
+        streak: local.streak,
+        candidate_id: owner?.candidateId ?? 'unknown',
+        opponent_count: Math.max(0, s.players.length - 1),
+        bot_difficulty: botDifficulty,
+      });
+      if (won) {
+        track('daily_challenge_won', {
+          game_id: gameId,
+          date_key: dateKey,
+          final_ev_self: electoralVotes,
+          streak: local.streak,
+          candidate_id: owner?.candidateId ?? 'unknown',
+        });
+      }
+      // Cross-device: persist to the server too (fire-and-forget; never blocks the reward flow).
+      if (useProfile.getState().userId) {
+        void recordDailyResultRemote(dateKey, won, electoralVotes);
+      }
     }
 
     void useProfile.getState().applyGameResult({

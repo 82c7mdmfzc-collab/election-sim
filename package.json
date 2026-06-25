@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:mobile-native": "node scripts/check-mobile-native.mjs",
     "build:edge": "node scripts/build-edge-function.mjs",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
@@ -20,11 +21,13 @@
     "tauri:ios:build": "tauri ios build"
   },
   "dependencies": {
+    "@choochmeque/tauri-plugin-iap-api": "^0.9.1",
     "@supabase/supabase-js": "^2.108.1",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-deep-link": "^2",
+    "@tauri-apps/plugin-haptics": "^2",
+    "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2",
-    "@choochmeque/tauri-plugin-iap-api": "^0.9.1",
     "posthog-js": "^1.391.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

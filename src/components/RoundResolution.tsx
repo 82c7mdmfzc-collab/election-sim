@@ -4,9 +4,15 @@ import { CANDIDATE_MAP } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { STRATEGY_TIPS } from '../game/tips';
+import { turnSummaryLines } from '../game/turnSummary';
 import { Avatar } from './Avatar';
 import { RotatingTip } from './RotatingTip';
 import { AudioManager } from '../utils/audioManager';
+import { isNativeRuntime } from '../utils/platform';
+
+function displaySummaryLine(line: string): string {
+  return line.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/u, '');
+}
 
 const STATE_NAME: Record<string, string> = Object.fromEntries(
   ALL_STATES.map((s) => [s.id, s.name]),
@@ -22,10 +28,24 @@ export function RoundResolution() {
   const players   = useGameStore((s) => s.players);
   const turn      = useGameStore((s) => s.turn);
   const dismiss   = useGameStore((s) => s.dismissResolutionTicker);
+  const report    = useGameStore((s) => s.lastTurnReport);
+  const prevDominance = useGameStore((s) => s.prevDominance);
+  const dominance = useGameStore((s) => s.stateGroupDominance);
+  const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
   const colors    = usePlayerColors();
 
   const [visibleCount, setVisibleCount] = useState(0);
   const [shownTurn, setShownTurn] = useState(turn);
+
+  // Plain-language "what just happened" recap (secures, coalition flips, clashes).
+  const summary = useMemo(() => {
+    if (!report) return [];
+    const ownerId = multiplayerMode === 'online'
+      ? localPlayerId
+      : (players.filter((p) => !p.isBot).length === 1 ? (players.find((p) => !p.isBot)?.id ?? null) : null);
+    return turnSummaryLines({ report, prevDominance, dominance, players, ownerId });
+  }, [report, prevDominance, dominance, players, multiplayerMode, localPlayerId]);
 
   // Reset counter each time a new RESOLUTION phase begins (render-time adjustment,
   // avoids an extra effect-driven render pass).
@@ -62,12 +82,13 @@ export function RoundResolution() {
 
   if (phase !== 'RESOLUTION' || done) return null;
 
+  const native = isNativeRuntime();
   const playerMap = Object.fromEntries(players.map((p) => [p.id, p]));
 
   return (
     <div className="round-resolution" role="status" aria-live="polite">
       <div className="round-resolution__hdr">
-        <span className="round-resolution__title">Turn {turn} — Campaign Activity</span>
+        <span className="round-resolution__title">Turn {turn}</span>
         <button
           type="button"
           className="phase-btn res-skip-btn"
@@ -76,6 +97,16 @@ export function RoundResolution() {
           Skip →
         </button>
       </div>
+
+      {summary.length > 0 && (
+        <ul className="round-resolution__summary">
+          {summary.slice(0, 4).map((line, i) => (
+            <li key={i} className="round-resolution__summary-line">
+              {native ? displaySummaryLine(line) : line}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="round-resolution__feed">
         {grouped.length === 0 && (
@@ -120,7 +151,7 @@ export function RoundResolution() {
         </div>
       )}
 
-      <RotatingTip tips={STRATEGY_TIPS} className="round-resolution__tip" />
+      {!native && <RotatingTip tips={STRATEGY_TIPS} className="round-resolution__tip" />}
     </div>
   );
 }

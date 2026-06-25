@@ -8,19 +8,20 @@
  */
 
 import { useState } from 'react';
-import { NATIONAL_GROUPS, STATE_GROUPS, groupDisplayName } from '../game/config';
+import { NATIONAL_GROUPS, STATE_GROUPS } from '../game/config';
 import { CANDIDATE_MAP, groupImageUrl } from '../game/candidates';
 import {
   useActivePlayer,
   useGameStore,
   usePlayerColors,
   usePendingRungs,
-  useAffordability,
 } from '../game/store';
 import type { NationalGroup } from '../game/types';
 import { isPlayerBlocked } from '../utils/localPrefs';
 import { RungTrack } from './RungTrack';
 import { PlayerProfileModal } from './PlayerProfileModal';
+import { notifyOnce } from '../utils/toast';
+import { friendlyAllocError } from '../game/allocErrors';
 
 const TOTAL_GROUP_EV = STATE_GROUPS.reduce((s, g) => s + g.totalEV, 0);
 
@@ -35,7 +36,6 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
   const pending = usePendingRungs('national', group.id);
-  const aff = useAffordability('national', group.id);
 
   // Leader = most rungs (tie → reached first).
   let leaderId: string | null = null;
@@ -56,25 +56,25 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   const payout = Math.round(group.turnBonus * (1 + payoutMod));
   const canBuy = phase === 'PLANNING' && !!activePlayer && !securedBy;
 
+  function tryBuy(): boolean {
+    const r = allocate('national', group.id, 1);
+    if (!r.ok) notifyOnce('error', friendlyAllocError(r.reason));
+    return r.ok;
+  }
+
   return (
     <div className="nat-ladder">
       <div className="nat-ladder__head">
         <img
           className="group-icon group-icon--sm"
           src={groupImageUrl('national', group.id)}
-          alt={groupDisplayName(group)}
+          alt={group.id}
           draggable={false}
           loading="lazy"
           decoding="async"
         />
-        <span className="nat-ladder__name">{groupDisplayName(group)}</span>
-        {canBuy ? (
-          <span className={`nat-ladder__next${aff.affordable ? '' : ' is-blocked'}`}>
-            {aff.atMax ? 'Maxed' : aff.affordable ? `Next $${aff.nextCost}k` : aff.reason}
-          </span>
-        ) : (
-          <span className="nat-ladder__bonus">${group.turnBonus}k/turn</span>
-        )}
+        <span className="nat-ladder__name">{group.id}</span>
+        <span className="nat-ladder__bonus">${group.turnBonus}k/turn</span>
       </div>
 
       <RungTrack
@@ -85,8 +85,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         activePlayerId={activePlayer?.id ?? null}
         colors={colors}
         securedBy={securedBy}
-        nextAffordable={aff.affordable}
-        onBuyNext={canBuy ? () => allocate('national', group.id, 1) : undefined}
+        onBuyNext={canBuy ? tryBuy : undefined}
         onRetractLast={canBuy && pending > 0 ? () => retractLastAllocation('national', group.id) : undefined}
       />
 

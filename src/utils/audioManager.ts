@@ -14,6 +14,9 @@
  *                     app startup, before the first user interaction).
  */
 
+import { haptic, type HapticKind } from './haptics';
+import { isSfxMuted, isMusicMuted, getSfxVolume, getMusicVolume } from './localPrefs';
+
 const MANIFEST: Record<string, string> = {
   click:             '/sounds/click.ogg',
   tick:              '/sounds/tick.mp3',
@@ -26,6 +29,27 @@ const MANIFEST: Record<string, string> = {
   dominate:          '/sounds/dominate.mp3',
   election_warning:  '/sounds/election_warning.mp3',
   round_end:         '/sounds/round_end.mp3',
+  music:             '/sounds/music.mp3',
+};
+
+// Sound IDs treated as background music (looped); everything else is SFX.
+const MUSIC_IDS = new Set(['music']);
+
+// Each discrete sound effect maps to a haptic, so every existing
+// AudioManager.play() call site also produces tactile feedback on supported
+// devices (no-op on web). 'tick' (the per-second turn timer) is intentionally
+// omitted so the device doesn't buzz once a second.
+const HAPTICS: Record<string, HapticKind> = {
+  click: 'selection',
+  confirm: 'medium',
+  clash: 'medium',
+  buy: 'success',
+  victory: 'success',
+  dominate: 'heavy',
+  income: 'selection',
+  election_warning: 'warning',
+  round_end: 'light',
+  quit: 'light',
 };
 
 class _AudioManager {
@@ -36,9 +60,10 @@ class _AudioManager {
   // explicit play() of the same sound collapse into one instead of doubling up.
   private readonly lastPlayed = new Map<string, number>();
   private muted = false;
-  // Master volume, 0–1. Applied to every clip at play time and live-pushed to any
-  // currently-playing nodes by setVolume(). `muted` is a separate hard override.
-  private volume = 1;
+  private sfxMuted = false;
+  private musicMuted = false;
+  private sfxVolume = 0.8;   // 0–1
+  private musicVolume = 0.6; // 0–1
 
   init(): void {
     for (const [id, path] of Object.entries(MANIFEST)) {
@@ -48,6 +73,11 @@ class _AudioManager {
       audio.load();
       this.sounds.set(id, audio);
     }
+    // Restore per-category mute + volume from persisted prefs.
+    this.sfxMuted = isSfxMuted();
+    this.musicMuted = isMusicMuted();
+    this.sfxVolume = getSfxVolume() / 100;
+    this.musicVolume = getMusicVolume() / 100;
   }
 
   /** Global mute. When muted, play() is a no-op and any looping tracks stop. */
@@ -62,32 +92,53 @@ class _AudioManager {
     return this.muted;
   }
 
-  /**
-   * Set master volume (0–1). Applies immediately to every preloaded node and any
-   * track currently looping, so a change while audio is playing is audible at once.
-   * Note: cloneNode() does NOT copy the `volume` property, so play() also sets it
-   * on each fresh clone — without that, volume changes would silently do nothing.
-   */
-  setVolume(volume: number): void {
-    this.volume = Math.min(1, Math.max(0, volume));
-    for (const node of this.sounds.values()) node.volume = this.volume;
-    for (const node of this.looping.values()) node.volume = this.volume;
+  setSfxMuted(v: boolean): void {
+    this.sfxMuted = v;
   }
 
-  getVolume(): number {
-    return this.volume;
+  isSfxMuted(): boolean {
+    return this.sfxMuted;
+  }
+
+  /** Set SFX volume 0–1. Does NOT change the muted flag. */
+  setSfxVolume(v: number): void {
+    this.sfxVolume = Math.max(0, Math.min(1, v));
+  }
+
+  setMusicMuted(v: boolean): void {
+    this.musicMuted = v;
+    if (v) {
+      for (const id of [...this.looping.keys()]) {
+        if (MUSIC_IDS.has(id)) this.stop(id);
+      }
+    }
+  }
+
+  isMusicMuted(): boolean {
+    return this.musicMuted;
+  }
+
+  /** Set music volume 0–1. Applies immediately to any playing loop. Does NOT change the muted flag. */
+  setMusicVolume(v: number): void {
+    this.musicVolume = Math.max(0, Math.min(1, v));
+    for (const [id, node] of this.looping.entries()) {
+      if (MUSIC_IDS.has(id)) node.volume = this.musicVolume;
+    }
   }
 
   play(soundId: string, loop = false): void {
     if (this.muted) return;
+    const isMusic = MUSIC_IDS.has(soundId);
+    if (isMusic && (this.musicMuted || this.musicVolume === 0)) return;
+    if (!isMusic && (this.sfxMuted || this.sfxVolume === 0)) return;
     const src = this.sounds.get(soundId);
     if (!src) return;
 
     if (loop) {
       // Reuse the canonical node for looping so stop() always finds it.
       src.loop = true;
+      src.volume = this.musicVolume;
       src.currentTime = 0;
-      src.volume = this.volume;
       src.play().catch(() => {/* autoplay policy — silently ignore */});
       this.looping.set(soundId, src);
     } else {
@@ -96,10 +147,13 @@ class _AudioManager {
       const now = performance.now();
       if (now - (this.lastPlayed.get(soundId) ?? -Infinity) < 80) return;
       this.lastPlayed.set(soundId, now);
+      // Fire the matching haptic alongside the sound (no-op on web; gated by the
+      // same mute check above, so muting audio also silences haptics).
+      const hapticKind = HAPTICS[soundId];
+      if (hapticKind) haptic(hapticKind);
       // Clone so simultaneous rapid clicks don't interrupt each other.
-      // cloneNode() drops the volume property, so set it explicitly on the clone.
       const clone = src.cloneNode() as HTMLAudioElement;
-      clone.volume = this.volume;
+      clone.volume = this.sfxVolume;
       clone.play().catch(() => {});
     }
   }

@@ -30,6 +30,9 @@
       })();
     </script>
     <meta name="theme-color" content="#0b1426" />
+    <!-- Paint the brand navy (--bg) on the very first frame so neither the native
+         WKWebView nor the web page flashes white before the bundle CSS loads. -->
+    <style>html,body{background:#0b1426}</style>
     <title>Elector — Win the Electoral College</title>
     <meta name="description" content="Elector — a satirical strategy game about winning the US Electoral College. Campaign, build coalitions, and race to 270. A parody; not affiliated with or endorsed by anyone depicted." />
     <link rel="canonical" href="https://www.playelector.com/" />

@@ -31,6 +31,10 @@ tauri-plugin-elector-admob = { path = "plugins/elector-admob" }
 # In-app purchases (StoreKit 2 on iOS). Returns the signed-transaction JWS that the
 # fulfill-purchase edge function verifies. Requires the iOS 15 deployment target.
 tauri-plugin-iap = "0.9"
+# Local re-engagement notifications (daily-bonus + come-back nudges). Unlike the
+# haptics crate this builds on every platform, so it's a plain dependency with an
+# unconditional init() in lib.rs and a notification:default capability.
+tauri-plugin-notification = "2"
 
 # ── Intentionally omitted plugins ─────────────────────────────────────────────
 # tauri-plugin-shell  — no need to spawn arbitrary OS processes
@@ -39,3 +43,10 @@ tauri-plugin-iap = "0.9"
 # tauri-plugin-fs     — save/load is planned via the store pattern, not raw FS
 #
 # Add plugins one-by-one as features are needed; keep the surface minimal.
+
+# ── Mobile-only plugins (no desktop build) ────────────────────────────────────
+# Haptic feedback. This crate fails to compile on desktop, so it is gated to
+# iOS/Android here and in src/lib.rs; its capability is platform-scoped in
+# capabilities/mobile.json so desktop codegen never resolves its permissions.
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-haptics = "2"

@@ -9,6 +9,7 @@
  * the client can never grant itself anything.
  */
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { platformKind, type PlatformKind } from './platform';
 
 export interface FundsBundle {
   sku: string;
@@ -26,23 +27,19 @@ export interface FundsBundle {
  *  Connect product IDs. Prices are set per-territory in App Store Connect; the Shop
  *  shows StoreKit's localized formattedPrice and falls back to priceLabel (USD). */
 export const FUNDS_BUNDLES: readonly FundsBundle[] = [
+  { sku: 'funds_600', funds: 600, priceLabel: '$0.99', badge: 'Starter', imageUrl: '/assets/coins/funds_600.png' },
   { sku: 'funds_1500', funds: 1500, priceLabel: '$2.99', imageUrl: '/assets/coins/funds_1500.png' },
   { sku: 'funds_4000', funds: 4000, priceLabel: '$4.99', imageUrl: '/assets/coins/funds_4000.png' },
   { sku: 'funds_9000', funds: 9000, priceLabel: '$8.99', badge: 'Most popular', imageUrl: '/assets/coins/funds_9000.png' },
   { sku: 'funds_20000', funds: 20000, priceLabel: '$14.99', badge: 'Best value', imageUrl: '/assets/coins/funds_20000.png' },
+  { sku: 'funds_45000', funds: 45000, priceLabel: '$19.99', badge: 'Most Funds', imageUrl: '/assets/coins/funds_45000.png' },
 ];
 
-export type IapPlatform = 'web' | 'ios' | 'android' | 'unsupported';
+export type IapPlatform = PlatformKind;
 
-/** Detect the billing rail for the current runtime. */
+/** Detect the billing rail for the current runtime. Delegates to ./platform. */
 export function iapPlatform(): IapPlatform {
-  if (typeof window === 'undefined') return 'unsupported';
-  const isTauri = window.location.protocol.startsWith('tauri');
-  if (!isTauri) return 'web';
-  const ua = navigator.userAgent || '';
-  if (/android/i.test(ua)) return 'android';
-  if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
-  return 'unsupported'; // desktop Tauri has no app-store billing
+  return platformKind();
 }
 
 /** True when the native StoreKit billing rail is available. The tauri-plugin-iap
