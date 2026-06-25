@@ -59,6 +59,8 @@ class _AudioManager {
   // Last time each non-looping soundId fired, so a global click handler and an
   // explicit play() of the same sound collapse into one instead of doubling up.
   private readonly lastPlayed = new Map<string, number>();
+  // Loop plays that were blocked by autoplay policy; retried on first user interaction.
+  private readonly pendingLoops = new Set<string>();
   private muted = false;
   private sfxMuted = false;
   private musicMuted = false;
@@ -78,6 +80,31 @@ class _AudioManager {
     this.musicMuted = isMusicMuted();
     this.sfxVolume = getSfxVolume() / 100;
     this.musicVolume = getMusicVolume() / 100;
+
+    // Retry any loop that was blocked by the browser/WKWebView autoplay policy.
+    // Both click and touchstart are registered so the first real gesture (mouse
+    // OR touch) unlocks audio even if the other event never fires.
+    const unlock = () => { this._unlockPending(); };
+    document.addEventListener('click', unlock, { once: true, capture: true });
+    document.addEventListener('touchstart', unlock, { once: true, capture: true });
+
+    // Pause loops when the app is backgrounded on iOS (WKWebView doesn't auto-pause
+    // HTML audio), resume when foregrounded again.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        for (const node of this.looping.values()) node.pause();
+      } else {
+        for (const node of this.looping.values()) node.play().catch(() => {});
+      }
+    });
+  }
+
+  /** Retry any loop plays that were blocked by autoplay policy. */
+  private _unlockPending(): void {
+    for (const id of [...this.pendingLoops]) {
+      this.pendingLoops.delete(id);
+      this.play(id, true);
+    }
   }
 
   /** Global mute. When muted, play() is a no-op and any looping tracks stop. */
@@ -139,7 +166,11 @@ class _AudioManager {
       src.loop = true;
       src.volume = this.musicVolume;
       src.currentTime = 0;
-      src.play().catch(() => {/* autoplay policy — silently ignore */});
+      src.play().catch(() => {
+        // Autoplay blocked (browser policy or WKWebView restriction before first
+        // user interaction). Queue for retry on the next click/touchstart.
+        this.pendingLoops.add(soundId);
+      });
       this.looping.set(soundId, src);
     } else {
       // Collapse duplicate triggers (e.g. global click handler + an explicit
@@ -159,6 +190,7 @@ class _AudioManager {
   }
 
   stop(soundId: string): void {
+    this.pendingLoops.delete(soundId);
     const node = this.looping.get(soundId) ?? this.sounds.get(soundId);
     if (!node) return;
     node.pause();

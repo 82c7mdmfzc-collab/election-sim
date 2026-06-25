@@ -5,14 +5,15 @@
  *   • An invite link carries ?ref=CODE. We stash it (localPrefs) and, once the
  *     invitee signs in, call setReferrer() to record the attribution.
  *   • The payout happens SERVER-SIDE when the invitee finishes their first game
- *     (trigger on game_rewards) — both parties get REFERRAL_BONUS Funds. There is
- *     no client call to grant funds; the client only records the referrer.
+ *     (trigger on game_rewards) — both parties get a weighted-random reward
+ *     (250/500/750 Funds). There is no client call to grant funds; the client
+ *     only records the referrer.
  */
 
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 
-/** Funds each side earns once the invitee finishes a game (mirrors referrals.sql). */
-export const REFERRAL_BONUS = 500;
+/** Display range shown to players (actual amount is a server-side weighted roll). */
+export const REFERRAL_RANGE = '250–750';
 
 export type SetReferrerResult = 'ok' | 'already_set' | 'not_eligible' | 'invalid_code' | 'self' | 'error';
 

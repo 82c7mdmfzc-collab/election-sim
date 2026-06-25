@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
-import { getMyReferralCode, referralLink, REFERRAL_BONUS } from '../game/referral';
+import { getMyReferralCode, referralLink, REFERRAL_RANGE } from '../game/referral';
 import { AudioManager } from '../utils/audioManager';
 import { track } from '../utils/analytics';
 
@@ -49,7 +49,7 @@ export function InviteFriend() {
   async function share() {
     if (!link) return;
     AudioManager.play('click');
-    const text = `Play Elector with me — we both earn ${REFERRAL_BONUS} Campaign Funds when you finish your first game!`;
+    const text = `Play Elector with me — we both earn up to 750 Campaign Funds when you finish your first game!`;
     const nav = navigator as Navigator & { share?: (d: ShareData) => Promise<void> };
     if (typeof nav.share === 'function') {
       track('share_started', { surface: 'referral', share_type: 'invite', method: 'native_share' });
@@ -69,7 +69,7 @@ export function InviteFriend() {
       <h2 className="shop__section">Invite Friends</h2>
       <p className="shop__sub">
         Share your link. When a friend signs up and <strong>finishes their first game</strong>, you{' '}
-        <em>both</em> earn {REFERRAL_BONUS.toLocaleString()} Campaign Funds.
+        <em>both</em> earn {REFERRAL_RANGE} Campaign Funds.
       </p>
 
       {guest ? (
