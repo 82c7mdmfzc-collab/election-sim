@@ -4549,14 +4549,14 @@ html.native .shop-card,
 html.native .funds-card,
 html.native .vm-card {
   scroll-snap-align: center;
-  flex: 0 0 clamp(180px, 28vw, 245px);
-  width: clamp(180px, 28vw, 245px);
+  flex: 0 0 clamp(230px, 76vw, 320px);
+  width: clamp(230px, 76vw, 320px);
   max-height: 100%;
 }
-html.native .shop-card { padding: 0.7rem; gap: 0.38rem; }
+html.native .shop-card { padding: 0.75rem; gap: 0.45rem; }
 html.native .shop-card__portrait,
-html.native .shop-card .portrait-fallback { width: 46px; height: 46px; }
-html.native .shop-card .mod-sheet { font-size: 0.62rem; overflow: hidden; }
+html.native .shop-card .portrait-fallback { width: 52px; height: 52px; }
+html.native .shop-card .mod-sheet { font-size: 0.68rem; }
 html.native .funds-card__img { height: clamp(46px, 14dvh, 76px); }
 html.native .invite {
   margin: 0;
@@ -5527,15 +5527,15 @@ html.native .auth-gate__input {
     font-size: 1.05rem;
     margin-bottom: 0.35rem;
   }
-  html.native .native-candidate { grid-template-columns: minmax(78px, 0.36fr) minmax(0, 1fr); padding: 0.5rem; }
+  html.native .native-candidate { grid-template-columns: minmax(70px, 0.34fr) minmax(0, 1fr); padding: 0.5rem; }
   html.native .native-candidate__portrait .cand-portrait,
   html.native .native-candidate__portrait .portrait-fallback { min-height: 86px; }
-  html.native .native-candidate .mod-sheet { display: none; }
+  html.native .native-candidate .mod-sheet { font-size: 0.54rem; overflow: hidden; }
   html.native .setup__roster .cand-card { flex-basis: 104px; width: 104px; min-height: 116px; }
   html.native .setup__roster .cand-portrait-wrap { height: 68px; }
   html.native .mp-players { gap: 0.45rem; }
   html.native .mp-player-row { min-height: 72px; }
-  html.native .shop-card .mod-sheet { display: none; }
+  html.native .shop-card .mod-sheet { font-size: 0.56rem; overflow: hidden; }
   html.native .victory-rewards { display: none; }
 }
 

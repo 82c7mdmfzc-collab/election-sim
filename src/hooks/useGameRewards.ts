@@ -45,7 +45,8 @@ export function useGameRewards(): void {
 
     const owner = s.players.find((p) => p.id === ownerId) ?? null;
     const bots = s.players.filter((p) => p.isBot);
-    const won = s.electionResult?.winner === ownerId;
+    const won = s.electionResult?.winner === ownerId
+      || (s.electionResult?.forfeitVictors?.includes(ownerId ?? '') ?? false);
     const electoralVotes = s.electionResult?.evByPlayer[ownerId] ?? 0;
     const securedStates = Object.values(s.securedBy).filter((pid) => pid === ownerId).length;
     const coalitionsDominated = Object.values(s.stateGroupDominance).filter((pid) => pid === ownerId).length;

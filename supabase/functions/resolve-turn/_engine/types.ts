@@ -136,7 +136,6 @@ export interface ElectoralResult {
   readonly evByPlayer: Record<PlayerId, number>;
   readonly stateLeaders: Record<StateId, PlayerId | null>;
   readonly winner: PlayerId | null;
-  /** Player IDs who win by forfeit (leaver quit mid-game). All listed players receive a win. */
   readonly forfeitVictors?: readonly PlayerId[];
 }
 

@@ -129,3 +129,8 @@ export async function rpcSetLobbyStatus(
     p_status: status,
   });
 }
+
+/** Mark caller's seat as forfeited, award wins to remaining players, end the game. */
+export async function rpcForfeitAndFinish(lobbyId: string): Promise<void> {
+  await retryRpc('forfeit_and_finish', 'forfeit_and_finish', { p_lobby_id: lobbyId });
+}
