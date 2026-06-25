@@ -11,6 +11,21 @@ archs="${ARCHS:-arm64}"
 
 export PATH="$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 
+# ── Auto-sync to origin/main before every Xcode build ───────────────────────────
+# Pushing to main does NOT update this local checkout, so a build can otherwise
+# ship stale web assets. Fast-forward-only + best-effort: it never clobbers local
+# commits or uncommitted edits (ff-only just aborts), and if it can't sync
+# (offline / diverged) it logs and builds the current tree. Set ELECTOR_NO_SYNC=1
+# in the Xcode scheme's env (or shell) to skip while iterating on local changes.
+if [ "${ELECTOR_NO_SYNC:-0}" != "1" ]; then
+  if git -C "$repo_root" fetch origin --quiet 2>/dev/null \
+     && git -C "$repo_root" merge --ff-only origin/main 2>/dev/null; then
+    echo "[tauri-ios] synced checkout to origin/main ($(git -C "$repo_root" rev-parse --short HEAD))"
+  else
+    echo "[tauri-ios] sync skipped (offline, diverged, or local changes) — building current tree"
+  fi
+fi
+
 case "$configuration" in
   release|Release)
     cargo_profile="release"
@@ -24,14 +39,14 @@ case "$configuration" in
     ;;
 esac
 
-if [ "$release_build" = true ]; then
-  echo "Building frontend bundle for iOS release"
-  npm --prefix "$repo_root" run build
-
-  if [ ! -f "$repo_root/dist/index.html" ]; then
-    echo "Missing frontend bundle at $repo_root/dist/index.html" >&2
-    exit 1
-  fi
+# Always rebuild the frontend bundle so the app ships current web assets on every
+# build (debug or release) — this is the "just build from Xcode, no fuss" guarantee.
+# vite build is fast, so the cost is negligible.
+echo "Building frontend bundle for iOS ($configuration)"
+npm --prefix "$repo_root" run build
+if [ ! -f "$repo_root/dist/index.html" ]; then
+  echo "Missing frontend bundle at $repo_root/dist/index.html" >&2
+  exit 1
 fi
 
 case "$platform_name:$sdk_root" in
