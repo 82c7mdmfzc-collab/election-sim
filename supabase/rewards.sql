@@ -101,6 +101,7 @@ declare
   v_streak       integer;
   v_reward       integer;
   v_today        integer;
+  v_games_today  integer;
   v_balance      integer;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
@@ -113,12 +114,18 @@ begin
   v_coalitions := greatest(0, least(coalesce(p_coalitions, 0), 20));
   v_streak     := greatest(0, least(coalesce(p_win_streak, 0), 9999));
 
+  -- Count games already claimed in the past 24h (before this one) for diminishing returns.
+  select count(*)::integer into v_games_today
+    from public.game_rewards
+    where user_id = v_uid and created_at > now() - interval '24 hours' and game_id <> p_game_id;
+
   v_reward := c_base
             + (case when p_won then c_win else 0 end)
             + v_secured * c_per_secured
             + v_coalitions * c_per_coalition
             + (case when p_won then least(v_streak, c_max_streak) * c_per_streak else 0 end);
-  v_reward := least(v_reward, c_reward_cap);
+  -- Diminishing returns: -10 per game played today, floors at 0.
+  v_reward := least(v_reward, greatest(0, c_reward_cap - v_games_today * 10));
 
   -- Idempotency: first claim for this game wins; repeats return current balance.
   insert into public.game_rewards (user_id, game_id, amount)
@@ -191,6 +198,7 @@ declare
   v_mode         text := case when p_mode in ('single', 'bot', 'online') then p_mode else 'single' end;
   v_bot_diff     text := case when p_bot_difficulty in ('easy', 'medium', 'hard') then p_bot_difficulty else null end;
   v_reward       integer;
+  v_games_today  integer;
   v_today_total  integer;
   v_game_inserted boolean;
   v_today        date := (now() at time zone 'utc')::date;
@@ -213,12 +221,18 @@ begin
   select * into prof from public.profiles where id = v_uid for update;
   if prof.id is null then raise exception 'complete_game_result: no profile'; end if;
 
+  -- Count games already claimed in the past 24h (before this one) for diminishing returns.
+  select count(*)::integer into v_games_today
+    from public.game_rewards
+    where user_id = v_uid and created_at > now() - interval '24 hours' and game_id <> p_game_id;
+
   v_reward := c_base
             + (case when p_won then c_win else 0 end)
             + v_secured * c_per_secured
             + v_coalitions * c_per_coalition
             + (case when p_won then least(v_streak, c_max_streak) * c_per_streak else 0 end);
-  v_reward := least(v_reward, c_reward_cap);
+  -- Diminishing returns: -10 per game played today, floors at 0. All integer arithmetic.
+  v_reward := least(v_reward, greatest(0, c_reward_cap - v_games_today * 10));
 
   insert into public.game_rewards (
     user_id, game_id, amount, won, mode, bot_difficulty, bot_count,

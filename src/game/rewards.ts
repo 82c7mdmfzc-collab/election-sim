@@ -57,6 +57,6 @@ export function computeReward(input: RewardInput): RewardBreakdown {
     : 0;
 
   const raw = base + winBonus + securedBonus + dominanceBonus + streakBonus;
-  const total = Math.min(raw, REWARD_CAP);
+  const total = Math.floor(Math.min(raw, REWARD_CAP));
   return { base, winBonus, securedBonus, dominanceBonus, streakBonus, total };
 }
