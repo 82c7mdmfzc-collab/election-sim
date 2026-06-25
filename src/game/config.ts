@@ -173,7 +173,7 @@ export function rungCostFor(
   const multiplier = isBoss ? BOSS_RUNG_MULTIPLIER : 1.0;
   // Round to whole $1k units so discounts (e.g. ×0.85) never leak floating-point
   // dust into wallet/nationalCash balances (the 249999.999999997 bug).
-  return Math.round(baseCampaignCost * multiplier * (1 - affinityDiscount));
+  return Math.max(10, Math.round(baseCampaignCost * multiplier * (1 - affinityDiscount)));
 }
 
 // ── Election probability ──────────────────────────────────────────────────────

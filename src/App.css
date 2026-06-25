@@ -4012,17 +4012,17 @@ html.native .shop {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 5rem;
+  padding-top: 2.5rem;
 }
 
 .sg-detail {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 1.1rem 1.2rem;
-  max-width: 660px;
+  padding: 0.7rem 0.9rem;
+  max-width: 440px;
   width: 92vw;
-  max-height: 72vh;
+  max-height: 52vh;
   overflow-y: auto;
   animation: drawer-open 0.18s ease-out;
 }

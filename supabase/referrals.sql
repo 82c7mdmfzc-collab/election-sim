@@ -99,18 +99,31 @@ end; $$;
 -- referral_rewards.referred_user_id guarantees exactly-once payout.
 create or replace function public._redeem_referral(p_user uuid)
 returns void language plpgsql security definer set search_path = public as $$
-declare c_bonus constant integer := 500; v_ref uuid;
+declare
+  v_ref  uuid;
+  v_roll float;
+  v_bonus integer;
 begin
   select referred_by into v_ref from public.profiles where id = p_user;
   if v_ref is null then return; end if;
 
+  -- Weighted random reward: 45% → 250, 30% → 500, 25% → 750
+  v_roll := random();
+  if v_roll < 0.45 then
+    v_bonus := 250;
+  elsif v_roll < 0.75 then
+    v_bonus := 500;
+  else
+    v_bonus := 750;
+  end if;
+
   insert into public.referral_rewards (referred_user_id, referrer_user_id, amount)
-  values (p_user, v_ref, c_bonus)
+  values (p_user, v_ref, v_bonus)
   on conflict (referred_user_id) do nothing;
   if not found then return; end if;   -- already redeemed
 
   update public.profiles
-    set campaign_funds = campaign_funds + c_bonus, updated_at = now()
+    set campaign_funds = campaign_funds + v_bonus, updated_at = now()
     where id in (p_user, v_ref);
 
   update public.profiles
