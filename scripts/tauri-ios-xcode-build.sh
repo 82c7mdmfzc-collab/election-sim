@@ -49,6 +49,16 @@ if [ ! -f "$repo_root/dist/index.html" ]; then
   exit 1
 fi
 
+# Sync app icons from source-of-truth (src-tauri/icons/ios/) into the Xcode asset
+# catalog (gen/apple/Assets.xcassets/AppIcon.appiconset/). gen/ is gitignored so
+# npx tauri icon alone never updates what Xcode actually packages.
+icon_src="$tauri_dir/icons/ios"
+icon_dst="$xcode_root/Assets.xcassets/AppIcon.appiconset"
+if [ -d "$icon_src" ] && [ -d "$icon_dst" ]; then
+  cp "$icon_src"/*.png "$icon_dst/"
+  echo "[tauri-ios] synced app icons to Xcode asset catalog"
+fi
+
 case "$platform_name:$sdk_root" in
   *simulator*|*Simulator*)
     sdk_kind="simulator"
