@@ -4562,7 +4562,13 @@ html.native .mp-player-name {
 }
 html.native .mp-player-cand { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-html.native .shop { gap: 0.45rem; }
+/* Shop renders 4 rows (header, tabs, body, foot) — the shared native-screen grid
+   only defines 3 tracks, which collapsed the tabs and starved the body. Give the
+   body the flexible track explicitly. */
+html.native .shop { gap: 0.45rem; grid-template-rows: auto auto minmax(0, 1fr); }
+/* The header already carries a Back button on native — the footer one is redundant
+   and wastes ~80px of scarce landscape height. */
+html.native .shop > .setup__foot { display: none; }
 html.native .shop__header { display: grid; grid-template-columns: auto 1fr auto; }
 html.native .shop__title { justify-self: center; }
 html.native .shop__tabs,
@@ -4604,6 +4610,7 @@ html.native .shop__vm-list {
   padding: 0.35rem 1rem 0.45rem;
   margin: 0;
   border-width: 0;
+  border-image: none; /* kill the `fill` center-slice frame that paints over the rail */
 }
 html.native .shop-card,
 html.native .funds-card,
@@ -4614,10 +4621,27 @@ html.native .vm-card {
   max-height: 100%;
 }
 html.native .shop-card { padding: 0.75rem; gap: 0.45rem; }
+html.native .funds-card { padding: 0.6rem 0.7rem; gap: 0.2rem; }
+html.native .funds-card__amount { font-size: 1.2rem; margin-top: auto; }
+html.native .funds-card__label { font-size: 0.62rem; }
+html.native .funds-card__buy { margin-top: auto; padding: 0.45rem 0; } /* pin CTA to a uniform bottom line, image or not */
 html.native .shop-card__portrait,
 html.native .shop-card .portrait-fallback { width: 52px; height: 52px; }
 html.native .shop-card .mod-sheet { font-size: 0.68rem; }
-html.native .funds-card__img { height: clamp(46px, 14dvh, 76px); }
+html.native .funds-card__img { height: clamp(32px, 9dvh, 52px); margin-top: 0; }
+/* Short landscape (phones, ~≤430px tall): the coin pack art is decorative and the
+   $0.99/$19.99 packs ship without it — drop it so amount + price + CTA always fit
+   and every card stays uniform. iPad (tall) keeps the art. */
+@media (max-height: 500px) {
+  html.native .funds-card__img { display: none; }
+}
+/* Cosmetics and Earn stack multiple sections, so unlike the single-row rails they
+   need to scroll vertically rather than clip inside the fixed-height pane. */
+html.native .shop__pane--cosmetics.is-active,
+html.native .shop__pane--earn.is-active {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 html.native .invite {
   margin: 0;
   padding: 0.65rem;
@@ -6233,6 +6257,18 @@ html.native .native-state-summary {
 .shop__cosmetics {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.7rem;
   margin-bottom: 0.5rem;
+}
+/* The element also carries `shop-rail`, which the native rules turn into a single
+   horizontal strip — wrong for cosmetics' two stacked sections. Force a normal
+   vertical grid that scrolls with the pane instead of squishing the cards. */
+html.native .shop__cosmetics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  flex: none;
+  overflow: visible;
+  padding: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 .cosmetic-card {
   text-align: left; cursor: pointer; padding: 0.75rem 0.9rem;
