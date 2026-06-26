@@ -1964,6 +1964,12 @@ html.native .setup__roster .cand-card.is-disabled {
   margin-top: 0.4rem; text-align: center; font-size: 0.72rem; font-weight: 700;
   color: var(--gold); letter-spacing: 0.04em;
 }
+.cand-card__hint {
+  margin-top: 0.5rem; text-align: center; font-size: 0.72rem; font-weight: 600;
+  color: var(--muted); letter-spacing: 0.02em;
+}
+/* Native cards stay portrait+name only; the spotlight + popup carry the detail. */
+html.native .setup__roster .cand-card__hint { display: none; }
 .cand-card__top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
 /* Portrait image container — strict square aspect ratio, covers any source dimensions */
 .cand-portrait-wrap {
@@ -2219,6 +2225,20 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .mod-sheet__g { color: var(--text); }
 .mod-sheet__group--good .mod-sheet__v { color: var(--green); font-weight: 700; }
 .mod-sheet__group--bad .mod-sheet__v { color: var(--danger-red); font-weight: 700; }
+
+/* Two-column Bonus / Penalty layout used by the candidate stats popup. */
+.mod-sheet--columns { flex-direction: row; align-items: flex-start; gap: 0.9rem; }
+.mod-sheet--columns .mod-sheet__col {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 0.45rem;
+}
+.mod-sheet__col-head {
+  font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: 0.82rem; font-weight: 800; padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.mod-sheet__col-head--good { color: var(--green); }
+.mod-sheet__col-head--bad { color: var(--danger-red); }
+.mod-sheet__empty { color: var(--faint); font-size: 0.78rem; font-style: italic; }
 
 /* ══ Election overlay (kept) ═══════════════════════════════════════════════ */
 
@@ -3723,6 +3743,17 @@ html.native .shop {
 @media (hover: hover) and (pointer: fine) { .funds-card__buy:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); } }
 .funds-card__buy:disabled { opacity: 0.6; cursor: default; }
 
+/* Web fallback for the coin store — purchases are iOS-only, so show a tasteful
+   callout pointing players to the app + the free ways to earn Funds. */
+.funds-web-note {
+  display: flex; align-items: center; gap: 0.85rem;
+  padding: 1rem 1.1rem; background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.funds-web-note .coin-inline--large { flex: 0 0 auto; width: 2rem; height: 2rem; }
+.funds-web-note__body strong { display: block; color: var(--text); font-size: 0.95rem; margin-bottom: 0.2rem; }
+.funds-web-note__body p { margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+
 /* ── Rewarded Ads ─────────────────────────────────────────────────────────── */
 .rewarded-ad {
   display: grid;
@@ -3925,6 +3956,18 @@ html.native .shop {
   height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-top: 0.4rem;
 }
 .shop-card__progress > span { display: block; height: 100%; background: var(--gold); }
+/* .shop-card is a <button> that opens the stats popup (where buying happens). */
+button.shop-card {
+  width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  button.shop-card:hover { border-color: var(--p-color); transform: translateY(-2px); }
+}
+.shop-card__stats-hint {
+  display: block; margin-top: 0.4rem; text-align: center;
+  font-size: 0.72rem; font-weight: 700; color: var(--gold); letter-spacing: 0.03em;
+}
 
 /* ══ State Group Bar ═══════════════════════════════════════════════════════ */
 
@@ -4284,6 +4327,23 @@ html.native .shop {
 .profile-perk-row__val { font-weight: 700; font-variant-numeric: tabular-nums; }
 .profile-perk-row__val.positive { color: var(--green); }
 .profile-perk-row__val.negative { color: var(--danger-red); }
+
+/* Candidate "click to see stats" popup — reuses the .profile-modal shell, wider for
+   the two-column Bonus/Penalty breakdown. */
+.cand-stats-modal { max-width: 460px; }
+.cand-stats-modal .profile-modal__portrait { border-radius: 10px; }
+.cand-stats-modal .profile-modal__portrait .cand-portrait,
+.cand-stats-modal .profile-modal__portrait img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: inherit;
+}
+.cand-stats-modal__meta {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  margin-top: 0.35rem; font-size: 0.78rem; color: var(--green); font-weight: 600;
+}
+.cand-stats-modal__cta { margin-top: 0.2rem; }
+.cand-stats-modal__subtext {
+  margin-top: 0.45rem; text-align: center; font-size: 0.76rem; color: var(--muted);
+}
 
 .profile-stat-grid {
   display: grid;

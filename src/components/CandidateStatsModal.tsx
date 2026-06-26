@@ -1,0 +1,95 @@
+/**
+ * CandidateStatsModal — "click to see stats" popup for a single candidate.
+ *
+ * Replaces the cramped inline ModifierSheet on the candidate cards (setup screen +
+ * Shop recruit grid). Shows the full Bonus / Penalty breakdown with room to breathe
+ * and a single caller-supplied primary action ("Choose", "Unlock in Shop", etc.),
+ * mirroring the competitor's tap-to-review flow.
+ *
+ * Reuses the .profile-overlay / .profile-modal shell from PlayerProfileModal.
+ */
+
+import { PLAYER_COLORS, type CandidateDef } from '../game/candidates';
+import { ModifierSheet } from './ModifierSheet';
+import { PartyBadge } from './PartyBadge';
+import { Portrait } from './Portrait';
+
+interface Props {
+  candidate: CandidateDef;
+  /** Label for the single primary action button. */
+  actionLabel: string;
+  actionDisabled?: boolean;
+  onAction: () => void;
+  onClose: () => void;
+  /** Optional line under the CTA, e.g. Shop affordability ("Need 1,200 more"). */
+  subtext?: string;
+}
+
+export function CandidateStatsModal({
+  candidate,
+  actionLabel,
+  actionDisabled,
+  onAction,
+  onClose,
+  subtext,
+}: Props) {
+  return (
+    <div
+      className="profile-overlay cand-stats-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${candidate.name} stats`}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="profile-modal cand-stats-modal"
+        style={{ ['--p-color' as string]: PLAYER_COLORS[candidate.color] }}
+      >
+        <div className="profile-modal__head">
+          <div className="profile-modal__portrait">
+            <Portrait
+              className="cand-portrait"
+              src={candidate.portraitUrl}
+              initials={candidate.portrait}
+              name={candidate.name}
+            />
+          </div>
+          <div className="profile-modal__info">
+            <div className="profile-modal__name">{candidate.name}</div>
+            {candidate.tagline && <div className="profile-modal__tagline">{candidate.tagline}</div>}
+            <div className="cand-stats-modal__meta">
+              <PartyBadge party={candidate.party} />
+              <span>${candidate.startingCash}k starting cash</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="profile-modal__close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="profile-modal__section">
+          <ModifierSheet
+            affinities={candidate.affinities}
+            payoutModifiers={candidate.payoutModifiers}
+            layout="columns"
+          />
+        </div>
+
+        <button
+          type="button"
+          className="btn-cta btn-cta--block cand-stats-modal__cta"
+          disabled={actionDisabled}
+          onClick={onAction}
+        >
+          {actionLabel}
+        </button>
+        {subtext && <div className="cand-stats-modal__subtext">{subtext}</div>}
+      </div>
+    </div>
+  );
+}

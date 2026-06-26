@@ -14,6 +14,7 @@ import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { ModifierSheet } from './ModifierSheet';
+import { CandidateStatsModal } from './CandidateStatsModal';
 import { Portrait } from './Portrait';
 
 const TIME_OPTIONS: { label: string; value: number | null }[] = [
@@ -54,6 +55,9 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   const filled = seats.filter(Boolean).length;
   const [activeCandidateId, setActiveCandidateId] = useState(CANDIDATES[0].id);
   const activeCandidate = CANDIDATES.find((c) => c.id === activeCandidateId) ?? CANDIDATES[0];
+  // Candidate whose "click to see stats" popup is open (null = closed).
+  const [statsModalId, setStatsModalId] = useState<string | null>(null);
+  const statsCandidate = statsModalId ? CANDIDATES.find((c) => c.id === statsModalId) ?? null : null;
 
   function toggleCandidate(id: string) {
     setActiveCandidateId(id);
@@ -77,6 +81,46 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
       .map((id) => (id ? CANDIDATES.find((c) => c.id === id) : null))
       .filter((c): c is CandidateDef => !!c);
     if (chosen.length === count) { AudioManager.play('confirm'); startGame(chosen, turnTimeLimit); }
+  }
+
+  // Build the stats-popup action from the candidate's state (locked / assigned / open seat).
+  function renderStatsModal() {
+    if (!statsCandidate) return null;
+    const close = () => setStatsModalId(null);
+    const locked = !isCandidateAvailable(statsCandidate, unlocked);
+    const seat = assignedSeat[statsCandidate.id];
+    const isAssigned = seat !== undefined;
+    const hasOpenSeat = seats.includes(null);
+
+    let actionLabel: string;
+    let actionDisabled = false;
+    let onAction = close;
+    let subtext: string | undefined;
+    if (locked) {
+      actionLabel = 'Unlock in Shop';
+      onAction = () => { AudioManager.play('click'); close(); onOpenShop?.(); };
+      subtext = 'Recruit this candidate with Campaign Funds.';
+    } else if (isAssigned) {
+      actionLabel = `Remove from Player ${seat + 1}`;
+      onAction = () => { AudioManager.play('click'); toggleCandidate(statsCandidate.id); close(); };
+    } else if (hasOpenSeat) {
+      actionLabel = 'Choose';
+      onAction = () => { AudioManager.play('confirm'); toggleCandidate(statsCandidate.id); close(); };
+    } else {
+      actionLabel = 'All seats full';
+      actionDisabled = true;
+    }
+
+    return (
+      <CandidateStatsModal
+        candidate={statsCandidate}
+        actionLabel={actionLabel}
+        actionDisabled={actionDisabled}
+        onAction={onAction}
+        onClose={close}
+        subtext={subtext}
+      />
+    );
   }
 
   return (
@@ -178,9 +222,9 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
                 className={`cand-card${isAssigned ? ' is-assigned' : ''}${activeCandidateId === c.id ? ' is-active' : ''}${locked ? ' is-locked' : ''}`}
                 style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
                 onClick={() => {
+                  AudioManager.play('click');
                   setActiveCandidateId(c.id);
-                  if (locked) { AudioManager.play('click'); onOpenShop?.(); return; }
-                  toggleCandidate(c.id);
+                  setStatsModalId(c.id);
                 }}
               >
                 <div className="cand-card__top">
@@ -194,15 +238,14 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
                   </div>
                   <div className="cand-card__id">
                     <span className="cand-card__name">{c.name}</span>
-                    <span className="cand-card__tag">{c.tagline}</span>
                     <PartyBadge party={c.party} className="cand-card__party" />
                   </div>
                   {isAssigned && <span className="cand-card__seat">P{seat + 1}</span>}
                   {locked && <span className="cand-card__lock"><LockIcon size={14} /></span>}
                 </div>
-                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-                <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
-                {locked && <div className="cand-card__unlock-hint">Unlock in Shop →</div>}
+                {locked
+                  ? <div className="cand-card__unlock-hint">Unlock in Shop →</div>
+                  : <div className="cand-card__hint">{isAssigned ? `Assigned to P${seat + 1}` : 'Tap for stats ›'}</div>}
               </button>
             );
           })}
@@ -224,6 +267,8 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
           </button>
         )}
       </div>
+
+      {renderStatsModal()}
     </div>
   );
 }
