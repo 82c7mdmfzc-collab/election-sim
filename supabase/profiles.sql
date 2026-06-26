@@ -54,7 +54,7 @@ begin
   if p_character <> 'washington' then
     raise exception 'claim_free_character: % is not claimable', p_character;
   end if;
-  if extract(month from now()) <> 7 then
+  if extract(month from (now() at time zone 'utc')) <> 7 then
     raise exception 'claim_free_character: not available outside July';
   end if;
 

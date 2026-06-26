@@ -103,7 +103,7 @@ function RewardedAdCard() {
       if (userId) recordLocalAdReward(userId);
       setLocalSnapshot({ userId, status: result.adStatus });
       setLastReward(result.amount);
-      setMessage(`+${result.amount} Credits added.`);
+      setMessage(`+${result.amount} Campaign Funds added.`);
       AudioManager.play('victory');
       track('rewarded_ad_claimed', {
         placement: 'shop',
@@ -121,7 +121,7 @@ function RewardedAdCard() {
       });
     } else if (result.status === 'auth_required') {
       setLastReward(null);
-      setMessage('Sign in to earn Campaign Credits from ads.');
+      setMessage('Sign in to earn Campaign Funds from ads.');
     } else {
       setLastReward(null);
       setMessage(result.message);
@@ -153,7 +153,7 @@ function RewardedAdCard() {
 
   async function beginAd() {
     if (guest || !userId) {
-      setMessage('Sign in to earn Campaign Credits from ads.');
+      setMessage('Sign in to earn Campaign Funds from ads.');
       return;
     }
     if (limitReached) {
@@ -199,7 +199,7 @@ function RewardedAdCard() {
     claimStarted.current = false;
     watchedMeta.current = {};
     setPhase('idle');
-    setMessage('Ad cancelled. No Credits claimed.');
+    setMessage('Ad cancelled. No Campaign Funds claimed.');
     track('rewarded_ad_cancelled', {
       placement: 'shop',
       provider: 'inline_sponsor',
@@ -222,7 +222,7 @@ function RewardedAdCard() {
         <div>
           <h3 className="rewarded-ad__title">Watch an ad</h3>
           <p className="rewarded-ad__copy">
-            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Credits.
+            Earn {AD_REWARD_MIN}-{AD_REWARD_MAX} Campaign Funds.
           </p>
         </div>
         <span className="rewarded-ad__quota">
@@ -287,7 +287,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
   const nativeBillingHeld = (billingPlatform === 'ios' || billingPlatform === 'android') && !hasNativeBilling;
   const showAdRewards = rewardedAdBridgeAvailable() || inlineRewardedAdsEnabled();
-  // Open on the coin store so buying Campaign Funds is the first thing players see.
+  // Open on the funds store so buying Campaign Funds is the first thing players see.
   const [tab, setTab] = useState<ShopTab>('funds');
   // Recruit candidate whose "click to see stats" popup is open (null = closed).
   const [statsModalId, setStatsModalId] = useState<string | null>(null);
@@ -330,7 +330,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     if (isCosmeticAvailable(c.id, unlocked)) { equipFrame(c.id); return; }
     if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
     if (funds < c.unlockCost) {
-      setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Funds to unlock ${c.name}.`);
+      setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Campaign Funds to unlock ${c.name}.`);
       return;
     }
     setCosmeticBusy(c.id);
@@ -454,13 +454,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       actionLabel = 'Sign in to unlock';
       actionDisabled = true;
     } else if (affordable) {
-      actionLabel = working ? 'Unlocking…' : `Unlock — ${c.unlockCost.toLocaleString()} Credits`;
+      actionLabel = working ? 'Unlocking…' : `Unlock — ${c.unlockCost.toLocaleString()} Campaign Funds`;
       actionDisabled = working;
       onAction = () => { void buy(c.id).then((ok) => { if (ok) close(); }); };
     } else {
       actionLabel = `Need ${(c.unlockCost - funds).toLocaleString()} more`;
       actionDisabled = true;
-      subtext = `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Credits`;
+      subtext = `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Campaign Funds`;
     }
 
     return (
@@ -482,13 +482,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         <h1 className="shop__title">Campaign Store</h1>
         <span className="shop__balance">
           <span className="coin-inline" aria-hidden />
-          {funds.toLocaleString()} Credits
+          {funds.toLocaleString()} Campaign Funds
         </span>
       </div>
 
       <div className="shop__tabs native-only" role="tablist" aria-label="Store sections">
         {[
-          ['funds', 'Buy Coins'],
+          ['funds', 'Funds'],
           ['recruit', 'Recruit'],
           ['cosmetics', 'Cosmetics'],
           ['earn', 'Earn'],
@@ -508,10 +508,10 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       </div>
 
       <div className="shop__body">
-        <p className="shop__sub">Win games to earn Campaign Credits, then recruit new candidates to your roster.</p>
+        <p className="shop__sub">Win games to earn Campaign Funds, then recruit new candidates to your roster.</p>
 
         <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}`}>
-          <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Coins</h2>
+          <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Campaign Funds</h2>
           <p className="shop__sub">
             {showPaidFunds
               ? 'Top up Campaign Funds instantly to recruit new candidates faster.'
@@ -534,7 +534,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                     <span className="coin-inline coin-inline--large" aria-hidden />
                     {b.funds.toLocaleString()}
                   </div>
-                  <div className="funds-card__label">Coins</div>
+                  <div className="funds-card__label">Campaign Funds</div>
                   <button
                     type="button"
                     className="funds-card__buy"
@@ -551,12 +551,12 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
               <span className="coin-inline coin-inline--large" aria-hidden />
               <div className="funds-web-note__body">
                 <strong>
-                  {nativeBillingHeld ? 'Coin purchases are unavailable in this build' : 'Buy coins in the app'}
+                  {nativeBillingHeld ? 'Campaign Funds purchases are unavailable in this build' : 'Buy Campaign Funds in the app'}
                 </strong>
                 <p>
                   {nativeBillingHeld
                     ? 'In-app purchases aren’t configured for this build yet.'
-                    : 'Coin top-ups are available in the Elector iOS app. On the web you can still earn Campaign Funds by winning games, watching ads, and inviting friends.'}
+                    : 'Campaign Funds top-ups are available in the Elector iOS app. On the web you can still earn Campaign Funds by winning games, watching ads, and inviting friends.'}
                 </p>
               </div>
             </div>
@@ -566,7 +566,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         <section className={`shop__pane shop__pane--earn${tab === 'earn' ? ' is-active' : ''}`}>
           {showAdRewards && (
             <>
-              <h2 className="shop__section">Earn Campaign Credits</h2>
+              <h2 className="shop__section">Earn Campaign Funds</h2>
               <RewardedAdCard />
             </>
           )}
@@ -605,7 +605,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                       <span className="shop-card__price shop-card__price--free">Free in July</span>
                     ) : (
                       <>
-                        <span className="shop-card__price">{c.unlockCost.toLocaleString()} Credits</span>
+                        <span className="shop-card__price">{c.unlockCost.toLocaleString()} Campaign Funds</span>
                         {!affordable && (
                           <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>
                         )}
@@ -658,7 +658,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                   ? 'Unlocking…'
                   : guest
                     ? 'Sign in to unlock'
-                    : `Unlock — ${c.unlockCost.toLocaleString()} Funds`;
+                    : `Unlock — ${c.unlockCost.toLocaleString()} Campaign Funds`;
               return (
                 <button
                   key={c.id}

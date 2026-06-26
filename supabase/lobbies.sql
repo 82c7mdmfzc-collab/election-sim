@@ -110,7 +110,8 @@ language sql
 immutable
 set search_path = public
 as $$
-  select p_candidate in ('tooley', 'trump', 'harris', 'lincoln', 'joe_biden', 'ronald_reagan');
+  -- Canonical roster: src/game/candidates.ts (keep in sync). All 10 selectable candidates.
+  select p_candidate in ('tooley', 'trump', 'harris', 'lincoln', 'joe_biden', 'ronald_reagan', 'washington', 'starmer', 'farage', 'jfk');
 $$;
 
 create or replace function public.is_free_candidate(p_candidate text)
@@ -119,7 +120,8 @@ language sql
 immutable
 set search_path = public
 as $$
-  select p_candidate in ('tooley', 'trump', 'harris', 'lincoln');
+  -- Free founding roster only (unlockCost === 0 in src/game/candidates.ts). 'tooley' is paid (TIER1).
+  select p_candidate in ('trump', 'harris', 'lincoln');
 $$;
 
 create or replace function public.caller_can_use_candidate(p_candidate text)
