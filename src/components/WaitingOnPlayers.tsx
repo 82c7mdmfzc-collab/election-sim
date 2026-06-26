@@ -32,7 +32,7 @@ export function WaitingOnPlayers() {
                 <span className="waiting-players__dot" aria-hidden />
                 <span className="waiting-players__name">{p.name}</span>
                 <span className="waiting-players__badge">
-                  {ready ? 'Ready ✓' : 'Thinking…'}
+                  {ready ? 'Ready ✓' : 'Waiting…'}
                 </span>
               </li>
             );
