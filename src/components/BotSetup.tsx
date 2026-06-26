@@ -5,6 +5,9 @@
  * 1–3 computer opponents. Opponents are auto-assigned distinct candidates and
  * all share the chosen difficulty.
  * Seat 0 is always the human, so progression/rewards track their result.
+ *
+ * The candidate picker mirrors the Shop's Recruit tab: a rail of cards; tapping
+ * one opens CandidateStatsModal with a "Choose" action.
  */
 
 import { useMemo, useState } from 'react';
@@ -18,11 +21,9 @@ import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import type { BotDifficulty } from '../game/types';
-import type { CandidateDef } from '../game/candidates';
 import { Portrait } from './Portrait';
-import { PartyBadge } from './PartyBadge';
 import { NextChallengeHint } from './ProgressPanel';
-import { ModifierSheet } from './ModifierSheet';
+import { CandidateStatsModal } from './CandidateStatsModal';
 
 const DIFFICULTIES: { id: BotDifficulty; label: string; blurb: string }[] = [
   { id: 'easy',   label: 'Easy',   blurb: 'Loose, low-pressure decisions.' },
@@ -41,22 +42,6 @@ interface BotSetupProps {
   onBack: () => void;
 }
 
-function perkSummary(candidate: CandidateDef): { label: string; tone: 'good' | 'mixed' | 'flat' }[] {
-  const cost = Object.values(candidate.affinities);
-  const income = Object.values(candidate.payoutModifiers);
-  const costUpside = cost.filter((v) => v > 0).length;
-  const incomeUpside = income.filter((v) => v > 0).length;
-  const tradeoffs = [...cost, ...income].filter((v) => v < 0).length;
-  const chips: { label: string; tone: 'good' | 'mixed' | 'flat' }[] = [];
-
-  if (costUpside > 0) chips.push({ label: `${costUpside} cost perk${costUpside === 1 ? '' : 's'}`, tone: 'good' });
-  if (incomeUpside > 0) chips.push({ label: `${incomeUpside} income perk${incomeUpside === 1 ? '' : 's'}`, tone: 'good' });
-  if (tradeoffs > 0) chips.push({ label: `${tradeoffs} tradeoff${tradeoffs === 1 ? '' : 's'}`, tone: 'mixed' });
-  if (chips.length === 0) chips.push({ label: 'Neutral build', tone: 'flat' });
-
-  return chips;
-}
-
 export function BotSetup({ onBack }: BotSetupProps) {
   const startGame = useGameStore((s) => s.startGame);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
@@ -70,8 +55,10 @@ export function BotSetup({ onBack }: BotSetupProps) {
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
   const [opponents, setOpponents] = useState(1);
   const [turnTimeLimit, setTurnTimeLimit] = useState<number | null>(null);
+  const [statsModalId, setStatsModalId] = useState<string | null>(null);
 
   const me = CANDIDATE_MAP[myId];
+  const statsCandidate = statsModalId ? CANDIDATE_MAP[statsModalId] ?? null : null;
   const botRoster = useMemo(
     () => CANDIDATES.filter((c) => c.id !== myId).slice(0, opponents),
     [myId, opponents],
@@ -82,6 +69,21 @@ export function BotSetup({ onBack }: BotSetupProps) {
     const botSeats = Object.fromEntries(botRoster.map((b) => [b.id, difficulty]));
     AudioManager.play('confirm');
     startGame(chosen, turnTimeLimit, botSeats);
+  }
+
+  function renderStatsModal() {
+    if (!statsCandidate) return null;
+    const close = () => setStatsModalId(null);
+    const chosen = statsCandidate.id === myId;
+    return (
+      <CandidateStatsModal
+        candidate={statsCandidate}
+        actionLabel={chosen ? 'Your pick ✓' : 'Choose'}
+        actionDisabled={chosen}
+        onAction={() => { AudioManager.play('confirm'); setMyId(statsCandidate.id); close(); }}
+        onClose={close}
+      />
+    );
   }
 
   return (
@@ -137,83 +139,36 @@ export function BotSetup({ onBack }: BotSetupProps) {
         <NextChallengeHint context="solo" />
       </div>
 
-      <div className="native-select">
-        <div className="native-select__spotlight native-only">
-          <div
-            className="native-candidate"
-            style={{ ['--p-color' as string]: PLAYER_COLORS[me.color] }}
-          >
-            <div className="native-candidate__portrait">
-              <Portrait className="cand-portrait" src={me.portraitUrl} initials={me.portrait} name={me.name} />
-            </div>
-            <div className="native-candidate__body">
-              <div className="native-candidate__name">{me.name}</div>
-              <div className="native-candidate__tag">{me.tagline}</div>
-              <div className="native-candidate__meta">
-                <PartyBadge party={me.party} />
-                <span>${me.startingCash}k starting cash</span>
-              </div>
-              <ModifierSheet
-                affinities={me.affinities}
-                payoutModifiers={me.payoutModifiers}
-                compact
-              />
-            </div>
-          </div>
-          <div className="native-select__summary">
-            <div className="native-select__summary-card">
-              <p className="native-select__summary-title">Opposition</p>
-              <div className="setup__seats">
-                <span className="setup__seat is-filled">
-                  <strong>{botRoster.map((b) => b.name).join(', ')}</strong>
-                </span>
-              </div>
-            </div>
-            <div className="native-select__summary-card">
-              <p className="native-select__summary-title">Difficulty</p>
-              <p className="mp-hint">{DIFFICULTIES.find((d) => d.id === difficulty)?.blurb}</p>
-            </div>
-          </div>
-        </div>
-
-        <p className="mp-hint">Candidate</p>
-        <div className="setup__roster candidate-rail">
+      <div className="cand-select-body">
+        <p className="shop__sub cand-select-body__hint">Tap a candidate to review their bonuses, then choose.</p>
+        <div className="shop__grid shop-rail">
           {ownedCandidates.map((c) => {
             const chosen = c.id === myId;
-            const chips = perkSummary(c);
             return (
               <button
                 key={c.id}
                 type="button"
-                className={`cand-card${chosen ? ' is-assigned is-active' : ''}`}
+                className={`shop-card${chosen ? ' is-owned' : ''}`}
                 style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-                onClick={() => { AudioManager.play('click'); setMyId(c.id); }}
+                onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
               >
-                <div className="cand-card__top">
-                  <div className="cand-portrait-wrap">
-                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                <div className="shop-card__top">
+                  <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  <div>
+                    <span className="shop-card__name">{c.name}</span>
+                    <span className="shop-card__tag">{c.tagline}</span>
                   </div>
-                  <div className="cand-card__id">
-                    <span className="cand-card__name">{c.name}</span>
-                    <span className="cand-card__tag">{c.tagline}</span>
-                    <PartyBadge party={c.party} className="cand-card__party" />
-                  </div>
-                  {chosen && <span className="cand-card__seat">You</span>}
                 </div>
-                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-                <div className="cand-card__perks" aria-label={`${c.name} perk summary`}>
-                  {chips.map((chip) => (
-                    <span key={chip.label} className={`perk-chip perk-chip--${chip.tone}`}>
-                      {chip.label}
-                    </span>
-                  ))}
+                <div className="shop-card__foot">
+                  {chosen && <div className="shop-card__owned">Your pick ✓</div>}
+                  <span className="shop-card__stats-hint">View stats ›</span>
                 </div>
               </button>
             );
           })}
         </div>
 
-        <div className="setup__seats" style={{ marginTop: '0.75rem' }}>
+        <div className="setup__seats">
           <span className="setup__seat is-filled">
             Opposition: <strong>{botRoster.map((b) => `${b.name} (${difficulty})`).join(', ')}</strong>
           </span>
@@ -228,6 +183,8 @@ export function BotSetup({ onBack }: BotSetupProps) {
           ← Back
         </button>
       </div>
+
+      {renderStatsModal()}
     </div>
   );
 }

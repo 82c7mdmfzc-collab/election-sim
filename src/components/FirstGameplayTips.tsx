@@ -14,7 +14,7 @@ import { AudioManager } from '../utils/audioManager';
 
 const TIPS: readonly { lead: string; rest: string }[] = [
   { lead: 'Reach 270 electoral votes', rest: 'to win the election — that’s your Victory Target.' },
-  { lead: 'Spend in states', rest: 'to build Influence Levels and lead the map.' },
+  { lead: 'Spend in states', rest: 'to build Campaign Influence and lead the map.' },
   { lead: 'Watch your funds', rest: '— every move costs, so spend your War Chest where it counts.' },
 ];
 

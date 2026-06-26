@@ -93,7 +93,7 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
         {/* ── Dominance progress bars ─────────────────────────────────────── */}
         <div className="sg-progress">
           <div className="sg-progress__caption">
-            Lead a state (≥ min rungs) to bank its EV. Pass the line — <strong>{needToDominate} EV</strong> — to dominate.
+            Lead a state (≥ min Campaign Influence) to bank its EV. Pass the line — <strong>{needToDominate} EV</strong> — to dominate.
           </div>
           {ranked.map((p) => {
             const ev = evByPlayer[p.id] ?? 0;
@@ -136,7 +136,7 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
                 <span className="sg-member__name">{state.name}</span>
                 <span className="sg-member__ev">{state.electoralVotes} EV</span>
                 {activePlayer && (
-                  <span className="sg-member__rungs" title={`You: Campaign Level ${myR} of ${minR} needed`}>
+                  <span className="sg-member__rungs" title={`You: Campaign Influence ${myR} of ${minR} needed`}>
                     {myR}/{minR}{qualifies ? ' ✓' : ''}
                   </span>
                 )}

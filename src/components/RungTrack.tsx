@@ -92,8 +92,8 @@ export function RungTrack({
               ].filter(Boolean).join(' ')}
               disabled={!handleClick}
               onClick={handleClick}
-              title={state === 'next' ? `Build Influence Level ${idx}` : isRetractable ? `Undo Influence Level ${idx}` : `Influence Level ${idx}`}
-              aria-label={state === 'next' ? `Build Influence Level ${idx} of ${maxRungs}` : isRetractable ? `Undo Influence Level ${idx}` : `Influence Level ${idx} of ${maxRungs}`}
+              title={state === 'next' ? `Build Campaign Influence ${idx}` : isRetractable ? `Undo Campaign Influence ${idx}` : `Campaign Influence ${idx}`}
+              aria-label={state === 'next' ? `Build Campaign Influence ${idx} of ${maxRungs}` : isRetractable ? `Undo Campaign Influence ${idx}` : `Campaign Influence ${idx} of ${maxRungs}`}
             />
           );
         })}

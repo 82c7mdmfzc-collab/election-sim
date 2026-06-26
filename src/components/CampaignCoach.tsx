@@ -68,7 +68,7 @@ export function CampaignCoach() {
     accent = `${projectedEV}/270 EV`;
   } else if (pendingRungs > 0) {
     title = 'Turn Ready';
-    body = `${pendingRungs} Influence Level${pendingRungs === 1 ? '' : 's'} queued across ${hasStatePending && hasNationalPending ? 'states and network tracks' : hasNationalPending ? 'network tracks' : 'states'}. Resolve, then watch collisions, income, and new leads.`;
+    body = `${pendingRungs} Campaign Influence queued across ${hasStatePending && hasNationalPending ? 'states and network tracks' : hasNationalPending ? 'network tracks' : 'states'}. Resolve, then watch collisions, income, and new leads.`;
     accent = 'Resolve';
   } else if (turn === 1) {
     body = 'Tap a state to build influence — each level costs more as you climb. Reach full influence alone and that state is CALLED for good. Establish a foothold in a state and a network for flexible War Chest funds.';
@@ -79,7 +79,7 @@ export function CampaignCoach() {
     accent = 'State group';
   } else if (earningNationalGroups.length === 0 && turn > 1) {
     title = 'Claim War Chest Funds';
-    body = 'Network tracks are side battles. Lead one with 4+ Influence Levels to earn War Chest funds that spend anywhere.';
+    body = 'Network tracks are side battles. Lead one with 4+ Campaign Influence to earn War Chest funds that spend anywhere.';
     accent = 'National group';
   } else if (projectedEV < 180) {
     title = 'Convert Income Into EV';

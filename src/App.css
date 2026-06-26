@@ -3968,6 +3968,14 @@ button.shop-card {
   display: block; margin-top: 0.4rem; text-align: center;
   font-size: 0.72rem; font-weight: 700; color: var(--gold); letter-spacing: 0.03em;
 }
+.shop-card.is-locked { opacity: 0.55; }
+
+/* Recruit-style candidate picker on the Solo/Local setup screens. Reuses the
+   .shop-card rail but lives in its own container so it never inherits the legacy
+   .native-select spotlight rules (still used by Daily Challenge + Multiplayer). */
+.cand-select-body { display: flex; flex-direction: column; gap: 0.6rem; min-height: 0; }
+.cand-select-body__hint { margin: 0; }
+html.native .cand-select-body { min-height: 0; }
 
 /* ══ State Group Bar ═══════════════════════════════════════════════════════ */
 
@@ -4050,23 +4058,24 @@ button.shop-card {
 .sg-detail-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.12); /* keep the map clearly visible behind the popup */
   z-index: 400;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 2.5rem;
+  padding-top: 1.5rem;
 }
 
 .sg-detail {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 0.7rem 0.9rem;
-  max-width: 440px;
-  width: 92vw;
-  max-height: 52vh;
+  padding: 0.6rem 0.8rem;
+  max-width: 300px;
+  width: 80vw;
+  max-height: 32vh;
   overflow-y: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
   animation: drawer-open 0.18s ease-out;
 }
 
