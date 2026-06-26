@@ -33,7 +33,7 @@ import {
 } from '../utils/rewardedAds';
 import { track } from '../utils/analytics';
 import { InviteFriend } from './InviteFriend';
-import { ModifierSheet } from './ModifierSheet';
+import { CandidateStatsModal } from './CandidateStatsModal';
 import { Portrait } from './Portrait';
 
 interface ShopProps {
@@ -287,7 +287,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
   const nativeBillingHeld = (billingPlatform === 'ios' || billingPlatform === 'android') && !hasNativeBilling;
   const showAdRewards = rewardedAdBridgeAvailable() || inlineRewardedAdsEnabled();
-  const [tab, setTab] = useState<ShopTab>('recruit');
+  // Open on the coin store so buying Campaign Funds is the first thing players see.
+  const [tab, setTab] = useState<ShopTab>('funds');
+  // Recruit candidate whose "click to see stats" popup is open (null = closed).
+  const [statsModalId, setStatsModalId] = useState<string | null>(null);
+  const statsCandidate = statsModalId
+    ? PREMIUM_CANDIDATES.find((c) => c.id === statsModalId) ?? null
+    : null;
 
   useEffect(() => {
     track('shop_opened', {
@@ -357,6 +363,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       });
     }
     setBusy(null);
+    return ok;
   }
 
   // Free-claim path (e.g. George Washington in July): zero-cost, server-validated.
@@ -369,6 +376,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       track('item_unlocked', { item_id: id, item_type: 'candidate', price_funds: 0 });
     }
     setBusy(null);
+    return ok;
   }
 
   async function buyFunds(sku: string) {
@@ -419,6 +427,54 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     setBuyingSku(null);
   }
 
+  // Stats popup for a recruit candidate: the CTA mirrors the unlock/claim/owned state.
+  function renderStatsModal() {
+    if (!statsCandidate) return null;
+    const c = statsCandidate;
+    const close = () => setStatsModalId(null);
+    const owned = unlocked.includes(c.id);
+    const freeClaim = !owned && isCandidateFreeClaimAvailable(c.id);
+    const affordable = funds >= c.unlockCost;
+    const working = busy === c.id;
+
+    let actionLabel: string;
+    let actionDisabled: boolean;
+    let onAction = close;
+    let subtext: string | undefined;
+
+    if (owned) {
+      actionLabel = 'Owned ✓';
+      actionDisabled = true;
+    } else if (freeClaim) {
+      actionLabel = working ? 'Claiming…' : 'Claim Free';
+      actionDisabled = working;
+      onAction = () => { void claim(c.id).then((ok) => { if (ok) close(); }); };
+      subtext = 'Free to claim this month.';
+    } else if (guest) {
+      actionLabel = 'Sign in to unlock';
+      actionDisabled = true;
+    } else if (affordable) {
+      actionLabel = working ? 'Unlocking…' : `Unlock — ${c.unlockCost.toLocaleString()} Credits`;
+      actionDisabled = working;
+      onAction = () => { void buy(c.id).then((ok) => { if (ok) close(); }); };
+    } else {
+      actionLabel = `Need ${(c.unlockCost - funds).toLocaleString()} more`;
+      actionDisabled = true;
+      subtext = `${funds.toLocaleString()} / ${c.unlockCost.toLocaleString()} Credits`;
+    }
+
+    return (
+      <CandidateStatsModal
+        candidate={c}
+        actionLabel={actionLabel}
+        actionDisabled={actionDisabled}
+        onAction={onAction}
+        onClose={close}
+        subtext={subtext}
+      />
+    );
+  }
+
   return (
     <div className="shop native-screen">
       <div className="shop__header">
@@ -432,7 +488,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
 
       <div className="shop__tabs native-only" role="tablist" aria-label="Store sections">
         {[
-          ['funds', 'Credits'],
+          ['funds', 'Buy Coins'],
           ['recruit', 'Recruit'],
           ['cosmetics', 'Cosmetics'],
           ['earn', 'Earn'],
@@ -455,12 +511,12 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         <p className="shop__sub">Win games to earn Campaign Credits, then recruit new candidates to your roster.</p>
 
         <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}`}>
-          {showPaidFunds && (
-            <>
-              <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Get Campaign Credits</h2>
-              <p className="shop__sub">Top up instantly to unlock new campaign styles faster.</p>
-            </>
-          )}
+          <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Coins</h2>
+          <p className="shop__sub">
+            {showPaidFunds
+              ? 'Top up Campaign Funds instantly to recruit new candidates faster.'
+              : 'Top up Campaign Funds instantly in the Elector iOS app.'}
+          </p>
           {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
           {showPaidFunds ? (
             <div className="funds-grid shop-rail">
@@ -478,7 +534,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                     <span className="coin-inline coin-inline--large" aria-hidden />
                     {b.funds.toLocaleString()}
                   </div>
-                  <div className="funds-card__label">Campaign Credits</div>
+                  <div className="funds-card__label">Coins</div>
                   <button
                     type="button"
                     className="funds-card__buy"
@@ -490,10 +546,20 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                 </div>
               ))}
             </div>
-          ) : nativeBillingHeld ? (
-            <p className="shop__sub">Campaign Credits purchases are not available in this build.</p>
           ) : (
-            <p className="shop__sub">Campaign Credits purchases are available in the native app build.</p>
+            <div className="funds-web-note">
+              <span className="coin-inline coin-inline--large" aria-hidden />
+              <div className="funds-web-note__body">
+                <strong>
+                  {nativeBillingHeld ? 'Coin purchases are unavailable in this build' : 'Buy coins in the app'}
+                </strong>
+                <p>
+                  {nativeBillingHeld
+                    ? 'In-app purchases aren’t configured for this build yet.'
+                    : 'Coin top-ups are available in the Elector iOS app. On the web you can still earn Campaign Funds by winning games, watching ads, and inviting friends.'}
+                </p>
+              </div>
+            </div>
           )}
         </section>
 
@@ -509,6 +575,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
 
         <section className={`shop__pane shop__pane--recruit${tab === 'recruit' ? ' is-active' : ''}`}>
           <h2 className="shop__section">Recruit Candidates</h2>
+          <p className="shop__sub">Tap a candidate to see their bonuses &amp; penalties, then recruit with Campaign Funds.</p>
           <div className="shop__grid shop-rail">
             {PREMIUM_CANDIDATES.map((c) => {
               const owned = unlocked.includes(c.id);
@@ -516,10 +583,12 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
               const affordable = funds >= c.unlockCost;
               const pct = Math.min(100, Math.round((funds / c.unlockCost) * 100));
               return (
-                <div
+                <button
                   key={c.id}
+                  type="button"
                   className={`shop-card${owned ? ' is-owned' : ''}`}
                   style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                  onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
                 >
                   <div className="shop-card__top">
                     <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
@@ -528,46 +597,23 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                       <span className="shop-card__tag">{c.tagline}</span>
                     </div>
                   </div>
-                  <div className="shop-card__cash">${c.startingCash}k starting cash</div>
-                  <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
 
                   <div className="shop-card__foot">
                     {owned ? (
                       <div className="shop-card__owned">Owned ✓</div>
                     ) : freeClaim ? (
-                      <>
-                        <span className="shop-card__price shop-card__price--free">Free in July</span>
-                        <button
-                          type="button"
-                          className="shop-card__unlock shop-card__unlock--free"
-                          disabled={busy === c.id}
-                          onClick={() => claim(c.id)}
-                        >
-                          {busy === c.id ? 'Claiming…' : 'Claim Free'}
-                        </button>
-                      </>
+                      <span className="shop-card__price shop-card__price--free">Free in July</span>
                     ) : (
                       <>
                         <span className="shop-card__price">{c.unlockCost.toLocaleString()} Credits</span>
-                        <button
-                          type="button"
-                          className="shop-card__unlock"
-                          disabled={!affordable || busy === c.id}
-                          onClick={() => buy(c.id)}
-                        >
-                          {busy === c.id
-                            ? 'Unlocking…'
-                            : affordable
-                              ? 'Unlock'
-                              : `Need ${(c.unlockCost - funds).toLocaleString()}`}
-                        </button>
                         {!affordable && (
                           <div className="shop-card__progress"><span style={{ width: `${pct}%` }} /></div>
                         )}
                       </>
                     )}
+                    <span className="shop-card__stats-hint">View stats ›</span>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -653,6 +699,8 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       <div className="setup__foot" style={{ marginTop: '1.5rem' }}>
         <button type="button" className="mp-back" onClick={onBack}>← Back to Menu</button>
       </div>
+
+      {renderStatsModal()}
     </div>
   );
 }
