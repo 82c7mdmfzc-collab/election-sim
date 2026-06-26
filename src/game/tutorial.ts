@@ -28,7 +28,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'rungs',
     art: 'IL',
     title: 'Build Influence On The Map',
-    body: 'Click a state to build Influence Levels. More Influence Levels means a stronger lead — and reaching full influence alone CALLS that state permanently.',
+    body: 'Click a state to build Campaign Influence. More Campaign Influence means a stronger lead — and reaching full influence alone CALLS that state permanently.',
   },
   {
     id: 'coalitions',
@@ -40,7 +40,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'national',
     art: '$',
     title: 'National Networks Pay Flexible Cash',
-    body: 'The national network tracks are side battles. Lead networks like Gun Lobby, Youth Vote, or Women\'s Vote with 4+ Influence Levels to earn War Chest funds that spend anywhere.',
+    body: 'The national network tracks are side battles. Lead networks like Gun Lobby, Youth Vote, or Women\'s Vote with 4+ Campaign Influence to earn War Chest funds that spend anywhere.',
   },
   {
     id: 'wallets',
@@ -52,7 +52,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'clash',
     art: '!',
     title: 'Campaign Collisions',
-    body: 'Everyone submits their operation plan secretly and at the same time. If two campaigns land on the exact same Influence Level in a state, BOTH campaigns burn those Influence Levels AND the spend. Read your opponent — a collision is the costliest mistake in the game.',
+    body: 'Everyone submits their operation plan secretly and at the same time. If two campaigns land on the exact same Campaign Influence in a state, BOTH campaigns burn that Campaign Influence AND the spend. Read your opponent — a collision is the costliest mistake in the game.',
   },
   {
     id: 'election',

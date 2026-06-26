@@ -308,8 +308,8 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
         </div>
 
         <div className="state-card__meta">
-          <span className="state-card__tier">{tier} · {maxRungs} Influence Levels</span>
-          <span className="state-card__cost">Base ${usState.baseCampaignCost}k/level</span>
+          <span className="state-card__tier">{tier} · {maxRungs} Campaign Influence</span>
+          <span className="state-card__cost">Base ${usState.baseCampaignCost}k each</span>
         </div>
 
         {securedName && (
@@ -360,7 +360,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
         {canBuy && (
           <div className="state-card__buy">
             <span>
-              Next rung: <strong>${nextRungCost.toFixed(0)}k</strong>
+              Next: <strong>${nextRungCost.toFixed(0)}k</strong>
               {discount > 0 && <span className="state-card__disc"> (−{Math.round(discount * 100)}%)</span>}
               {discount < 0 && <span className="state-card__pen"> (+{Math.round(-discount * 100)}% penalty)</span>}
             </span>
@@ -370,7 +370,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
                   type="button"
                   className="state-card__undo-btn"
                   onClick={() => { AudioManager.play('quit'); retractLastAllocation('state', stateId); }}
-                  title="Undo the last rung queued this turn"
+                  title="Undo the last Campaign Influence queued this turn"
                 >
                   ↩ Undo
                 </button>
@@ -380,7 +380,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
                 className="state-card__buy-btn"
                 onClick={() => { if (!tryBuy()) AudioManager.play('clash'); else AudioManager.play('buy'); }}
               >
-                Buy rung →
+                Buy Campaign Influence →
               </button>
             </div>
           </div>
@@ -473,7 +473,7 @@ export function ElectionOverlay() {
             {eliminatedId && (
               <p>
                 <strong>{players.find((p) => p.id === eliminatedId)?.name}</strong> is eliminated.
-                Their rungs are wiped and states revert to contest.
+                Their Campaign Influence is wiped and states revert to contest.
               </p>
             )}
           </div>

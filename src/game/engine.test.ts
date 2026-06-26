@@ -655,7 +655,7 @@ describe('computeAffordability', () => {
     expect(aff.reason).toBe('Capped this turn');
   });
 
-  it('reports Max Campaign Level at the ceiling', () => {
+  it('reports Max Campaign Influence at the ceiling', () => {
     const aff = computeAffordability({
       kind: 'state', targetId: 'OH', player: makePlayer('p1', { nationalCash: 999999 }),
       workingCash: { nationalCash: 999999, groupWallets: {} },
@@ -663,7 +663,7 @@ describe('computeAffordability', () => {
     });
     expect(aff.atMax).toBe(true);
     expect(aff.affordable).toBe(false);
-    expect(aff.reason).toBe('Max Campaign Level');
+    expect(aff.reason).toBe('Max Campaign Influence');
   });
 
   it('a secured target is never affordable', () => {

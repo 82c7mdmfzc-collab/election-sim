@@ -111,7 +111,7 @@ function reasonFor(s: {
   secured: boolean; atMax: boolean; capReached: boolean; canPay: boolean; nextCost: number;
 }): string | null {
   if (s.secured) return 'Secured';
-  if (s.atMax) return 'Max Campaign Level';
+  if (s.atMax) return 'Max Campaign Influence';
   if (s.capReached) return 'Capped this turn';
   if (!s.canPay) return `Need $${s.nextCost}k`;
   return null;

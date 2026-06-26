@@ -136,7 +136,7 @@ export function RoundResolution() {
               <div className="res-card__body">
                 <span className="res-card__name">{player?.name ?? p.playerId}</span>
                 <span className="res-card__action">
-                  +{p.rungsBought} level{p.rungsBought !== 1 ? 's' : ''} in {target}
+                  +{p.rungsBought} Campaign Influence in {target}
                 </span>
               </div>
               <span className="res-card__cost">${p.cost.toFixed(0)}k</span>

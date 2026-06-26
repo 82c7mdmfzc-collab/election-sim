@@ -21,8 +21,8 @@ export const TIPS: readonly Tip[] = [
   { category: 'map', text: 'California, Florida, New York, Texas, and North Carolina each anchor 5 Coalitions — leading one unlocks five income streams at once.' },
   { category: 'map', text: 'Florida sits where African American, Agriculture, Export Driven, Latino, and Swing States all meet. A true 5-way hub.' },
   { category: 'map', text: 'Pennsylvania anchors three Coalitions: High Tech, Manufacturing Base, and Swing States.' },
-  { category: 'map', text: 'Arizona packs African American, Latino, Swing States, and Town and Gown into one cheap state — just 46k per Influence Level early.' },
-  { category: 'map', text: 'A state pays its EV to whoever holds the most Influence Levels there. Call it and the EV is locked for good.' },
+  { category: 'map', text: 'Arizona packs African American, Latino, Swing States, and Town and Gown into one cheap state — just 46k per Campaign Influence early.' },
+  { category: 'map', text: 'A state pays its EV to whoever holds the most Campaign Influence there. Call it and the EV is locked for good.' },
   { category: 'map', text: 'Big prizes draw big fights. California is worth the most EV — and invites the most expensive campaign collisions.' },
 
   // ── Economy ───────────────────────────────────────────────────────────────
@@ -34,13 +34,13 @@ export const TIPS: readonly Tip[] = [
   { category: 'economy', text: 'Payout modifiers boost backing from your strong Coalitions. Lean into them — that compounding wins games.' },
 
   // ── Clash / denial ────────────────────────────────────────────────────────
-  { category: 'clash', text: 'A Campaign Collision burns Influence Levels AND spend for BOTH campaigns. Reading your opponent avoids it.' },
+  { category: 'clash', text: 'A Campaign Collision burns Campaign Influence AND spend for BOTH campaigns. Reading your opponent avoids it.' },
   { category: 'clash', text: 'Losing coalition control triggers a Reserve Collapse: that Coalition Reserve drops to $0 instantly. Defend your leads.' },
   { category: 'clash', text: 'You can force a Campaign Collision to deny a rival a state — but you pay for it too. Spend denial only where it counts.' },
-  { category: 'clash', text: 'If a rival is one Influence Level from calling a state, matching them forces a Campaign Collision and resets the race. Sometimes worth it.' },
+  { category: 'clash', text: 'If a rival is one Campaign Influence from calling a state, matching them forces a Campaign Collision and resets the race. Sometimes worth it.' },
 
   // ── Tempo / timing ────────────────────────────────────────────────────────
-  { category: 'tempo', text: 'Early Influence Levels are capped per turn. Open many fronts early, then sprint the ones that matter as the cap lifts.' },
+  { category: 'tempo', text: 'Early Campaign Influence is capped per turn. Open many fronts early, then sprint the ones that matter as the cap lifts.' },
   { category: 'tempo', text: 'Spreading thin builds income; concentrating calls states. Shift from breadth to depth as the Election Night clock ticks.' },
   { category: 'tempo', text: 'Bank cash when you\'re ahead. A late War Chest lets you buy boss-level Influence that nobody else can afford.' },
   { category: 'tempo', text: 'Watch what your opponent called last turn — it tells you where they\'ll spend next.' },
@@ -75,11 +75,11 @@ export interface HelpSection {
 export const HOW_TO_PLAY: readonly HelpSection[] = [
   {
     title: 'Goal',
-    body: 'Reach 270 electoral votes. Each state awards its EV to whoever holds the most Influence Levels there when Election Night fires.',
+    body: 'Reach 270 electoral votes. Each state awards its EV to whoever holds the most Campaign Influence there when Election Night fires.',
   },
   {
-    title: 'Influence Levels',
-    body: 'On your turn, click a state or a national network to build Influence Levels. Costs rise as you climb. Whoever leads a state when the election fires takes its EV; reach full influence alone and that state is CALLED permanently.',
+    title: 'Campaign Influence',
+    body: 'On your turn, click a state or a national network to build Campaign Influence. Costs rise as you climb. Whoever leads a state when the election fires takes its EV; reach full influence alone and that state is CALLED permanently.',
   },
   {
     title: 'Coalitions & income',
@@ -87,7 +87,7 @@ export const HOW_TO_PLAY: readonly HelpSection[] = [
   },
   {
     title: 'National Networks',
-    body: 'Network tracks like Gun Lobby, Youth Vote, and Women\'s Vote are side battles. Lead one with 4+ Influence Levels to earn War Chest funds that can be spent anywhere.',
+    body: 'Network tracks like Gun Lobby, Youth Vote, and Women\'s Vote are side battles. Lead one with 4+ Campaign Influence to earn War Chest funds that can be spent anywhere.',
   },
   {
     title: 'War Chest & Reserves',
@@ -95,7 +95,7 @@ export const HOW_TO_PLAY: readonly HelpSection[] = [
   },
   {
     title: 'Campaign Collisions',
-    body: 'Operation plans are simultaneous and hidden. If two campaigns reach the same Influence Level on the same state, BOTH burn those Influence Levels and the spend. Read your opponent before you commit.',
+    body: 'Operation plans are simultaneous and hidden. If two campaigns reach the same Campaign Influence on the same state, BOTH burn that Campaign Influence and the spend. Read your opponent before you commit.',
   },
   {
     title: 'Reserve Collapse',

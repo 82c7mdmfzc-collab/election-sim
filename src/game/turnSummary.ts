@@ -71,7 +71,7 @@ export function turnSummaryLines({
   ];
   if (clashed.length > 0) {
     const shown = clashed.slice(0, 3).join(', ');
-    lines.push(`⚠ Campaign Collision in ${shown}${clashed.length > 3 ? '…' : ''} — Influence Levels and spend burned.`);
+    lines.push(`⚠ Campaign Collision in ${shown}${clashed.length > 3 ? '…' : ''} — Campaign Influence and spend burned.`);
   }
 
   return lines;

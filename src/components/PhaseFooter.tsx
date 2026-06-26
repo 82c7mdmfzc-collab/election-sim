@@ -222,7 +222,7 @@ function PlanningControls() {
         ) : (
           chips.map(([tid, { kind, rungs, cost }]) => (
             <span key={tid} className="alloc-chip">
-              {tid}: {rungs} Influence Level{rungs === 1 ? '' : 's'} (${cost.toFixed(0)}k)
+              {tid}: {rungs} Campaign Influence (${cost.toFixed(0)}k)
               <button
                 type="button"
                 className="alloc-chip__x"

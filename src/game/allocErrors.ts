@@ -11,7 +11,7 @@ export function friendlyAllocError(reason: string | undefined): string {
     // e.g. "Entry gatekeeper: can only buy 3 rung(s) this turn (already queued 2)."
     const m = reason.match(/can only buy (\d+) rung/);
     const cap = m ? m[1] : '?';
-    return `First-visit limit: max ${cap} rung(s) on first entry`;
+    return `First-visit limit: max ${cap} Campaign Influence on first entry`;
   }
   if (reason.startsWith('Exceeds max rungs')) {
     return 'Already at max influence for this target';

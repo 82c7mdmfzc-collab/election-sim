@@ -1,19 +1,16 @@
 /**
- * CandidateSelect — the SETUP screen (2–4 players).
+ * CandidateSelect — the local pass-and-play SETUP screen (2–4 players).
  *
- * Pick a player count, then assign a candidate to each seat. Every candidate
- * card surfaces the asymmetric setup (starting cash + ModifierSheet) so players
- * understand the trade-offs before the game begins.
+ * Pick a player count, then assign a candidate to each seat. The picker mirrors
+ * the Shop's Recruit tab: a rail of cards; tapping one opens CandidateStatsModal
+ * (full bonus/penalty breakdown) with a Choose / Remove / Unlock action.
  */
 
 import { useMemo, useState } from 'react';
 import { CANDIDATES, PLAYER_COLORS, isCandidateAvailable, type CandidateDef } from '../game/candidates';
-import { LockIcon } from './icons';
-import { PartyBadge } from './PartyBadge';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
-import { ModifierSheet } from './ModifierSheet';
 import { CandidateStatsModal } from './CandidateStatsModal';
 import { Portrait } from './Portrait';
 
@@ -36,6 +33,9 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   // seats[i] = candidateId | null
   const [seats, setSeats] = useState<(string | null)[]>([null, null]);
   const [turnTimeLimit, setTurnTimeLimit] = useState<number | null>(null);
+  // Candidate whose "click to see stats" popup is open (null = closed).
+  const [statsModalId, setStatsModalId] = useState<string | null>(null);
+  const statsCandidate = statsModalId ? CANDIDATES.find((c) => c.id === statsModalId) ?? null : null;
 
   function setPlayerCount(n: number) {
     setCount(n);
@@ -53,14 +53,8 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   }, [seats]);
 
   const filled = seats.filter(Boolean).length;
-  const [activeCandidateId, setActiveCandidateId] = useState(CANDIDATES[0].id);
-  const activeCandidate = CANDIDATES.find((c) => c.id === activeCandidateId) ?? CANDIDATES[0];
-  // Candidate whose "click to see stats" popup is open (null = closed).
-  const [statsModalId, setStatsModalId] = useState<string | null>(null);
-  const statsCandidate = statsModalId ? CANDIDATES.find((c) => c.id === statsModalId) ?? null : null;
 
   function toggleCandidate(id: string) {
-    setActiveCandidateId(id);
     setSeats((cur) => {
       const idx = cur.indexOf(id);
       if (idx >= 0) {
@@ -155,52 +149,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
         </div>
       </div>
 
-      <div className="native-select">
-        <div className="native-select__spotlight native-only">
-          <div
-            className="native-candidate"
-            style={{ ['--p-color' as string]: PLAYER_COLORS[activeCandidate.color] }}
-          >
-            <div className="native-candidate__portrait">
-              <Portrait
-                className="cand-portrait"
-                src={activeCandidate.portraitUrl}
-                initials={activeCandidate.portrait}
-                name={activeCandidate.name}
-              />
-            </div>
-            <div className="native-candidate__body">
-              <div className="native-candidate__name">{activeCandidate.name}</div>
-              <div className="native-candidate__tag">{activeCandidate.tagline}</div>
-              <div className="native-candidate__meta">
-                <PartyBadge party={activeCandidate.party} />
-                <span>${activeCandidate.startingCash}k starting cash</span>
-              </div>
-              <ModifierSheet
-                affinities={activeCandidate.affinities}
-                payoutModifiers={activeCandidate.payoutModifiers}
-                compact
-              />
-            </div>
-          </div>
-          <div className="native-select__summary">
-            <div className="native-select__summary-card">
-              <p className="native-select__summary-title">Seats</p>
-              <div className="setup__seats">
-                {seats.map((id, i) => (
-                  <span key={i} className={`setup__seat${id ? ' is-filled' : ''}`}>
-                    P{i + 1}: <strong>{id ? CANDIDATES.find((c) => c.id === id)?.name : 'Open'}</strong>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="native-select__summary-card">
-              <p className="native-select__summary-title">Selection</p>
-              <p className="mp-hint">{filled === count ? 'Ready to start' : `Assign ${count - filled} more candidate(s)`}</p>
-            </div>
-          </div>
-        </div>
-
+      <div className="cand-select-body">
         <div className="setup__seats">
           {seats.map((id, i) => (
             <span key={i} className={`setup__seat${id ? ' is-filled' : ''}`}>
@@ -209,8 +158,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
           ))}
         </div>
 
-        <div className="native-select__rail-label native-only">Swipe candidates</div>
-        <div className="setup__roster candidate-rail">
+        <div className="shop__grid shop-rail">
           {CANDIDATES.map((c) => {
             const seat = assignedSeat[c.id];
             const isAssigned = seat !== undefined;
@@ -219,33 +167,25 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
               <button
                 key={c.id}
                 type="button"
-                className={`cand-card${isAssigned ? ' is-assigned' : ''}${activeCandidateId === c.id ? ' is-active' : ''}${locked ? ' is-locked' : ''}`}
+                className={`shop-card${isAssigned ? ' is-owned' : ''}${locked ? ' is-locked' : ''}`}
                 style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-                onClick={() => {
-                  AudioManager.play('click');
-                  setActiveCandidateId(c.id);
-                  setStatsModalId(c.id);
-                }}
+                onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
               >
-                <div className="cand-card__top">
-                  <div className="cand-portrait-wrap">
-                    <Portrait
-                      className="cand-portrait"
-                      src={c.portraitUrl}
-                      initials={c.portrait}
-                      name={c.name}
-                    />
+                <div className="shop-card__top">
+                  <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  <div>
+                    <span className="shop-card__name">{c.name}</span>
+                    <span className="shop-card__tag">{c.tagline}</span>
                   </div>
-                  <div className="cand-card__id">
-                    <span className="cand-card__name">{c.name}</span>
-                    <PartyBadge party={c.party} className="cand-card__party" />
-                  </div>
-                  {isAssigned && <span className="cand-card__seat">P{seat + 1}</span>}
-                  {locked && <span className="cand-card__lock"><LockIcon size={14} /></span>}
                 </div>
-                {locked
-                  ? <div className="cand-card__unlock-hint">Unlock in Shop →</div>
-                  : <div className="cand-card__hint">{isAssigned ? `Assigned to P${seat + 1}` : 'Tap for stats ›'}</div>}
+                <div className="shop-card__foot">
+                  {locked
+                    ? <span className="shop-card__price">🔒 Unlock in Shop</span>
+                    : isAssigned
+                      ? <div className="shop-card__owned">Player {seat + 1}</div>
+                      : null}
+                  <span className="shop-card__stats-hint">View stats ›</span>
+                </div>
               </button>
             );
           })}

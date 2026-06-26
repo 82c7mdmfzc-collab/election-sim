@@ -15,7 +15,16 @@ export type PlatformKind = 'web' | 'ios' | 'android' | 'unsupported';
 
 /** True inside any Tauri native webview (iOS, Android, or desktop Tauri). */
 export function isNativeRuntime(): boolean {
-  return typeof window !== 'undefined' && window.location.protocol.startsWith('tauri');
+  if (typeof window === 'undefined') return false;
+  // Production native builds serve over the tauri:// scheme. Dev builds
+  // (`tauri ios dev`) serve the frontend over http://localhost, so the scheme
+  // check alone misses them — detect the Tauri-injected runtime globals too.
+  // These are present in every Tauri webview (dev + prod, all platforms) and
+  // absent in a real browser, so the website still resolves to 'web'.
+  const w = window as unknown as { __TAURI_INTERNALS__?: unknown; isTauri?: boolean };
+  return window.location.protocol.startsWith('tauri')
+    || typeof w.__TAURI_INTERNALS__ !== 'undefined'
+    || w.isTauri === true;
 }
 
 /**
