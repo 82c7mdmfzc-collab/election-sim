@@ -121,7 +121,7 @@ immutable
 set search_path = public
 as $$
   -- Free founding roster only (unlockCost === 0 in src/game/candidates.ts). 'tooley' is paid (TIER1).
-  select p_candidate in ('trump', 'harris', 'lincoln');
+  select p_candidate in ('trump', 'harris', 'lincoln', 'joe_biden');
 $$;
 
 create or replace function public.caller_can_use_candidate(p_candidate text)

@@ -30,8 +30,7 @@ import {
 } from '../game/dailyChallenge';
 import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/localPrefs';
 import { Portrait } from './Portrait';
-import { PartyBadge } from './PartyBadge';
-import { ModifierSheet } from './ModifierSheet';
+import { CandidateStatsModal } from './CandidateStatsModal';
 
 interface DailyChallengeProps {
   onBack: () => void;
@@ -80,6 +79,8 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const [myId, setMyId] = useState(
     () => ownedCandidates[0]?.id ?? CANDIDATES.find((c) => c.id !== rival.id)!.id,
   );
+  const [statsModalId, setStatsModalId] = useState<string | null>(null);
+  const statsCandidate = statsModalId ? CANDIDATE_MAP[statsModalId] ?? null : null;
   const me = CANDIDATE_MAP[myId] ?? ownedCandidates[0] ?? CANDIDATES[0];
   const opponents = useMemo(() => resolveDailyOpponents(dateKey, myId), [dateKey, myId]);
 
@@ -88,6 +89,21 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const statusText = playedToday
     ? `Today: ${wonToday ? 'Won 🏆' : 'Played'} · ${status.lastEv} EV`
     : 'New challenge — set the bar';
+
+  function renderStatsModal() {
+    if (!statsCandidate) return null;
+    const close = () => setStatsModalId(null);
+    const chosen = statsCandidate.id === myId;
+    return (
+      <CandidateStatsModal
+        candidate={statsCandidate}
+        actionLabel={chosen ? 'Your pick ✓' : 'Choose'}
+        actionDisabled={chosen}
+        onAction={() => { AudioManager.play('confirm'); setMyId(statsCandidate.id); close(); }}
+        onClose={close}
+      />
+    );
+  }
 
   function start() {
     AudioManager.play('confirm');
@@ -141,57 +157,41 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
         </div>
       </div>
 
-      <div className="native-select">
-        <div className="native-select__spotlight native-only">
-          <div className="native-candidate" style={{ ['--p-color' as string]: PLAYER_COLORS[me.color] }}>
-            <div className="native-candidate__portrait">
-              <Portrait className="cand-portrait" src={me.portraitUrl} initials={me.portrait} name={me.name} />
-            </div>
-            <div className="native-candidate__body">
-              <div className="native-candidate__name">{me.name}</div>
-              <div className="native-candidate__tag">{me.tagline}</div>
-              <div className="native-candidate__meta">
-                <PartyBadge party={me.party} />
-                <span>${me.startingCash}k starting cash</span>
-              </div>
-              <ModifierSheet affinities={me.affinities} payoutModifiers={me.payoutModifiers} compact />
-            </div>
-          </div>
-        </div>
-
-        <p className="mp-hint">Your Candidate</p>
-        <p className="mp-hint daily__rival-hint">
-          Unavailable: today’s rival <strong>{rival.name}</strong> — a boosted challenge opponent (2× positive stats).
+      <div className="cand-select-body">
+        <p className="shop__sub cand-select-body__hint daily__rival-hint">
+          Unavailable: today’s rival <strong>{rival.name}</strong> (2× positive stats). Tap a candidate to review their bonuses, then choose.
         </p>
-        <div className="setup__roster candidate-rail">
+        <div className="shop__grid shop-rail">
           {ownedCandidates.map((c) => {
             const chosen = c.id === myId;
             return (
               <button
                 key={c.id}
                 type="button"
-                className={`cand-card${chosen ? ' is-assigned is-active' : ''}`}
+                className={`shop-card${chosen ? ' is-owned' : ''}`}
                 style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-                onClick={() => { AudioManager.play('click'); setMyId(c.id); }}
+                onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
               >
-                <div className="cand-card__top">
-                  <div className="cand-portrait-wrap">
-                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                <div className="shop-card__top">
+                  <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  <div>
+                    <span className="shop-card__name">{c.name}</span>
+                    <span className="shop-card__tag">{c.tagline}</span>
+                    {c.roundIncome ? (
+                      <span className="shop-card__income">+${c.roundIncome}k / round</span>
+                    ) : null}
                   </div>
-                  <div className="cand-card__id">
-                    <span className="cand-card__name">{c.name}</span>
-                    <span className="cand-card__tag">{c.tagline}</span>
-                    <PartyBadge party={c.party} className="cand-card__party" />
-                  </div>
-                  {chosen && <span className="cand-card__seat">You</span>}
                 </div>
-                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
+                <div className="shop-card__foot">
+                  {chosen && <div className="shop-card__owned">Your pick ✓</div>}
+                  <span className="shop-card__stats-hint">View stats ›</span>
+                </div>
               </button>
             );
           })}
         </div>
         {ownedCandidates.length === 1 && (
-          <p className="mp-hint daily__unlock-hint">
+          <p className="shop__sub daily__unlock-hint">
             Unlock more candidates in the Shop to bring different strengths to the daily.
           </p>
         )}
@@ -205,6 +205,8 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
           ← Back
         </button>
       </div>
+
+      {renderStatsModal()}
     </div>
   );
 }

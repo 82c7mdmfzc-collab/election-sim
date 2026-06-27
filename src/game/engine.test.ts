@@ -712,6 +712,18 @@ describe('payTurnIncome — profit modifiers', () => {
     payTurnIncome([p1], {}, { 'Gun Lobby': { p1: 6 } }, { 'Gun Lobby': { p1: 1 } });
     expect(p1.nationalCash).toBe(NATIONAL_INCOME + g.turnBonus);
   });
+
+  it('candidate roundIncome (Tooley +$300k) stacks on the flat national income', () => {
+    const tooley = makePlayer('tooley', { nationalCash: 0 }); // candidateId defaults to 'tooley'
+    payTurnIncome([tooley], {}, {}, {});
+    expect(tooley.nationalCash).toBe(NATIONAL_INCOME + 300);
+  });
+
+  it('candidates without roundIncome get only the flat national income', () => {
+    const trump = makePlayer('trump', { nationalCash: 0 });
+    payTurnIncome([trump], {}, {}, {});
+    expect(trump.nationalCash).toBe(NATIONAL_INCOME);
+  });
 });
 
 // ── 13. Penalty-aware cost affinity ───────────────────────────────────────────

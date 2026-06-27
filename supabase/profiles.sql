@@ -16,7 +16,7 @@ declare prof public.profiles; v_cost integer;
 begin
   v_cost := case p_character
     when 'tooley'        then 1500
-    when 'joe_biden'     then 1500
+    -- 'joe_biden' is now a free founding candidate (no purchase path) — see is_free_candidate().
     when 'ronald_reagan' then 4500
     when 'washington'    then 4500
     when 'starmer'       then 4500
