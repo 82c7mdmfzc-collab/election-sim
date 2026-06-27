@@ -15,7 +15,7 @@ set -eu
 
 # ── Fill in your Issuer ID here (once) to avoid needing the env var ──────────
 ISSUER="${APPLE_API_ISSUER:-}"
-# ISSUER="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+ISSUER="cb582172-4f30-4747-a979-fbd27dc2fc7c"
 
 # ── Constants (do not change) ─────────────────────────────────────────────────
 APPLE_API_KEY_ID="K7JZWQB6L4"
