@@ -79,28 +79,35 @@ echo "[ios-upload] Archiving (builds frontend + Rust + app — takes a few minut
 rm -rf "$archive_path" "$export_path"
 # ELECTOR_NO_SYNC=1 prevents the Xcode build-phase script from re-syncing (we
 # already synced above, and a second pull could conflict with the bump commit).
+# project.yml defines configs as lowercase "release"/"debug" — match exactly.
+# CODE_SIGN_IDENTITY forces distribution signing so the archive is App Store-ready.
 ELECTOR_NO_SYNC=1 xcodebuild archive \
   -project "$project" \
   -scheme "$scheme" \
-  -configuration Release \
+  -configuration release \
   -destination "generic/platform=iOS" \
   -archivePath "$archive_path" \
   -allowProvisioningUpdates \
+  -authenticationKeyPath "$APPLE_API_KEY_PATH" \
+  -authenticationKeyID "$APPLE_API_KEY_ID" \
+  -authenticationKeyIssuerID "$ISSUER" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   CODE_SIGN_STYLE=Automatic \
+  CODE_SIGN_IDENTITY="Apple Distribution" \
   2>&1 | grep -E 'error:|warning:.*error|Archive|Compiling|Linking|BUILD' | tail -20 || true
 
 if [ ! -d "$archive_path" ]; then
-  echo "Error: archive failed — run without the grep filter to see full output:" >&2
-  echo "  xcodebuild archive -project $project -scheme $scheme -configuration Release -destination 'generic/platform=iOS' -archivePath $archive_path -allowProvisioningUpdates" >&2
+  echo "Error: archive failed — rerun with verbose output to diagnose:" >&2
+  echo "  ELECTOR_NO_SYNC=1 xcodebuild archive -project $project -scheme $scheme -configuration release -destination 'generic/platform=iOS' -archivePath $archive_path -allowProvisioningUpdates CODE_SIGN_IDENTITY='Apple Distribution' DEVELOPMENT_TEAM=$TEAM_ID" >&2
   exit 1
 fi
 echo "[ios-upload] Archive complete: $archive_path"
 
-# ── Export + Upload ────────────────────────────────────────────────────────────
-echo "[ios-upload] Exporting and uploading to App Store Connect..."
-# With destination=upload in ExportOptions-AppStore.plist, xcodebuild exports
-# AND uploads in one step (Xcode 15+). Falls back to altool if that fails.
+# ── Export ────────────────────────────────────────────────────────────────────
+# destination=export in ExportOptions creates an IPA locally; we then upload
+# via altool. This avoids the "Cloud signing permission" error from xcodebuild's
+# auto-upload path.
+echo "[ios-upload] Exporting IPA..."
 xcodebuild -exportArchive \
   -archivePath "$archive_path" \
   -exportPath "$export_path" \
@@ -109,21 +116,23 @@ xcodebuild -exportArchive \
   -authenticationKeyPath "$APPLE_API_KEY_PATH" \
   -authenticationKeyID "$APPLE_API_KEY_ID" \
   -authenticationKeyIssuerID "$ISSUER" \
-  2>&1 | grep -E 'error:|EXPORT|Upload|success|Done' | tail -20 || true
+  2>&1 | grep -E 'error:|EXPORT|success|Done' | tail -20 || true
 
-# Verify an IPA was created (upload path) or fall back to altool
 ipa=$(find "$export_path" -name "*.ipa" 2>/dev/null | head -1)
-if [ -n "$ipa" ]; then
-  # xcodebuild export landed an IPA instead of uploading — finish with altool
-  echo "[ios-upload] IPA at $ipa — uploading via altool..."
-  xcrun altool \
-    --upload-app \
-    -f "$ipa" \
-    --type ios \
-    --apiKey "$APPLE_API_KEY_ID" \
-    --apiIssuer "$ISSUER" \
-    --apiPrivateKeyPath "$APPLE_API_KEY_PATH"
+if [ -z "$ipa" ]; then
+  echo "Error: export failed — no IPA found in $export_path" >&2
+  exit 1
 fi
+
+# ── Upload ────────────────────────────────────────────────────────────────────
+echo "[ios-upload] Uploading $(basename "$ipa") (build $next_build)..."
+xcrun altool \
+  --upload-app \
+  -f "$ipa" \
+  --type ios \
+  --apiKey "$APPLE_API_KEY_ID" \
+  --apiIssuer "$ISSUER" \
+  --apiPrivateKeyPath "$APPLE_API_KEY_PATH"
 
 echo ""
 echo "Build $next_build submitted to App Store Connect."
