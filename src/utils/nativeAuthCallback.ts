@@ -3,8 +3,8 @@
  *
  * On web, supabase.auth.signInWithOAuth does a full-page redirect and
  * detectSessionInUrl parses the returned tokens automatically. Native has no such
- * redirect: authClient.startOAuth opens the provider's authorize URL in the system
- * browser, and the provider returns to the registered deep link
+ * redirect: authClient.startOAuth opens the provider's authorize URL in the mobile
+ * in-app browser, and the provider returns to the registered deep link
  *   com.playelector.app://auth-callback#access_token=…&refresh_token=…
  * This module catches that link (both cold- and warm-start) and completes sign-in.
  * Supabase defaults to the PKCE flow, so the provider returns ?code=… and we call
@@ -31,24 +31,33 @@ async function completeFromUrl(url: string): Promise<void> {
 
     const hashIndex = url.indexOf('#');
     const queryIndex = url.indexOf('?');
+    const query = queryIndex !== -1
+      ? url.slice(queryIndex + 1, hashIndex > queryIndex ? hashIndex : undefined)
+      : '';
+    const hash = hashIndex !== -1 ? url.slice(hashIndex + 1) : '';
+    const queryParams = new URLSearchParams(query);
+    const hashParams = new URLSearchParams(hash);
+
+    // Provider cancellation/error returns are expected user actions. Log enough
+    // for diagnostics, then leave the sign-in UI in place.
+    const error = queryParams.get('error') || hashParams.get('error');
+    if (error) {
+      console.warn('[auth] provider returned without a session:', error);
+      return;
+    }
 
     // PKCE flow (Supabase default): the provider returns ?code=… in the query.
     // exchangeCodeForSession redeems it using the verifier this client stored when
     // it started the flow. Also covers same-device email magic-link returns.
-    if (queryIndex !== -1) {
-      const end = hashIndex > queryIndex ? hashIndex : undefined;
-      const code = new URLSearchParams(url.slice(queryIndex + 1, end)).get('code');
-      if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
-        return;
-      }
+    const code = queryParams.get('code');
+    if (code) {
+      await supabase.auth.exchangeCodeForSession(code);
+      return;
     }
 
     // Implicit flow fallback: tokens arrive in the URL fragment.
-    const hash = hashIndex !== -1 ? url.slice(hashIndex + 1) : '';
-    const params = new URLSearchParams(hash);
-    const access_token = params.get('access_token');
-    const refresh_token = params.get('refresh_token');
+    const access_token = hashParams.get('access_token');
+    const refresh_token = hashParams.get('refresh_token');
     // No code and no tokens → an OAuth error or a cancelled/unrelated link. Leave
     // the user on the sign-in screen rather than throwing.
     if (!access_token || !refresh_token) return;

@@ -9,13 +9,14 @@
 #      fails ("failed to determine package fingerprint" / "excludes stack").
 #   2. Pin the iOS deployment target to 15 (Google Mobile Ads v12 + IAP plugin).
 #   3. Stage the app privacy manifest (PrivacyInfo.xcprivacy) into the target
-#      folder — Apple requires an app-level privacy manifest; shipping AdMob
-#      without one => ITMS-91053. See the note below to finish wiring it.
+#      folder and add it to Copy Bundle Resources. Apple requires an app-level
+#      privacy manifest; shipping AdMob without one => ITMS-91053.
 set -eu
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 gen="$repo_root/src-tauri/gen/apple"
 target_dir="$gen/election-sim_iOS"
+target_info="$target_dir/Info.plist"
 pbxproj="$(ls "$gen"/*.xcodeproj/project.pbxproj 2>/dev/null | head -n1 || true)"
 
 if [ -z "${pbxproj:-}" ] || [ ! -f "$pbxproj" ]; then
@@ -34,12 +35,74 @@ fi
 /usr/bin/sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$pbxproj"
 echo "Patched pbxproj: User Script Sandboxing off, iOS deployment target 15, signing identity cleared."
 
+# Tauri's `bundle.iOS.infoPlist` merge has proven unreliable for the generated
+# Xcode project, so copy the release-critical iOS app metadata directly into the
+# plist Xcode archives. Keep this deterministic: every upload script run calls
+# this preparation step before archiving.
+if [ ! -f "$target_info" ]; then
+  echo "Missing generated Info.plist at $target_info" >&2
+  exit 1
+fi
+
+pb=/usr/libexec/PlistBuddy
+
+$pb -c "Delete :CFBundleURLTypes" "$target_info" >/dev/null 2>&1 || true
+$pb -c "Add :CFBundleURLTypes array" "$target_info"
+$pb -c "Add :CFBundleURLTypes:0 dict" "$target_info"
+$pb -c "Add :CFBundleURLTypes:0:CFBundleTypeRole string Editor" "$target_info"
+$pb -c "Add :CFBundleURLTypes:0:CFBundleURLName string com.playelector.app" "$target_info"
+$pb -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$target_info"
+$pb -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string com.playelector.app" "$target_info"
+
+plutil -replace UIRequiresFullScreen -bool YES "$target_info"
+plutil -replace UIStatusBarStyle -string UIStatusBarStyleLightContent "$target_info"
+plutil -replace UIViewControllerBasedStatusBarAppearance -bool NO "$target_info"
+
+$pb -c "Delete :UISupportedInterfaceOrientations" "$target_info" >/dev/null 2>&1 || true
+$pb -c "Add :UISupportedInterfaceOrientations array" "$target_info"
+$pb -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationLandscapeLeft" "$target_info"
+$pb -c "Add :UISupportedInterfaceOrientations:1 string UIInterfaceOrientationLandscapeRight" "$target_info"
+$pb -c "Delete :UISupportedInterfaceOrientations~ipad" "$target_info" >/dev/null 2>&1 || true
+$pb -c "Add :UISupportedInterfaceOrientations~ipad array" "$target_info"
+$pb -c "Add :UISupportedInterfaceOrientations~ipad:0 string UIInterfaceOrientationLandscapeLeft" "$target_info"
+$pb -c "Add :UISupportedInterfaceOrientations~ipad:1 string UIInterfaceOrientationLandscapeRight" "$target_info"
+
+plutil -lint "$target_info" >/dev/null
+plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw -o - "$target_info" | grep -qx "com.playelector.app"
+plutil -extract UIRequiresFullScreen raw -o - "$target_info" | grep -qx "true"
+echo "Patched generated Info.plist: OAuth URL scheme + fullscreen landscape policy."
+
 # (3) stage the privacy manifest next to the app target.
 cp "$repo_root/src-tauri/PrivacyInfo.xcprivacy" "$target_dir/PrivacyInfo.xcprivacy"
 if grep -q "PrivacyInfo.xcprivacy" "$pbxproj"; then
   echo "PrivacyInfo.xcprivacy already referenced by the Xcode project."
 else
-  echo "Staged PrivacyInfo.xcprivacy in $target_dir."
-  echo "ONE-TIME: in Xcode, drag election-sim_iOS/PrivacyInfo.xcprivacy into the app target's"
-  echo "          'Copy Bundle Resources' build phase (it then persists in the pbxproj)."
+  ruby - "$pbxproj" <<'RUBY'
+path = ARGV.fetch(0)
+project = File.read(path)
+file_ref = "C0DEC0DEC0DEC0DEC0DEC002"
+build_file = "C0DEC0DEC0DEC0DEC0DEC003"
+
+replacements = {
+  "/* End PBXBuildFile section */" =>
+    "\t\t#{build_file} /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = #{file_ref} /* PrivacyInfo.xcprivacy */; };\n/* End PBXBuildFile section */",
+  "/* End PBXFileReference section */" =>
+    "\t\t#{file_ref} /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = \"<group>\"; };\n/* End PBXFileReference section */",
+  "\t\t\t\t4FD9985376A9A16BE2ACBE84 /* Info.plist */,\n" =>
+    "\t\t\t\t#{file_ref} /* PrivacyInfo.xcprivacy */,\n\t\t\t\t4FD9985376A9A16BE2ACBE84 /* Info.plist */,\n",
+  "\t\t\t\tE9812718B0143A0FEBEA3F03 /* Assets.xcassets in Resources */,\n" =>
+    "\t\t\t\t#{build_file} /* PrivacyInfo.xcprivacy in Resources */,\n\t\t\t\tE9812718B0143A0FEBEA3F03 /* Assets.xcassets in Resources */,\n"
+}
+
+replacements.each do |needle, replacement|
+  unless project.include?(needle)
+    warn "Could not find expected pbxproj marker while adding PrivacyInfo.xcprivacy: #{needle.inspect}"
+    exit 1
+  end
+  project = project.sub(needle, replacement)
+end
+
+File.write(path, project)
+RUBY
+  echo "Staged PrivacyInfo.xcprivacy and added it to Copy Bundle Resources."
 fi

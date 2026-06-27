@@ -55,7 +55,7 @@ for parody and commentary.
   8-digit code, you type it in. Use any inbox you control. Accounts are only
   needed for online play and to sync unlocks.
 • IN-APP PURCHASES (native StoreKit): The Shop offers optional consumable
-  "Campaign Funds" bundles (funds_1500, funds_4000, funds_9000, funds_20000) via
+  "Campaign Funds" bundles (funds_600, funds_1500, funds_4000, funds_9000, funds_20000, funds_45000) via
   Apple StoreKit. Purchases are OPTIONAL — Campaign Funds are also earned by
   playing — and there is NO external or web purchase link inside the iOS app.
   Funds unlock additional candidates and cosmetic items. There is no subscription

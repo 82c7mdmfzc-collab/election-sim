@@ -49,6 +49,8 @@ if [ ! -f "$project/project.pbxproj" ]; then
   exit 1
 fi
 
+"$repo_root/scripts/ios-prepare-gen.sh"
+
 # ── Sync to main ──────────────────────────────────────────────────────────────
 if [ "${ELECTOR_NO_SYNC:-0}" != "1" ]; then
   if git -C "$repo_root" fetch origin --quiet 2>/dev/null \
@@ -99,6 +101,24 @@ ELECTOR_NO_SYNC=1 xcodebuild archive \
 if [ ! -d "$archive_path" ]; then
   echo "Error: archive failed — rerun with verbose output to diagnose:" >&2
   echo "  ELECTOR_NO_SYNC=1 xcodebuild archive -project $project -scheme $scheme -configuration release -destination 'generic/platform=iOS' -archivePath $archive_path -allowProvisioningUpdates CODE_SIGN_IDENTITY='Apple Distribution' DEVELOPMENT_TEAM=$TEAM_ID" >&2
+  exit 1
+fi
+app_info="$archive_path/Products/Applications/Elector.app/Info.plist"
+if [ ! -f "$app_info" ]; then
+  echo "Error: archived app Info.plist not found at $app_info" >&2
+  exit 1
+fi
+plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw -o - "$app_info" | grep -qx "com.playelector.app" || {
+  echo "Error: archive missing com.playelector.app OAuth URL scheme." >&2
+  exit 1
+}
+plutil -extract UIRequiresFullScreen raw -o - "$app_info" | grep -qx "true" || {
+  echo "Error: archive missing UIRequiresFullScreen=true." >&2
+  exit 1
+}
+ipad_orientations="$(plutil -extract 'UISupportedInterfaceOrientations~ipad' raw -o - "$app_info" 2>/dev/null || true)"
+if printf '%s' "$ipad_orientations" | grep -q "Portrait"; then
+  echo "Error: archive iPad orientations include portrait; App Store landscape build should be fullscreen landscape-only." >&2
   exit 1
 fi
 echo "[ios-upload] Archive complete: $archive_path"

@@ -14,7 +14,7 @@ New native-feel UI is additive and gated so the website and online play don't re
 The build ships native StoreKit IAP, but the listing/reviewer docs still said "NO IN-APP PURCHASES."
 Fixed so metadata matches reality:
 - `APP_STORE_LISTING.md` — replaced the "no IAP" reviewer bullet with an accurate native-StoreKit
-  description (consumable Campaign Funds bundles `funds_1500/4000/9000/20000`, optional, no external
+  description (consumable Campaign Funds bundles, optional, no external
   purchase links); added a **Purchases / Purchase History (linked)** row to App Privacy; price is now
   "Free (with In-App Purchases)".
 - `IOS_RELEASE_GUIDE.md` — updated the gating note, the App Privacy line, the reviewer note, and the
@@ -84,7 +84,7 @@ Verified already present: `tutorial_started/completed/skipped`, `share_started/c
 
 - **DB migrations:** none required for this pass.
 - **Manual before iOS submit:**
-  - Ensure the four consumable products (`funds_1500/4000/9000/20000`) exist in **App Store Connect** with
+  - Ensure all six consumable products (`funds_600/1500/4000/9000/20000/45000`) exist in **App Store Connect** with
     matching IDs, and that the listing's IAP disclosure matches the updated `APP_STORE_LISTING.md`.
   - Set the Apple App Store Server API secrets in Supabase — `APPLE_ISSUER_ID`, `APPLE_KEY_ID`,
     `APPLE_PRIVATE_KEY` — **or purchases will not credit** (the `fulfill-purchase` verifier fails closed,

@@ -19,6 +19,19 @@ create table if not exists public.purchases (
 );
 alter table public.purchases enable row level security;
 
+-- Repair older ledgers that were created without the transaction uniqueness the
+-- fulfillment function relies on. `ON CONFLICT (transaction_id)` requires a
+-- matching unique/exclusion constraint or index even when the table already
+-- existed before this migration was re-run.
+delete from public.purchases where transaction_id is null;
+delete from public.purchases p
+using public.purchases older
+where p.transaction_id = older.transaction_id
+  and p.ctid > older.ctid;
+alter table public.purchases alter column transaction_id set not null;
+create unique index if not exists purchases_transaction_id_key
+  on public.purchases (transaction_id);
+
 create or replace function public.fulfill_purchase(
   p_user uuid,
   p_platform text,

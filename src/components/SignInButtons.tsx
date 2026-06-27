@@ -147,10 +147,14 @@ export function SignInButtons() {
       {showOauth && (
         <>
           <div className="signin__providers">
-            <button type="button" className="signin__provider" onClick={onApple}>
+            <button type="button" className="signin__provider signin__provider--apple" onClick={onApple}>
               Continue with Apple
             </button>
-            <button type="button" className="signin__provider" onClick={() => void oauth('google', signInWithGoogle)}>
+            <button
+              type="button"
+              className="signin__provider signin__provider--google"
+              onClick={() => void oauth('google', signInWithGoogle)}
+            >
               Continue with Google
             </button>
           </div>

@@ -83,15 +83,17 @@ Four manual steps remain (none are code):
    the Paid Apps agreement and complete tax + banking. IAP will not function (even in sandbox)
    until this shows **Active**.
 
-2. **Create the 4 Consumable products** (Monetization → In-App Purchases). Product IDs must match
+2. **Create the 6 Consumable products** (Monetization → In-App Purchases). Product IDs must match
    the app's SKUs **exactly**, with per-territory prices:
 
    | Product ID | Type | USD | GBP |
    | --- | --- | --- | --- |
+   | `funds_600` | Consumable | $0.99 | set via Apple's territory pricing |
    | `funds_1500` | Consumable | $2.99 | £1.99 |
    | `funds_4000` | Consumable | $4.99 | £3.99 |
    | `funds_9000` | Consumable | $8.99 | £7.99 |
    | `funds_20000` | Consumable | $14.99 | £14.99 |
+   | `funds_45000` | Consumable | $19.99 | set via Apple's territory pricing |
 
    Other territories take Apple's auto price matrix from the USD tier. Characters are unlocked with
    in-game funds, so they need **no** App Store products.

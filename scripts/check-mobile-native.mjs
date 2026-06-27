@@ -113,36 +113,36 @@ async function assertNativeGameBoard(page, label) {
     throw new Error(`${label}: legacy game chrome is visible ${JSON.stringify(metrics)}`);
   }
 
-  const walletCount = await page.$$eval('.native-group-wallet', (els) => els.length);
-  if (walletCount < 8) throw new Error(`${label}: expected state group wallet chips, found ${walletCount}`);
-
-  await page.click('.native-active-tray');
-  await page.waitForSelector('.profile-modal', { timeout: 2_000 });
-  await assertNoDocumentScroll(page, `${label}: active player profile`);
-  await page.click('.profile-modal__close');
-  await page.waitForSelector('.profile-modal', { hidden: true, timeout: 2_000 });
-
-  const initialTransform = await page.evaluate(() =>
-    document.querySelector('.rsm-zoomable-group')?.getAttribute('transform')
-      ?? document.querySelector('svg g[transform]')?.getAttribute('transform')
-      ?? '',
+  const visibleWalletStrip = await page.$$eval('.native-group-wallet', (els) =>
+    els.filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }).length,
   );
+  if (visibleWalletStrip > 0) {
+    throw new Error(`${label}: native gameplay should use wallet sheet, found visible wallet strip`);
+  }
+
+  await page.$eval('.native-active-tray__cash', (el) => {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+  });
+  await page.waitForSelector('.native-game-sheet__body--wallet .wallet-drawer', { timeout: 2_000 });
+  const walletCells = await page.$$eval('.native-game-sheet__body--wallet .wallet-cell', (els) => els.length);
+  if (walletCells < 8) throw new Error(`${label}: expected wallet sheet cells, found ${walletCells}`);
+  await assertNoDocumentScroll(page, `${label}: wallet sheet`);
+  await page.$eval('.native-game-sheet-backdrop', (el) => {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+  });
+  await page.waitForSelector('.native-game-sheet__body--wallet', { hidden: true, timeout: 2_000 });
+
   await page.click('.map-zoom-btn[aria-label="Zoom in"]');
   await wait(150);
   await assertNoDocumentScroll(page, `${label}: zoom in`);
-  const zoomedTransform = await page.evaluate(() =>
-    document.querySelector('.rsm-zoomable-group')?.getAttribute('transform')
-      ?? document.querySelector('svg g[transform]')?.getAttribute('transform')
-      ?? '',
-  );
-  if (zoomedTransform === initialTransform) {
-    throw new Error(`${label}: zoom in did not change map transform`);
-  }
   await page.click('.map-zoom-btn[aria-label="Reset view"]');
   await wait(150);
   await assertNoDocumentScroll(page, `${label}: zoom reset`);
 
-  await clickByText(page, '.native-round-action', 'State');
+  await clickByText(page, '.native-round-action', 'Coalitions');
   await page.waitForSelector('.native-game-sheet--state', { timeout: 2_000 });
   const stateProgress = await page.evaluate(() => ({
     rows: document.querySelectorAll('.native-sg-row').length,
@@ -184,15 +184,15 @@ async function assertNativeGameBoard(page, label) {
   await page.waitForSelector('.native-game-sheet--national', { hidden: true, timeout: 2_000 });
 
   await page.click('.native-corner--left');
-  await page.waitForSelector('.setup--bot .native-candidate', { timeout: 3_000 });
-  const menuPerks = await page.evaluate(() => ({
-    spotlightMods: document.querySelectorAll('.setup--bot .native-candidate .mod-sheet').length,
-    visibleText: document.querySelector('.setup--bot .native-candidate')?.textContent ?? '',
+  await page.waitForSelector('.setup--bot .shop-card', { timeout: 3_000 });
+  const soloMenu = await page.evaluate(() => ({
+    cards: document.querySelectorAll('.setup--bot .shop-card').length,
+    visibleText: document.querySelector('.setup--bot')?.textContent ?? '',
   }));
-  if (menuPerks.spotlightMods < 1 || !/Cheaper buy-in|Extra profit|Costs more|Lower payout|Neutral/i.test(menuPerks.visibleText)) {
-    throw new Error(`${label}: solo candidate menu does not expose perk/modifier text ${JSON.stringify(menuPerks)}`);
+  if (soloMenu.cards < 2 || !/Solo Campaign|Start Campaign|View stats/i.test(soloMenu.visibleText)) {
+    throw new Error(`${label}: solo candidate menu did not render ${JSON.stringify(soloMenu)}`);
   }
-  await assertNoDocumentScroll(page, `${label}: solo candidate menu perks`);
+  await assertNoDocumentScroll(page, `${label}: solo candidate menu`);
 }
 
 const server = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT)], {

@@ -54,6 +54,27 @@ export type PurchaseResult =
   | { status: 'unsupported' }
   | { status: 'error'; message: string };
 
+function userFacingPurchaseError(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('on conflict')
+    || lower.includes('constraint')
+    || lower.includes('duplicate key')
+    || lower.includes('sql')
+    || lower.includes('rpc')
+    || lower.includes('function')
+  ) {
+    return 'Purchase could not be credited. Please contact support if you were charged.';
+  }
+  if (lower.includes('verification unavailable')) {
+    return 'Purchase verification is not available yet. Please try again later.';
+  }
+  if (lower.includes('verification failed')) {
+    return 'Purchase could not be verified. Please try again.';
+  }
+  return message || 'Purchase could not be completed.';
+}
+
 export async function purchase(sku: string): Promise<PurchaseResult> {
   if (!isSupabaseConfigured) return { status: 'error', message: 'Purchases are not configured.' };
   // Native StoreKit only — there is no web billing rail.
@@ -72,13 +93,13 @@ async function purchaseNative(platform: 'ios', sku: string): Promise<PurchaseRes
     jws = rep;
   } catch (err) {
     // The plugin rejects userCancelled / pending / unverified with a descriptive message.
-    return { status: 'error', message: (err as Error)?.message ?? 'Purchase cancelled.' };
+    return { status: 'error', message: userFacingPurchaseError((err as Error)?.message ?? 'Purchase cancelled.') };
   }
 
   const { data, error } = await supabase.functions.invoke('fulfill-purchase', {
     body: { platform, sku, receipt: jws },
   });
-  if (error) return { status: 'error', message: await edgeErrorMessage(error) };
+  if (error) return { status: 'error', message: userFacingPurchaseError(await edgeErrorMessage(error)) };
   const balance = (data as { balance?: number } | null)?.balance ?? null;
   return { status: 'fulfilled', balance };
 }

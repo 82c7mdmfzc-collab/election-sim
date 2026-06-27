@@ -3362,10 +3362,15 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .signin__provider {
   display: flex; align-items: center; justify-content: center; gap: 0.5rem;
   width: 100%; padding: 0.7rem 1rem; cursor: pointer;
-  background: var(--text); color: var(--bg);
-  border: 1px solid var(--text); border-radius: var(--r-pill);
+  background: #f8fafc; color: #0f172a;
+  border: 1px solid rgba(255,255,255,0.72); border-radius: var(--r-pill);
   font-weight: 700; font-size: 0.92rem;
   transition: filter 0.12s ease, transform 0.1s ease;
+}
+.signin__provider--google {
+  background: #ffffff;
+  color: #111827;
+  border-color: rgba(226,232,240,0.95);
 }
 @media (hover: hover) and (pointer: fine) { .signin__provider:hover { filter: brightness(1.1); } }
 .signin__provider:active { transform: scale(0.98); }
@@ -3656,7 +3661,10 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   border: 1px solid var(--panel-2); background: var(--panel-3); color: var(--text);
 }
 .auth-gate__ok { color: var(--green); font-size: 0.85rem; }
-.auth-gate__err { color: var(--brand); font-size: 0.8rem; margin-top: 0.5rem; }
+.auth-gate__err {
+  color: var(--brand); font-size: 0.8rem; margin-top: 0.5rem;
+  overflow-wrap: anywhere;
+}
 
 /* ── Progression: achievements + daily streak ─────────────────────────────── */
 .progress-panel {
@@ -3850,6 +3858,7 @@ html.native .shop {
   padding: 1.1rem 1rem; text-align: center;
   background: var(--panel-2); border: 1px solid rgba(245, 144, 34, 0.25); border-radius: var(--r-md);
 }
+.funds-card.is-unavailable { opacity: 0.72; }
 .funds-card__badge {
   position: absolute; top: -0.6rem; left: 50%; transform: translateX(-50%);
   padding: 0.15rem 0.6rem; font-size: 0.65rem; font-weight: 700; white-space: nowrap;
@@ -3858,6 +3867,12 @@ html.native .shop {
 .funds-card__img {
   height: 88px; width: auto; max-width: 100%; object-fit: contain;
   margin-top: 0.2rem; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
+}
+/* Shown in place of .funds-card__img when a pack's coin art is missing/fails to
+   load (see CoinArt in Shop.tsx) — keeps the card from rendering blank. */
+.funds-card__coin-fallback {
+  width: 72px; height: 72px; margin-top: 0.2rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
 }
 .funds-card__amount {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
@@ -4784,11 +4799,12 @@ html.native .shop-card__portrait,
 html.native .shop-card .portrait-fallback { width: 52px; height: 52px; }
 html.native .shop-card .mod-sheet { font-size: 0.68rem; }
 html.native .funds-card__img { height: clamp(32px, 9dvh, 52px); margin-top: 0; }
+html.native .funds-card__coin-fallback { width: 48px; height: 48px; margin-top: 0; }
 /* Short landscape (phones, ~≤430px tall): the coin pack art is decorative and the
    $0.99/$19.99 packs ship without it — drop it so amount + price + CTA always fit
    and every card stays uniform. iPad (tall) keeps the art. */
 @media (max-height: 500px) {
-  html.native .funds-card__img { display: none; }
+  html.native .funds-card__img { display: block; height: clamp(24px, 7dvh, 38px); }
 }
 /* Cosmetics and Earn stack multiple sections, so unlike the single-row rails they
    need to scroll vertically rather than clip inside the fixed-height pane. */
@@ -5626,7 +5642,7 @@ html.native .signin__tab {
   font-weight: 900;
 }
 
-html.native .signin__provider:first-child {
+html.native .signin__provider--apple {
   min-height: 48px;
   background: linear-gradient(180deg, #ffffff, #d9dee5);
   color: #0f172a;
@@ -5634,8 +5650,12 @@ html.native .signin__provider:first-child {
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-html.native .signin__provider:not(:first-child) {
-  background: rgba(255,255,255,0.08);
+html.native .signin__provider--google {
+  min-height: 44px;
+  background: #ffffff;
+  color: #111827;
+  border-color: rgba(226,232,240,0.9);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
 }
 
 html.native .auth-gate__input {
@@ -6998,4 +7018,3 @@ html.native .brand-panel {
 html.native .gold-pill {
   box-shadow: none;
 }
-

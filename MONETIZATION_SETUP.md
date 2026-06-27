@@ -25,14 +25,13 @@ All are idempotent and safe to re-run.
 ## 2. Edge Functions
 
 ```
-supabase functions deploy stripe-checkout
-supabase functions deploy stripe-webhook --no-verify-jwt   # Stripe has no Supabase JWT
 supabase functions deploy fulfill-purchase
 ```
 
-## 3. Web IAP (Stripe) — launch rail
+## 3. Web IAP (Stripe) — retired rail
 
-- Secrets: `supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_...`
+- Deprecated historical notes below; do not configure or deploy Stripe for the iOS release.
+- Secrets were `supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_...`
   (use **test** keys first).
 - Stripe Dashboard → Developers → Webhooks → add endpoint = the `stripe-webhook` URL,
   event **`checkout.session.completed`**. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
@@ -42,25 +41,21 @@ supabase functions deploy fulfill-purchase
 - **Test:** Shop → Buy Funds → Stripe test card `4242 4242 4242 4242` → return to app →
   funds appear (webhook credited). Replay the webhook in Stripe → **no double-grant**.
 
-## 4. Native IAP (iOS / Android) — REMAINING HANDS-ON WORK
+## 4. Native IAP (iOS / Android) — remaining hands-on work
 
 The server endpoint (`fulfill-purchase`) and client routing (`src/utils/iap.ts`) are done
-and **fail closed**. The native app also hides paid Campaign Funds bundles unless a reviewed
-StoreKit / Play Billing bridge injects `window.__ELECTOR_IAP__`; Stripe Checkout remains web-only.
+and **fail closed**. The iOS app uses `@choochmeque/tauri-plugin-iap-api` / StoreKit 2 directly;
+Stripe Checkout is not shown in native builds.
 Until verification is configured, native purchases cannot credit funds. To finish each native rail:
 
-1. **Tauri IAP plugin (Rust).** Implement (or adopt) a plugin that runs StoreKit 2 (iOS)
-   and Play Billing (Android) purchases and **injects `window.__ELECTOR_IAP__`** with:
-   ```ts
-   interface NativeIap { purchase(sku: string): Promise<{ transactionId: string; receipt: string }>; }
-   ```
-   `receipt` = the signed StoreKit JWS (iOS) or the Play `purchaseToken` (Android).
+1. **Tauri IAP plugin.** iOS is wired through `tauri-plugin-iap`; Android Play Billing remains deferred.
+   The iOS purchase call returns a StoreKit signed transaction JWS that the client forwards as `receipt`.
 2. **Server verification** (`supabase/functions/fulfill-purchase/index.ts`,
    `verifyApple` / `verifyGoogle` — currently throw `VerificationUnavailable`):
    - iOS secrets: `APPLE_ISSUER_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` → App Store Server API.
    - Android secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `ANDROID_PACKAGE_NAME` → Play Developer API.
-3. **Store consoles:** create the consumable products (`funds_small/medium/large`) in App
-   Store Connect and Play Console with matching product ids.
+3. **Store consoles:** create the consumable products (`funds_600`, `funds_1500`, `funds_4000`,
+   `funds_9000`, `funds_20000`, `funds_45000`) in App Store Connect with matching product ids.
 4. **Test:** Apple **sandbox** account / Play **license tester** → buy in TestFlight /
    internal testing → funds credited → reinstall + sign in → balance persists
    (consumables are account-bound via the server ledger, not StoreKit "restore").

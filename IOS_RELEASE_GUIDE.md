@@ -99,7 +99,7 @@ Open `src-tauri/gen/apple` after `npm run tauri:ios:init`.
 Reviewer note:
 
 ```text
-Elector can be played in Solo and pass-and-play without an account. Online play, roster sync, Campaign Funds, and the shop require a free account. This iOS build uses email-code account sign-in; Google/Apple OAuth is disabled in the native app until the app-return deep-link flow is wired and reviewed.
+Elector can be played in Solo and pass-and-play without an account. Online play, roster sync, Campaign Funds, and the shop require a free account. This iOS build supports Apple, Google, and email-code account sign-in; OAuth returns through the app's registered `com.playelector.app://auth-callback` URL scheme.
 
 This iOS build includes native in-app purchases via Apple StoreKit: optional consumable Campaign Funds bundles in the Shop. There is no Stripe or external/web purchase link inside the native app. Players can also earn Campaign Funds through gameplay and use earned funds for unlocks.
 
@@ -112,7 +112,7 @@ This build includes optional rewarded ads in the Shop. Ads are user-initiated on
 - Portrait rotation shows the landscape orientation gate; landscape unlocks the game.
 - Home, Solo setup, gameplay shell, account/progression, shop, and victory all fit phone landscape.
 - Guest Solo game completes with no sign-in requirement.
-- Sign-in/account panel opens, uses email-code auth, and shows progression, streak, achievements, support/privacy/delete-account links.
+- Sign-in/account panel opens, Apple/Google/email sign-in work, and progression, streak, achievements, support/privacy/delete-account links are visible.
 - Shop shows the native StoreKit Campaign Funds bundles on iOS; earned-fund unlocks also remain available. (Purchases credit only once the Apple App Store Server API secrets are set — see `MONETIZATION_SETUP.md`.)
 - Support URL, privacy URL, and delete-account URL open from the live domain.
 - Capture iPhone landscape screenshots for Home, Solo setup, gameplay, account/progression, shop, and victory.

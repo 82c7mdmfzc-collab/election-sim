@@ -5,8 +5,8 @@
  *   • There is NO anonymous/guest economy. Campaign Funds, unlocks, stats, the
  *     shop, and online play exist ONLY for a signed-in account. A "guest" is
  *     simply someone with no session — they may still play Solo and pass-and-play.
- *   • Web sign-in supports Google, Apple (once enabled), and email code. Native
- *     iOS currently uses email code only until OAuth deep links are wired.
+ *   • Web and native iOS sign-in support Google, Apple, and email code. Native
+ *     OAuth opens in an in-app browser and returns through the app URL scheme.
  *   • Each account claims ONE permanent username (see claimDisplayName), used as
  *     their display name in online lobbies.
  *   • If Supabase isn't configured (e.g. unit tests, offline), auth calls no-op.
@@ -64,8 +64,9 @@ export async function getUser(): Promise<User | null> {
  *  • Web: signInWithOAuth performs the full-page browser redirect; detectSessionInUrl
  *    finishes sign-in on return.
  *  • Native (Tauri): there is no page redirect, so we request the authorize URL
- *    (skipBrowserRedirect) and open it in the system browser. The provider returns to
- *    com.playelector.app://auth-callback, handled by utils/nativeAuthCallback.ts.
+ *    (skipBrowserRedirect) and open it in the mobile in-app browser. The provider
+ *    returns to com.playelector.app://auth-callback, handled by
+ *    utils/nativeAuthCallback.ts.
  */
 async function startOAuth(provider: 'google' | 'apple'): Promise<{ error?: string }> {
   if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
@@ -80,10 +81,11 @@ async function startOAuth(provider: 'google' | 'apple'): Promise<{ error?: strin
       if (!data?.url) return { error: 'Could not start sign-in. Please try again.' };
       // Dynamic import keeps the opener plugin out of the web / iOS-14 module-eval path.
       const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl(data.url);
+      await openUrl(data.url, 'inAppBrowser');
       return {};
     } catch (err) {
-      return { error: err instanceof Error ? err.message : 'Could not open the sign-in page.' };
+      const msg = err instanceof Error ? err.message : '';
+      return { error: msg || 'Could not open the sign-in page.' };
     }
   }
 

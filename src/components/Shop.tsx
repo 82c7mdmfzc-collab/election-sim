@@ -48,6 +48,23 @@ function priceValue(priceLabel: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** A funds-pack's coin artwork, falling back to the always-renderable CSS coin
+ *  (a pure gradient, no asset) if the image is missing or fails to load — so a
+ *  pack card never renders blank, even on a build that predates the art. */
+function CoinArt({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <span className="coin-inline funds-card__coin-fallback" aria-hidden />;
+  return (
+    <img
+      className="funds-card__img"
+      src={src}
+      alt=""
+      draggable={false}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function formatReset(nextResetAt: string | null): string {
   if (!nextResetAt) return 'soon';
   const ms = Date.parse(nextResetAt) - Date.now();
@@ -532,33 +549,33 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
           {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
           {showPaidFunds ? (
             <div className="funds-grid shop-rail">
-              {FUNDS_BUNDLES.map((b) => (
-                <div key={b.sku} className="funds-card">
-                  {b.badge && <span className="funds-card__badge">{b.badge}</span>}
-                  <img
-                    className="funds-card__img"
-                    src={b.imageUrl}
-                    alt=""
-                    draggable={false}
-                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                  />
-                  <div className="funds-card__amount">
-                    <span className="coin-inline coin-inline--large" aria-hidden />
-                    {b.funds.toLocaleString()}
+              {FUNDS_BUNDLES.map((b) => {
+                const nativePrice = nativePrices[b.sku];
+                const productUnavailable = hasNativeBilling && !pricesLoading && !nativePrice;
+                return (
+                  <div key={b.sku} className={`funds-card${productUnavailable ? ' is-unavailable' : ''}`}>
+                    {b.badge && <span className="funds-card__badge">{b.badge}</span>}
+                    <CoinArt src={b.imageUrl} />
+                    <div className="funds-card__amount">
+                      <span className="coin-inline coin-inline--large" aria-hidden />
+                      {b.funds.toLocaleString()}
+                    </div>
+                    <div className="funds-card__label">Campaign Funds</div>
+                    <button
+                      type="button"
+                      className="funds-card__buy"
+                      disabled={buyingSku === b.sku || productUnavailable}
+                      onClick={() => buyFunds(b.sku)}
+                    >
+                      {buyingSku === b.sku
+                        ? 'Processing…'
+                        : productUnavailable
+                          ? 'Unavailable'
+                          : (nativePrice ?? (pricesLoading ? '…' : b.priceLabel))}
+                    </button>
                   </div>
-                  <div className="funds-card__label">Campaign Funds</div>
-                  <button
-                    type="button"
-                    className="funds-card__buy"
-                    disabled={buyingSku === b.sku}
-                    onClick={() => buyFunds(b.sku)}
-                  >
-                    {buyingSku === b.sku
-                      ? 'Processing…'
-                      : (nativePrices[b.sku] ?? (pricesLoading ? '…' : b.priceLabel))}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="funds-web-note">

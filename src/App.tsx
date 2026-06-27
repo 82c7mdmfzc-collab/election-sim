@@ -282,8 +282,9 @@ function App() {
     if (!isTutorialSeen()) {
       setTutorialSource('onboarding');
       setAppMode('tutorial');
+      return;
     }
-    // appMode stays 'mode-select' → home menu shown
+    startPracticeGame();
   }
 
   function openTutorial() {
