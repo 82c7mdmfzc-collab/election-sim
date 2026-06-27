@@ -84,19 +84,33 @@ async function purchaseNative(platform: 'ios', sku: string): Promise<PurchaseRes
 }
 
 /** StoreKit's localized price strings (e.g. "£1.99") keyed by SKU, for display.
- *  Returns {} on non-iOS or if the product query fails. */
+ *  The formattedPrice Apple returns is already in the user's storefront currency,
+ *  so the displayed price is location-based with no currency logic on our side.
+ *
+ *  StoreKit loads products asynchronously and a cold first query (right after the
+ *  Shop mounts) often returns an empty list before the catalog is ready — which
+ *  previously left the UI showing the hardcoded USD fallback (e.g. "$8.99" to a UK
+ *  user). So we retry with a short backoff until products resolve. Returns {} on
+ *  non-iOS or if every attempt comes back empty (e.g. offline). */
 export async function getFundsPrices(): Promise<Record<string, string>> {
   if (iapPlatform() !== 'ios') return {};
-  try {
-    const { getProducts } = await import('@choochmeque/tauri-plugin-iap-api');
-    const res = await getProducts(FUNDS_BUNDLES.map((b) => b.sku), 'inapp');
-    const products = (res as { products?: Array<{ productId: string; formattedPrice?: string }> }).products ?? [];
-    const out: Record<string, string> = {};
-    for (const p of products) {
-      if (p.formattedPrice) out[p.productId] = p.formattedPrice;
+  const skus = FUNDS_BUNDLES.map((b) => b.sku);
+  const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  const ATTEMPTS = 6;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    try {
+      const { getProducts } = await import('@choochmeque/tauri-plugin-iap-api');
+      const res = await getProducts(skus, 'inapp');
+      const products = (res as { products?: Array<{ productId: string; formattedPrice?: string }> }).products ?? [];
+      const out: Record<string, string> = {};
+      for (const p of products) {
+        if (p.formattedPrice) out[p.productId] = p.formattedPrice;
+      }
+      if (Object.keys(out).length > 0) return out;
+    } catch {
+      // fall through to retry
     }
-    return out;
-  } catch {
-    return {};
+    if (attempt < ATTEMPTS - 1) await delay(400 * (attempt + 1)); // 0.4s, 0.8s, … ~8.4s total
   }
+  return {};
 }

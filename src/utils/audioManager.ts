@@ -67,11 +67,22 @@ class _AudioManager {
   private sfxMuted = false;
   private musicMuted = false;
   private sfxVolume = 0.8;   // 0–1
-  private musicVolume = 0.6; // 0–1
+  private musicVolume = 0.3; // 0–1
   // Desired background-music state. The looping track is reconciled against this
   // flag (plus the mute/volume gates) by _syncMusic(), so unmuting or raising the
   // volume from zero resumes playback instead of leaving it silently stopped.
   private musicWanted = false;
+  // Web Audio graph for the music track. On iOS WKWebView, HTMLMediaElement.volume
+  // is read-only — assignments are silently ignored and it always reports 1.0 — so
+  // setting node.volume can't change loudness on device, leaving the music dial dead
+  // and the track at full blast. Routing the music element through a GainNode is the
+  // supported workaround (GainNode.gain IS honored on iOS), so the dial and the
+  // default volume actually take effect. Built lazily the first time music plays:
+  // createMediaElementSource can only be called once per element, and the
+  // AudioContext starts suspended until resumed after a user gesture.
+  private audioCtx: AudioContext | null = null;
+  private musicGain: GainNode | null = null;
+  private musicGraphReady = false;
 
   init(): void {
     for (const [id, path] of Object.entries(MANIFEST)) {
@@ -100,16 +111,68 @@ class _AudioManager {
       if (document.hidden) {
         for (const node of this.looping.values()) node.pause();
       } else {
+        this._resumeCtx();
         for (const node of this.looping.values()) node.play().catch(() => {});
       }
     });
   }
 
+  /**
+   * Lazily build the Web Audio graph for the music track:
+   * musicEl → MediaElementSource → GainNode → destination. Volume is controlled
+   * via the gain (honored on iOS, unlike element.volume), so the element's own
+   * volume is pinned to unity to avoid double-attenuation. Best-effort: if Web
+   * Audio is unavailable or the element was already wired, we fall back to
+   * element.volume (which still works on web/desktop).
+   */
+  private _ensureMusicGraph(): void {
+    if (this.musicGraphReady) return;
+    this.musicGraphReady = true; // attempt once regardless of outcome
+    const node = this.sounds.get(MUSIC_TRACK);
+    if (!node) return;
+    try {
+      const Ctx = window.AudioContext
+        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      this.audioCtx = new Ctx();
+      const source = this.audioCtx.createMediaElementSource(node);
+      this.musicGain = this.audioCtx.createGain();
+      this.musicGain.gain.value = this.musicVolume;
+      source.connect(this.musicGain).connect(this.audioCtx.destination);
+      node.volume = 1; // gain is now authoritative
+    } catch {
+      // createMediaElementSource throws if already called for this element, and
+      // the constructor can throw in locked-down webviews. Fall back to volume.
+      this.audioCtx = null;
+      this.musicGain = null;
+    }
+  }
+
+  /** Resume the (iOS-suspended) AudioContext after a user gesture / foreground. */
+  private _resumeCtx(): void {
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {});
+    }
+  }
+
+  /** Apply the current music volume through the gain node (iOS) and the element. */
+  private _applyMusicVolume(): void {
+    if (this.musicGain) this.musicGain.gain.value = this.musicVolume;
+    else {
+      const node = this.sounds.get(MUSIC_TRACK);
+      if (node) node.volume = this.musicVolume;
+    }
+  }
+
   /** Retry any loop plays that were blocked by autoplay policy. */
   private _unlockPending(): void {
+    this._resumeCtx();
     for (const id of [...this.pendingLoops]) {
       this.pendingLoops.delete(id);
-      this.play(id, true);
+      // Music reconciles through _syncMusic so it uses the gain graph, not
+      // element.volume; any other looped sound replays directly.
+      if (id === MUSIC_TRACK) this._syncMusic();
+      else this.play(id, true);
     }
   }
 
@@ -184,11 +247,18 @@ class _AudioManager {
     const shouldPlay =
       this.musicWanted && !this.muted && !this.musicMuted && this.musicVolume > 0;
     if (shouldPlay) {
+      this._ensureMusicGraph();
       node.loop = true;
-      node.volume = this.musicVolume;
+      this._applyMusicVolume();
       if (!this.looping.has(MUSIC_TRACK)) {
-        node.play().catch(() => { this.pendingLoops.add(MUSIC_TRACK); });
+        this._resumeCtx();
+        // Mark as looping optimistically; clear it if autoplay is blocked so the
+        // first user gesture re-runs _syncMusic and actually starts playback.
         this.looping.set(MUSIC_TRACK, node);
+        node.play().catch(() => {
+          this.looping.delete(MUSIC_TRACK);
+          this.pendingLoops.add(MUSIC_TRACK);
+        });
       }
     } else {
       this.pendingLoops.delete(MUSIC_TRACK);
