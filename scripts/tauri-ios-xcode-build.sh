@@ -42,7 +42,15 @@ esac
 # Always rebuild the frontend bundle so the app ships current web assets on every
 # build (debug or release) — this is the "just build from Xcode, no fuss" guarantee.
 # vite build is fast, so the cost is negligible.
-echo "Building frontend bundle for iOS ($configuration)"
+#
+# Native rewarded ads (AdMob via the elector-admob plugin) are gated behind this
+# Vite flag in rewardedAds.ts, so they ship ONLY in the iOS app and never on web.
+# This build only ever runs for iOS, so enabling it here is the correct scope.
+# Override with ELECTOR_NO_NATIVE_ADS=1 to build the iOS app without ads.
+if [ "${ELECTOR_NO_NATIVE_ADS:-0}" != "1" ]; then
+  export VITE_ENABLE_NATIVE_REWARDED_ADS=true
+fi
+echo "Building frontend bundle for iOS ($configuration, native ads: ${VITE_ENABLE_NATIVE_REWARDED_ADS:-false})"
 npm --prefix "$repo_root" run build
 if [ ! -f "$repo_root/dist/index.html" ]; then
   echo "Missing frontend bundle at $repo_root/dist/index.html" >&2
