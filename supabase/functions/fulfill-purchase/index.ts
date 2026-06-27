@@ -92,13 +92,19 @@ async function verifyApple(jws: string): Promise<VerifiedPurchase> {
     .setAudience('appstoreconnect-v1')
     .sign(signingKey);
 
-  // 3. Fetch the authoritative transaction — production first, sandbox on 404
-  //    (a sandbox receipt 404s on the prod host and vice-versa).
+  // 3. Fetch the authoritative transaction — production first, then sandbox.
+  //    Apple returns 404 for a sandbox transaction queried on the prod host, AND
+  //    401 when the key isn't authorized for the production environment yet — which
+  //    is the case for EVERY TestFlight/sandbox purchase before the app is live.
+  //    In both cases the transaction lives in sandbox, so retry there on ANY non-OK
+  //    prod response, not only on 404. (A genuine production receipt returns 200 on
+  //    the prod host once live, so this never weakens verification: a sandbox host
+  //    can't vouch for a real production transaction — it 404s — so it fails closed.)
   const path = `/inApps/v1/transactions/${encodeURIComponent(transactionId)}`;
   const getTxn = (host: string) =>
     fetch(`https://${host}${path}`, { headers: { Authorization: `Bearer ${bearer}` } });
   let resp = await getTxn('api.storekit.itunes.apple.com');
-  if (resp.status === 404) resp = await getTxn('api.storekit-sandbox.itunes.apple.com');
+  if (!resp.ok) resp = await getTxn('api.storekit-sandbox.itunes.apple.com');
   if (!resp.ok) throw new Error(`Apple App Store Server API ${resp.status}`);
 
   // 4. The response carries an Apple-signed transaction JWS; decode + validate it.
@@ -163,8 +169,12 @@ Deno.serve(async (req: Request) => {
       verified = platform === 'ios' ? await verifyApple(receipt) : await verifyGoogle(receipt, sku);
     } catch (err) {
       if (err instanceof VerificationUnavailable) {
+        console.error('[fulfill-purchase] verification unavailable:', (err as Error)?.message);
         return json({ error: 'purchase verification unavailable' }, 503, cors);
       }
+      // Surface the real reason in the function logs so verification failures are
+      // diagnosable (e.g. "Apple App Store Server API 401") without re-instrumenting.
+      console.error('[fulfill-purchase] verification failed:', (err as Error)?.message ?? err);
       return json({ error: 'purchase verification failed' }, 402, cors);
     }
 

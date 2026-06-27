@@ -29,7 +29,7 @@ import { sanitizeName } from '../utils/sanitize';
 import { track } from '../utils/analytics';
 import { Portrait } from './Portrait';
 import { Avatar } from './Avatar';
-import { PartyBadge } from './PartyBadge';
+import { CandidateStatsModal } from './CandidateStatsModal';
 import {
   supabase,
   rpcJoinLobbyPlayer,
@@ -39,7 +39,6 @@ import {
   rpcListPublicLobbies,
   type LobbyRow,
 } from '../utils/supabaseClient';
-import { ModifierSheet } from './ModifierSheet';
 import type { LobbyGameState, WaitingLobbyState, WaitingPlayer } from '../game/types';
 
 type Screen =
@@ -136,6 +135,10 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   // ── Create-flow state ──────────────────────────────────────────────────────
   const [playerCount, setPlayerCount]       = useState(2);
   const [myCandidate, setMyCandidate]       = useState<CandidateDef | null>(null);
+
+  // Candidate whose "click to see stats" popup is open (null = closed). Mirrors the
+  // Shop / Solo / Daily pickers: tap a card → CandidateStatsModal → Choose.
+  const [statsModalId, setStatsModalId]     = useState<string | null>(null);
 
   // ── Shared lobby state (set after create or join) ─────────────────────────
   const [lobby, setLobby]                   = useState<LobbyRow | null>(null);
@@ -380,6 +383,40 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     (foundLobby?.game_state as WaitingLobbyState)?.players?.map((p) => p.candidateId) ?? [],
   );
 
+  const statsCandidate = statsModalId ? CANDIDATE_MAP[statsModalId] ?? null : null;
+
+  // Stats popup shared by the host (creating) and guest (picking) pickers — same
+  // CandidateStatsModal the Solo / Daily / local pickers use, so the action is
+  // "Choose" (or "Taken" for a candidate another player already claimed).
+  function renderStatsModal() {
+    if (!statsCandidate) return null;
+    const close = () => setStatsModalId(null);
+    if (screen === 'picking') {
+      const taken = claimedCandidateIds.has(statsCandidate.id);
+      const chosen = guestCandidate?.id === statsCandidate.id;
+      return (
+        <CandidateStatsModal
+          candidate={statsCandidate}
+          actionLabel={taken ? 'Taken' : chosen ? 'Your pick ✓' : 'Choose'}
+          actionDisabled={taken || chosen}
+          onAction={() => { AudioManager.play('confirm'); setGuestCandidate(statsCandidate); close(); }}
+          onClose={close}
+          subtext={taken ? 'Another player has already claimed this candidate.' : undefined}
+        />
+      );
+    }
+    const chosen = myCandidate?.id === statsCandidate.id;
+    return (
+      <CandidateStatsModal
+        candidate={statsCandidate}
+        actionLabel={chosen ? 'Your pick ✓' : 'Choose'}
+        actionDisabled={chosen}
+        onAction={() => { AudioManager.play('confirm'); setMyCandidate(statsCandidate); close(); }}
+        onClose={close}
+      />
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
@@ -450,67 +487,33 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           </div>
         </div>
 
-        <div className="native-select">
-          {myCandidate && (
-            <div className="native-select__spotlight native-only">
-              <div
-                className="native-candidate"
-                style={{ ['--p-color' as string]: PLAYER_COLORS[myCandidate.color] }}
-              >
-                <div className="native-candidate__portrait">
-                  <Portrait className="cand-portrait" src={myCandidate.portraitUrl} initials={myCandidate.portrait} name={myCandidate.name} />
-                </div>
-                <div className="native-candidate__body">
-                  <div className="native-candidate__name">{myCandidate.name}</div>
-                  <div className="native-candidate__tag">{myCandidate.tagline}</div>
-                  <div className="native-candidate__meta">
-                    <PartyBadge party={myCandidate.party} />
-                    <span>${myCandidate.startingCash}k starting cash</span>
+        <div className="cand-select-body">
+          <p className="shop__sub cand-select-body__hint">Tap a candidate to review their bonuses, then choose.</p>
+          <div className="shop__grid shop-rail">
+            {availableCandidates.map((c) => {
+              const chosen = myCandidate?.id === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`shop-card${chosen ? ' is-owned' : ''}`}
+                  style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                  onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
+                >
+                  <div className="shop-card__top">
+                    <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                    <div>
+                      <span className="shop-card__name">{c.name}</span>
+                      <span className="shop-card__tag">{c.tagline}</span>
+                    </div>
                   </div>
-                  <ModifierSheet affinities={myCandidate.affinities} payoutModifiers={myCandidate.payoutModifiers} compact />
-                </div>
-              </div>
-              <div className="native-select__summary">
-                <div className="native-select__summary-card">
-                  <p className="native-select__summary-title">Lobby</p>
-                  <p className="mp-hint">Playing as <strong>@{displayName}</strong></p>
-                </div>
-                <div className="native-select__summary-card">
-                  <p className="native-select__summary-title">Seats</p>
-                  <p className="mp-hint">{playerCount} player game</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <p className="mp-hint">Choose your candidate</p>
-          <div className="setup__roster candidate-rail">
-          {availableCandidates.map((c) => {
-            const chosen = myCandidate?.id === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                className={`cand-card${chosen ? ' is-assigned' : ''}`}
-                style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-                onClick={() => { AudioManager.play('click'); setMyCandidate(c); }}
-              >
-                <div className="cand-card__top">
-                  <div className="cand-portrait-wrap">
-                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  <div className="shop-card__foot">
+                    {chosen && <div className="shop-card__owned">Your pick ✓</div>}
+                    <span className="shop-card__stats-hint">View stats ›</span>
                   </div>
-                  <div className="cand-card__id">
-                    <span className="cand-card__name">{c.name}</span>
-                    <span className="cand-card__tag">{c.tagline}</span>
-                    <PartyBadge party={c.party} className="cand-card__party" />
-                  </div>
-                  {chosen && <span className="cand-card__seat">You</span>}
-                </div>
-                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-                <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -538,6 +541,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           </button>
           <button type="button" className="mp-back" onClick={() => setScreen('main')}>← Back</button>
         </div>
+        {renderStatsModal()}
       </div>
     );
   }
@@ -663,7 +667,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
         <div className="setup__header">
           <h1 className="setup__title">Room {foundLobby.room_code}</h1>
         </div>
-        <div className="native-select">
+        <div className="cand-select-body">
         {existingPlayers.length > 0 && (
           <div className="mp-wait" style={{ marginBottom: '1rem' }}>
             <p className="mp-wait__hint" style={{ marginBottom: '0.5rem' }}>Already here:</p>
@@ -683,36 +687,8 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           </div>
         )}
 
-        {guestCandidate && (
-          <div className="native-select__spotlight native-only">
-            <div
-              className="native-candidate"
-              style={{ ['--p-color' as string]: PLAYER_COLORS[guestCandidate.color] }}
-            >
-              <div className="native-candidate__portrait">
-                <Portrait className="cand-portrait" src={guestCandidate.portraitUrl} initials={guestCandidate.portrait} name={guestCandidate.name} />
-              </div>
-              <div className="native-candidate__body">
-                <div className="native-candidate__name">{guestCandidate.name}</div>
-                <div className="native-candidate__tag">{guestCandidate.tagline}</div>
-                <div className="native-candidate__meta">
-                  <PartyBadge party={guestCandidate.party} />
-                  <span>${guestCandidate.startingCash}k starting cash</span>
-                </div>
-                <ModifierSheet affinities={guestCandidate.affinities} payoutModifiers={guestCandidate.payoutModifiers} compact />
-              </div>
-            </div>
-            <div className="native-select__summary">
-              <div className="native-select__summary-card">
-                <p className="native-select__summary-title">Room</p>
-                <p className="mp-hint">{foundLobby.room_code} · Playing as <strong>@{displayName}</strong></p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <p className="mp-hint">Choose your candidate</p>
-        <div className="setup__roster candidate-rail">
+        <p className="shop__sub cand-select-body__hint">Tap a candidate to review their bonuses, then choose. Greyed-out candidates are already taken.</p>
+        <div className="shop__grid shop-rail">
           {availableCandidates.map((c) => {
             const taken  = claimedCandidateIds.has(c.id);
             const chosen = guestCandidate?.id === c.id;
@@ -720,24 +696,23 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
               <button
                 key={c.id}
                 type="button"
-                className={`cand-card${chosen ? ' is-assigned' : ''}${taken ? ' is-disabled' : ''}`}
+                className={`shop-card${chosen ? ' is-owned' : ''}${taken ? ' is-locked' : ''}`}
                 style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
-                disabled={taken}
-                onClick={() => { if (!taken) { AudioManager.play('click'); setGuestCandidate(c); } }}
+                onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
               >
-                <div className="cand-card__top">
-                  <div className="cand-portrait-wrap">
-                    <Portrait className="cand-portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                <div className="shop-card__top">
+                  <Portrait className="shop-card__portrait" src={c.portraitUrl} initials={c.portrait} name={c.name} />
+                  <div>
+                    <span className="shop-card__name">{c.name}</span>
+                    <span className="shop-card__tag">{taken ? 'Taken' : c.tagline}</span>
                   </div>
-                  <div className="cand-card__id">
-                    <span className="cand-card__name">{c.name}</span>
-                    <span className="cand-card__tag">{taken ? 'Taken' : c.tagline}</span>
-                    <PartyBadge party={c.party} className="cand-card__party" />
-                  </div>
-                  {chosen && <span className="cand-card__seat">You</span>}
                 </div>
-                <div className="cand-card__cash">${c.startingCash}k starting cash</div>
-                <ModifierSheet affinities={c.affinities} payoutModifiers={c.payoutModifiers} compact />
+                <div className="shop-card__foot">
+                  {taken
+                    ? <span className="shop-card__price">Taken</span>
+                    : chosen ? <div className="shop-card__owned">Your pick ✓</div> : null}
+                  <span className="shop-card__stats-hint">View stats ›</span>
+                </div>
               </button>
             );
           })}
@@ -769,6 +744,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
             ← Use a different code
           </button>
         </div>
+        {renderStatsModal()}
       </div>
     );
   }
