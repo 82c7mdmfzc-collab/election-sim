@@ -282,6 +282,10 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
   const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
+  // True while StoreKit's localized prices are still loading on iOS, so we show a
+  // neutral placeholder instead of the hardcoded USD label (a UK user should never
+  // flash "$8.99" before "£8.99" resolves).
+  const [pricesLoading, setPricesLoading] = useState(nativeIapAvailable());
   const billingPlatform = iapPlatform();
   const hasNativeBilling = nativeIapAvailable();
   const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
@@ -308,9 +312,17 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     void refresh();
   }, [refresh]);
 
-  // Native (iOS): load StoreKit's localized prices for the funds packs.
+  // Native (iOS): load StoreKit's localized prices for the funds packs. getFundsPrices
+  // retries until the catalog resolves, so this may settle a beat after mount.
   useEffect(() => {
-    void getFundsPrices().then(setNativePrices);
+    if (!nativeIapAvailable()) return;
+    let cancelled = false;
+    void getFundsPrices().then((prices) => {
+      if (cancelled) return;
+      setNativePrices(prices);
+      setPricesLoading(false);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   function selectTab(next: ShopTab) {
@@ -541,7 +553,9 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                     disabled={buyingSku === b.sku}
                     onClick={() => buyFunds(b.sku)}
                   >
-                    {buyingSku === b.sku ? 'Processing…' : (nativePrices[b.sku] ?? b.priceLabel)}
+                    {buyingSku === b.sku
+                      ? 'Processing…'
+                      : (nativePrices[b.sku] ?? (pricesLoading ? '…' : b.priceLabel))}
                   </button>
                 </div>
               ))}

@@ -62,7 +62,7 @@ const DEFAULTS: LocalPrefs = {
   sfxMuted: false,
   musicMuted: false,
   sfxVolume: 80,
-  musicVolume: 60,
+  musicVolume: 30,
   lastAwardedGameId: null,
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
   selectedShareFrame: 'midnight', // DEFAULT_SHARE_FRAME_ID

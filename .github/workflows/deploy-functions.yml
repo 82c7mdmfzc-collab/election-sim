@@ -1,10 +1,15 @@
 name: Deploy Edge Functions (Supabase)
 
-# Redeploys the resolve-turn edge function whenever the function or the game
-# engine it vendors changes on main. resolve-turn/_engine/ is generated from
-# src/game by scripts/build-edge-function.mjs (it is gitignored), so CI
-# regenerates it before deploying — keeping online turn resolution in lockstep
-# with the client engine (candidates, config, statesData, engine, …).
+# Redeploys the edge functions whenever they (or the game engine resolve-turn
+# vendors) change on main:
+#   • resolve-turn    — server-authoritative multiplayer turn resolution.
+#     resolve-turn/_engine/ is generated from src/game by
+#     scripts/build-edge-function.mjs (it is gitignored), so CI regenerates it
+#     before deploying — keeping online turn resolution in lockstep with the
+#     client engine (candidates, config, statesData, engine, …).
+#   • fulfill-purchase — verifies Apple/Google IAP receipts server-side and
+#     credits Campaign Funds. Without this deployed, in-app purchases fail with
+#     "Failed to send a request to the Edge Function".
 #
 # Requires a repo secret SUPABASE_ACCESS_TOKEN (Supabase Dashboard → Account →
 # Access Tokens). The project ref is public (it ships in the client), so it is
@@ -15,6 +20,8 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/resolve-turn/**'
+      - 'supabase/functions/fulfill-purchase/**'
+      - 'supabase/functions/_shared/**'
       - 'src/game/**'
       - 'scripts/build-edge-function.mjs'
       - '.github/workflows/deploy-functions.yml'
@@ -53,3 +60,9 @@ jobs:
           fi
           supabase functions deploy resolve-turn --project-ref "$PROJECT_REF"
           echo "✅ resolve-turn deployed"
+
+      - name: Deploy fulfill-purchase
+        run: |
+          set -euo pipefail
+          supabase functions deploy fulfill-purchase --project-ref "$PROJECT_REF"
+          echo "✅ fulfill-purchase deployed"
