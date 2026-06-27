@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CANDIDATE_MAP } from '../game/candidates';
 import { STATE_GROUPS } from '../game/config';
 import { groupDominanceProgress } from '../game/engine';
@@ -446,16 +446,9 @@ export function NativeGameHud({ timer, highlightedGroupId, onHighlightGroup }: N
   const [sheet, setSheet] = useState<NativeSheet>(null);
   const [profilePlayerId, setProfilePlayerId] = useState<string | null>(null);
 
-  // Start/stop background music when the game becomes active or ends.
-  const isGameActive = phase !== 'SETUP' && phase !== 'MENU' && phase !== 'GAME_OVER';
-  useEffect(() => {
-    if (isGameActive) {
-      AudioManager.play('music', true);
-    } else {
-      AudioManager.stop('music');
-    }
-    return () => { AudioManager.stop('music'); };
-  }, [isGameActive]);
+  // Background music is owned globally (started on app launch in App), so the
+  // in-game HUD no longer starts/stops it — it just plays continuously and is
+  // controlled via the Music dial in the options sheet.
 
   function openSheet(next: NativeSheet) {
     AudioManager.play('click');

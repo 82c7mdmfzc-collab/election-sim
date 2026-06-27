@@ -14,6 +14,7 @@ import { DailyChallenge } from './components/DailyChallenge';
 import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
+import { HomeAudioControls } from './components/MuteButton';
 import { ScreenTransition } from './components/ScreenTransition';
 import { isNativeRuntime } from './utils/platform';
 import { useGameStore } from './game/store';
@@ -83,6 +84,7 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
   const hasResumableGame = phase === 'PLANNING' || phase === 'RESOLUTION' || phase === 'ELECTION';
   return (
     <div className="home">
+      <HomeAudioControls />
       <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
         {signedIn ? (
           <>
@@ -209,6 +211,12 @@ function App() {
   const appOpenTracked = useRef(false);
 
   useEffect(() => { void initProfile(); }, [initProfile]);
+
+  // Background music plays from app launch (subject to the per-track mute/volume
+  // prefs). If the browser blocks autoplay before the first gesture, AudioManager
+  // queues the loop and starts it on the first tap/click. Continuous across the
+  // menu and gameplay; users silence it via the home-page sound dial.
+  useEffect(() => { AudioManager.startMusic(); }, []);
 
   useEffect(() => {
     setAnalyticsAccountState(signedIn);
