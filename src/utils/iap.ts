@@ -78,9 +78,27 @@ async function purchaseNative(platform: 'ios', sku: string): Promise<PurchaseRes
   const { data, error } = await supabase.functions.invoke('fulfill-purchase', {
     body: { platform, sku, receipt: jws },
   });
-  if (error) return { status: 'error', message: error.message };
+  if (error) return { status: 'error', message: await edgeErrorMessage(error) };
   const balance = (data as { balance?: number } | null)?.balance ?? null;
   return { status: 'fulfilled', balance };
+}
+
+/** Extract the real reason from a supabase-js FunctionsHttpError. On a non-2xx the
+ *  default `error.message` is the useless "Edge Function returned a non-2xx status
+ *  code" — the actual `{ error }` body is hidden behind `error.context` (a Response).
+ *  Pull it out so the Shop shows e.g. "purchase verification failed" instead. */
+async function edgeErrorMessage(error: unknown): Promise<string> {
+  const fallback = (error as { message?: string })?.message ?? 'Purchase could not be completed.';
+  const ctx = (error as { context?: unknown }).context;
+  if (ctx && typeof (ctx as Response).json === 'function') {
+    try {
+      const body = await (ctx as Response).clone().json();
+      if (body && typeof body.error === 'string') return body.error;
+    } catch {
+      /* body wasn't JSON — keep the fallback */
+    }
+  }
+  return fallback;
 }
 
 /** StoreKit's localized price strings (e.g. "£1.99") keyed by SKU, for display.
