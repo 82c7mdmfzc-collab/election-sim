@@ -36,8 +36,10 @@ jobs:
           # profiles first (rewards' RPCs update profiles.campaign_funds); lobbies is independent.
           # iap (purchases table + fulfill_purchase RPC) and ads (ad_rewards) both credit
           # profiles.campaign_funds, so they apply after profiles; moderation is additive.
-          # All are idempotent (create … if not exists / create or replace).
-          for f in profiles iap ads moderation lobbies rewards; do
+          # referrals MUST come after rewards (it adds an AFTER INSERT trigger on
+          # rewards' game_rewards table and alters profiles); notifications (device_tokens)
+          # is independent. All are idempotent (create … if not exists / create or replace).
+          for f in profiles iap ads moderation lobbies rewards referrals notifications; do
             echo "── applying supabase/$f.sql ──"
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f "supabase/$f.sql"
           done
