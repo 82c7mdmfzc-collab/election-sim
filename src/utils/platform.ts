@@ -13,6 +13,17 @@
 
 export type PlatformKind = 'web' | 'ios' | 'android' | 'unsupported';
 
+/**
+ * Build-time native platform, baked into native bundles only (the iOS Xcode build
+ * sets VITE_NATIVE_PLATFORM=ios; the web build leaves it unset). This is the
+ * authoritative signal inside a native runtime because the app's custom
+ * `userAgent` (tauri.conf.json) defeats UA sniffing — `navigator.userAgent` is
+ * "Elector/1.0", which matches neither /iphone/ nor /android/. Without this,
+ * platformKind() resolved to 'unsupported' on-device and both StoreKit billing
+ * and rewarded ads silently disabled themselves.
+ */
+const NATIVE_PLATFORM = (import.meta.env.VITE_NATIVE_PLATFORM as string | undefined) || '';
+
 /** True inside any Tauri native webview (iOS, Android, or desktop Tauri). */
 export function isNativeRuntime(): boolean {
   if (typeof window === 'undefined') return false;
@@ -33,6 +44,8 @@ export function isNativeRuntime(): boolean {
  * build too (e.g. to tune touch affordances for mobile Safari).
  */
 export function isIOS(): boolean {
+  // Native iOS bundle: authoritative, independent of the overridden UA.
+  if (NATIVE_PLATFORM === 'ios') return true;
   if (typeof navigator === 'undefined') return false;
   const ua = navigator.userAgent || '';
   const platform = navigator.platform || '';
@@ -44,6 +57,9 @@ export function isIOS(): boolean {
 export function platformKind(): PlatformKind {
   if (typeof window === 'undefined') return 'unsupported';
   if (!isNativeRuntime()) return 'web';
+  // Authoritative inside a native bundle — the custom userAgent defeats sniffing.
+  if (NATIVE_PLATFORM === 'ios') return 'ios';
+  if (NATIVE_PLATFORM === 'android') return 'android';
   const ua = navigator.userAgent || '';
   if (/android/i.test(ua)) return 'android';
   if (/iphone|ipad|ipod/i.test(ua)) return 'ios';

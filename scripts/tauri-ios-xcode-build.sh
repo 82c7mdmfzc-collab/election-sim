@@ -50,6 +50,10 @@ esac
 if [ "${ELECTOR_NO_NATIVE_ADS:-0}" != "1" ]; then
   export VITE_ENABLE_NATIVE_REWARDED_ADS=true
 fi
+# Authoritative platform signal baked into the iOS bundle. The app's custom
+# userAgent ("Elector/1.0") defeats UA sniffing, so platform.ts relies on this
+# to resolve platformKind()==='ios' / isIOS() — gates StoreKit billing AND ads.
+export VITE_NATIVE_PLATFORM=ios
 echo "Building frontend bundle for iOS ($configuration, native ads: ${VITE_ENABLE_NATIVE_REWARDED_ADS:-false})"
 npm --prefix "$repo_root" run build
 if [ ! -f "$repo_root/dist/index.html" ]; then
