@@ -12,7 +12,7 @@
  * Candidate affinities are keyed to StateGroupId / NationalGroupId.
  */
 
-import { maxRungsFor, STATE_GROUPS, NATIONAL_GROUPS } from './config';
+import { maxRungsFor, MEGASTATE_IDS, STATE_GROUPS, NATIONAL_GROUPS } from './config';
 import { CANDIDATES, type CandidateDef } from './candidates';
 import type { GameState, NatRungMap, NatReachSeq, PlayerState, RungMap, ReachSeq, US_State } from './types';
 
@@ -72,8 +72,15 @@ const RAW_STATES: Array<Omit<US_State, 'maxRungs'>> = [
   { id:'WY', name:'Wyoming',              electoralVotes:3,  baseCampaignCost:10  },
 ];
 
+// Balance pass: every state EXCEPT the four megastates (CA, FL, TX, NY) is 20%
+// cheaper per rung — the non-megastates were too strong for their price. The
+// megastates keep their full `baseCampaignCost`. Applied here at the single
+// source so the value flows to both the app and the vendored edge engine.
 export const ALL_STATES: readonly US_State[] = RAW_STATES.map((s) => ({
   ...s,
+  baseCampaignCost: MEGASTATE_IDS.has(s.id)
+    ? s.baseCampaignCost
+    : Math.round(s.baseCampaignCost * 0.8),
   maxRungs: maxRungsFor(s.id, s.electoralVotes),
 }));
 

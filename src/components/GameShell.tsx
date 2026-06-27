@@ -21,6 +21,7 @@ import { PhaseFooter } from './PhaseFooter';
 import { NativeGameHud } from './NativeGameHud';
 import { HandoffCurtain } from './HandoffCurtain';
 import { RoundResolution } from './RoundResolution';
+import { ElectionApproachBanner } from './ElectionApproachBanner';
 import { SecuredToast } from './SecuredToast';
 import { WaitingOnPlayers } from './WaitingOnPlayers';
 import { FirstGameplayTips } from './FirstGameplayTips';
@@ -119,6 +120,7 @@ export function GameShell() {
 
       <WaitingOnPlayers />
       <RoundResolution />
+      <ElectionApproachBanner />
       <SecuredToast />
       <HandoffCurtain />
       <FirstGameplayTips />

@@ -170,11 +170,9 @@ export function VictoryPodium() {
     reset();
   }
 
-  // Per-winner background art (slug derived from the candidate's portrait file)
-  // and the equipped victory-message cosmetic shown in the speech box.
-  const winnerCand = winner ? CANDIDATE_MAP[winner.candidateId] : null;
-  const victorySlug = winnerCand?.portraitUrl.split('/').pop()?.replace(/\.\w+$/, '') ?? '';
-  const victoryBg = victorySlug ? `/assets/victory/${victorySlug}.jpg` : '';
+  // The equipped victory-message cosmetic shown in the speech box. (The victory
+  // screen no longer paints a per-winner full-bleed preset photo — the themed
+  // gradient + portrait + confetti carry the moment on every candidate.)
   const victorySpeech = victoryMessageText(getSelectedVictoryMessage());
 
   // Rank players by EVs descending
@@ -217,18 +215,6 @@ export function VictoryPodium() {
 
   return (
     <div className={`victory-podium${native ? ' victory-podium--native' : ''}`}>
-      {/* Per-winner background art (hidden if the asset is absent → gradient shows) */}
-      {victoryBg && (
-        <img
-          className="victory-bg"
-          src={victoryBg}
-          alt=""
-          aria-hidden
-          draggable={false}
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
-      )}
-
       {/* Confetti layer */}
       <div className="confetti-layer" aria-hidden>
         {CONFETTI_PARTICLES.map((p, i) => (

@@ -197,6 +197,7 @@ function App() {
   const signedIn = useProfile(selectIsSignedIn);
   const userId = useProfile((s) => s.userId);
   const displayName = useProfile((s) => s.displayName);
+  const accountChecked = useProfile((s) => s.accountChecked);
   const startGame = useGameStore((s) => s.startGame);
   const [showAccount, setShowAccount] = useState(false);
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
@@ -324,8 +325,14 @@ function App() {
       />
     );
     screenKey = 'landing';
+  } else if (signedIn && !displayName && !accountChecked) {
+    // Signed in but the account fetch hasn't settled yet — hold the branded splash
+    // rather than flashing the username prompt at a user who already has a name.
+    screen = <div className="landing landing--splash"><BrandMark /></div>;
+    screenKey = 'splash';
   } else if (signedIn && !displayName) {
-    // One-time, mandatory username claim immediately after a new account signs in.
+    // One-time, mandatory username claim — only once we KNOW there's no username
+    // (accountChecked is true here), so this never flashes for existing accounts.
     screen = (
       <div className="landing">
         <BrandMark />

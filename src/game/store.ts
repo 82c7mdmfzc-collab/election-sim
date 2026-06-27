@@ -111,6 +111,10 @@ interface GameStore extends GameState {
   turnTimeLimit: number | null;
   turnDeadline: number | null;
   handoffAckKey: string | null;
+  /** True while a full-screen heads-up modal (the election-approaching banner) is
+   *  up; pauses the turn deadline like the hot-seat curtain. Transient, never
+   *  persisted, so a resumed game never boots with a stuck-paused timer. */
+  electionAlertOpen: boolean;
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   initOnlineGame(players: PlayerState[]): void;
@@ -173,6 +177,7 @@ interface GameStore extends GameState {
   setTurnTimeLimit(seconds: number | null): void;
   armTurnDeadline(now?: number): void;
   pauseTurnDeadline(): void;
+  setElectionAlertOpen(open: boolean): void;
   acknowledgeHandoff(now?: number): void;
 }
 
@@ -299,6 +304,7 @@ export const useGameStore = create<GameStore>()(
         turnTimeLimit: null,
         turnDeadline: null,
         handoffAckKey: null,
+        electionAlertOpen: false,
 
         // ── startGame ─────────────────────────────────────────────────────────
         startGame(chosen, turnTimeLimit, botSeats) {
@@ -940,6 +946,10 @@ export const useGameStore = create<GameStore>()(
           if (get().turnDeadline !== null) set({ turnDeadline: null });
         },
 
+        setElectionAlertOpen(open) {
+          if (get().electionAlertOpen !== open) set({ electionAlertOpen: open });
+        },
+
         acknowledgeHandoff(now = Date.now()) {
           const { turn, activePlayerIndex, phase, turnTimeLimit } = get();
           set({
@@ -958,6 +968,7 @@ export const useGameStore = create<GameStore>()(
             ([k]) =>
               k !== 'turnDeadline' &&
               k !== 'handoffAckKey' &&
+              k !== 'electionAlertOpen' &&
               k !== 'resolutionTickerDone' &&
               k !== 'hasSubmittedLocalTurn' &&
               k !== 'versusPending' &&

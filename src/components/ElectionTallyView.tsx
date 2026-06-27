@@ -7,14 +7,20 @@ import type { StateId } from '../game/types';
 // States sorted EV-ascending: small states first, megastates last (max dramatic tension)
 const TALLY_ORDER = [...ALL_STATES].sort((a, b) => a.electoralVotes - b.electoralVotes);
 
-const STATE_DURATION_MS = 1500;
+// Election-night pacing: the long tail of small states zips by, while the last
+// few megastates (TALLY_ORDER is EV-ascending) get a dramatic beat. The whole
+// sequence lands in ~8s — comfortably under the 10s cap — and the Skip button can
+// end it instantly. Inner offsets are derived as fractions of each slot.
+const SLOT_FAST_MS = 90;     // small / mid states
+const SLOT_DRAMA_MS = 560;   // the closing megastates
+const DRAMA_TAIL = 6;        // how many trailing (highest-EV) states get the slow beat
+const T_DONE_DELAY = 300;
+const T_COMPLETE_DELAY = 750;
 
-// ── Timing offsets within each 1500ms state slot ──────────────────────────────
-const T_FLASH = 750;
-const T_FLY = 1050;
-const T_ACCUM = 1200;
-const T_DONE_DELAY = 800;
-const T_COMPLETE_DELAY = 1400;
+/** Per-slot duration: fast for the tail of small states, slow for the finish. */
+function slotDurationFor(idx: number): number {
+  return TALLY_ORDER.length - idx <= DRAMA_TAIL ? SLOT_DRAMA_MS : SLOT_FAST_MS;
+}
 
 // ── useElectionTallySequence ──────────────────────────────────────────────────
 
@@ -37,6 +43,7 @@ function useElectionTallySequence() {
   const [revealedIds, setRevealedIds] = useState<Set<StateId>>(new Set());
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const completedRef = useRef(false);
 
   function clearTimers() {
     timersRef.current.forEach(clearTimeout);
@@ -47,6 +54,28 @@ function useElectionTallySequence() {
     const id = setTimeout(fn, delay);
     timersRef.current.push(id);
     return id;
+  }
+
+  // Fire completeTally EXACTLY once — whether reached via the natural timeline or
+  // the Skip button. Guards the victory screen against a missed/double transition.
+  function finish() {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    completeTally();
+  }
+
+  // Skip straight to the result: reveal every state, bank all EVs, end now.
+  function skip() {
+    clearTimers();
+    setRevealedIds(new Set(TALLY_ORDER.map((s) => s.id)));
+    const totals: Record<string, number> = Object.fromEntries(players.map((p) => [p.id, 0]));
+    for (const st of TALLY_ORDER) {
+      const w = electionResult?.stateLeaders?.[st.id];
+      if (w) totals[w] = (totals[w] ?? 0) + st.electoralVotes;
+    }
+    setAccumEVs(totals);
+    setIsDone(true);
+    finish();
   }
 
   // Reset per-card UI state when the active card changes (render-time
@@ -66,14 +95,16 @@ function useElectionTallySequence() {
     if (!state) return;
 
     clearTimers();
+    const dur = slotDurationFor(currentIdx);
+    const popMs = Math.min(350, Math.max(120, dur * 0.9));
 
-    // T+750ms — winner flash
-    addTimer(() => setShowFlash(true), T_FLASH);
+    // Winner flash
+    addTimer(() => setShowFlash(true), dur * 0.35);
 
-    // T+1050ms — EV chip flies up
-    addTimer(() => setShowFly(true), T_FLY);
+    // EV chip flies up
+    addTimer(() => setShowFly(true), dur * 0.55);
 
-    // T+1200ms — accumulate EVs + pop counter
+    // Accumulate EVs + pop counter + reveal on the map
     addTimer(() => {
       const winnerId = electionResult?.stateLeaders?.[state.id] ?? null;
       if (winnerId) {
@@ -82,16 +113,16 @@ function useElectionTallySequence() {
           [winnerId]: (prev[winnerId] ?? 0) + state.electoralVotes,
         }));
         setPoppingPlayer(winnerId);
-        addTimer(() => setPoppingPlayer(null), 350);
+        addTimer(() => setPoppingPlayer(null), popMs);
       }
       setRevealedIds((prev) => {
         const next = new Set(prev);
         next.add(state.id);
         return next;
       });
-    }, T_ACCUM);
+    }, dur * 0.7);
 
-    // T+1500ms — card exits and advance
+    // Card exits and advance to the next state
     addTimer(() => {
       setCardExiting(true);
       addTimer(() => {
@@ -101,16 +132,16 @@ function useElectionTallySequence() {
         } else {
           // Final state done
           addTimer(() => setIsDone(true), T_DONE_DELAY);
-          addTimer(() => completeTally(), T_COMPLETE_DELAY);
+          addTimer(finish, T_COMPLETE_DELAY);
         }
-      }, 200);
-    }, STATE_DURATION_MS);
+      }, Math.min(40, dur * 0.15));
+    }, dur);
 
     return clearTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx]);
 
-  return { currentIdx, cardVisible, cardExiting, showFlash, showFly, accumEVs, poppingPlayer, revealedIds };
+  return { currentIdx, cardVisible, cardExiting, showFlash, showFly, accumEVs, poppingPlayer, revealedIds, isDone, skip };
 }
 
 // ── TallyHud ──────────────────────────────────────────────────────────────────
@@ -263,6 +294,8 @@ export function ElectionTallyView() {
     accumEVs,
     poppingPlayer,
     revealedIds,
+    isDone,
+    skip,
   } = useElectionTallySequence();
 
   // Stable key on currentIdx so tally-card-in re-fires for each new state
@@ -277,6 +310,11 @@ export function ElectionTallyView() {
 
   return (
     <div className="tally-view">
+      {!isDone && (
+        <button type="button" className="tally-skip-btn" onClick={skip}>
+          Skip to results →
+        </button>
+      )}
       <TallyHud accumEVs={accumEVs} poppingPlayer={poppingPlayer} />
 
       <div className="tally-stage">

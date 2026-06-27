@@ -55,6 +55,7 @@ export function useTurnTimer(): TurnTimerState {
   const armTurnDeadline = useGameStore((s) => s.armTurnDeadline);
   const pauseTurnDeadline = useGameStore((s) => s.pauseTurnDeadline);
   const submitTurn = useGameStore((s) => s.submitTurn);
+  const electionAlertOpen = useGameStore((s) => s.electionAlertOpen);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -64,6 +65,11 @@ export function useTurnTimer(): TurnTimerState {
     activePlayerIndex > 0 &&
     handoffAckKey !== `${turn}:${activePlayerIndex}`;
 
+  // The clock freezes for either the hot-seat curtain OR a full-screen heads-up
+  // modal (the election-approaching banner) so neither bleeds the active player's
+  // planning time nor auto-submits behind a blocking overlay.
+  const shouldPause = curtainShowing || electionAlertOpen;
+
   // ── Arm / pause the deadline as the turn state changes ──────────────────────
   useEffect(() => {
     if (phase !== 'PLANNING' || turnTimeLimit == null) {
@@ -71,19 +77,19 @@ export function useTurnTimer(): TurnTimerState {
       if (turnDeadline !== null) pauseTurnDeadline();
       return;
     }
-    if (curtainShowing) {
+    if (shouldPause) {
       if (turnDeadline !== null) pauseTurnDeadline();
       return;
     }
-    // PLANNING, finite limit, curtain down: arm if not already armed. (After a
-    // "Ready" ack the deadline is already set, so this guard leaves it alone.)
+    // PLANNING, finite limit, nothing paused: arm if not already armed. (After a
+    // "Ready" ack or banner dismiss the deadline is re-armed full here.)
     if (turnDeadline == null) armTurnDeadline();
   }, [
     phase,
     turn,
     activePlayerIndex,
     turnTimeLimit,
-    curtainShowing,
+    shouldPause,
     turnDeadline,
     armTurnDeadline,
     pauseTurnDeadline,
@@ -132,8 +138,8 @@ export function useTurnTimer(): TurnTimerState {
 
   // ── Stop tick on pause, expiry, or phase change ───────────────────────────
   useEffect(() => {
-    if (!isActive || curtainShowing || remainingSec === 0) AudioManager.stop('tick');
-  }, [isActive, curtainShowing, remainingSec]);
+    if (!isActive || shouldPause || remainingSec === 0) AudioManager.stop('tick');
+  }, [isActive, shouldPause, remainingSec]);
 
   // ── Stop tick on unmount (component removed from tree) ────────────────────
   useEffect(() => () => AudioManager.stop('tick'), []);
@@ -142,7 +148,7 @@ export function useTurnTimer(): TurnTimerState {
     remainingSec,
     display: remainingSec == null ? null : formatClock(remainingSec),
     isUrgent: remainingSec != null && remainingSec < URGENT_THRESHOLD_SEC,
-    isPaused: isActive && curtainShowing,
+    isPaused: isActive && shouldPause,
     isActive,
   };
 }

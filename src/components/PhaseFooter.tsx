@@ -8,7 +8,7 @@
  *                income — the continue button is gated until the sequence ends.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
 import { ELECTION_START_TURN, STATE_GROUPS, electionProbability } from '../game/config';
 import { WIN_THRESHOLD } from '../game/engine';
@@ -86,6 +86,10 @@ export function ResolutionRecap({ className }: { className?: string }) {
   const lastIncome = useGameStore((s) => s.lastIncome);
   const report = useGameStore((s) => s.lastTurnReport);
   const confirmResolution = useGameStore((s) => s.confirmResolution);
+  const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const localPlayerId = useGameStore((s) => s.localPlayerId);
+  const hostPlayerId = useGameStore((s) => s.hostPlayerId);
+  const tickerDone = useGameStore((s) => s.resolutionTickerDone);
   const colors = usePlayerColors();
   const result = useElectoralResult();
   const dominance = useGameStore((s) => s.stateGroupDominance);
@@ -97,6 +101,36 @@ export function ResolutionRecap({ className }: { className?: string }) {
   ];
   const stage = useResolutionStage(clashes.length > 0);
   const ready = stage === 'done';
+
+  const isHostOrSingle = multiplayerMode === 'single' || localPlayerId === hostPlayerId;
+  // The recap is fully done only once BOTH the income-ticker animation (`ready`)
+  // AND the per-purchase feed (RoundResolution → resolutionTickerDone) have
+  // finished, so auto-advance never cuts content short in either layout.
+  const recapReady = ready && tickerDone;
+
+  const advancedRef = useRef(false);
+  const [showFallback, setShowFallback] = useState(false);
+
+  // Auto-advance: the next turn begins on its own — no "Start Turn" press. Host or
+  // single-player drives the transition; online guests get the synced phase change.
+  useEffect(() => {
+    if (!recapReady || !isHostOrSingle || advancedRef.current) return;
+    const t = window.setTimeout(() => {
+      advancedRef.current = true;
+      AudioManager.play('confirm');
+      confirmResolution();
+    }, 1300);
+    return () => clearTimeout(t);
+  }, [recapReady, isHostOrSingle, confirmResolution]);
+
+  // Stall safety net: if we're somehow still on the recap several seconds after the
+  // auto-advance should have fired (e.g. a failed online phase push), reveal a
+  // manual continue button so the game can never get wedged in RESOLUTION.
+  useEffect(() => {
+    if (!recapReady) return;
+    const t = window.setTimeout(() => setShowFallback(true), 6000);
+    return () => clearTimeout(t);
+  }, [recapReady]);
 
   useEffect(() => {
     if (stage === 'clash') AudioManager.play('clash');
@@ -157,7 +191,17 @@ export function ResolutionRecap({ className }: { className?: string }) {
             ? `Election chance: ${Math.round(electionChance * 100)}%`
             : `Election Night from Turn ${ELECTION_START_TURN}`}
         </span>
-        <HostOnlyResolutionButton ready={ready} turn={turn} onConfirm={confirmResolution} />
+        {showFallback ? (
+          <HostOnlyResolutionButton ready={ready} turn={turn} onConfirm={confirmResolution} />
+        ) : (
+          <span className="resolution__advance">
+            {!recapReady
+              ? 'Resolving…'
+              : isHostOrSingle
+                ? `Starting Turn ${turn + 1}…`
+                : 'Starting next round…'}
+          </span>
+        )}
       </div>
     </div>
   );
