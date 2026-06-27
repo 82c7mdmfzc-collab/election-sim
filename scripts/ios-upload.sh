@@ -80,7 +80,8 @@ rm -rf "$archive_path" "$export_path"
 # ELECTOR_NO_SYNC=1 prevents the Xcode build-phase script from re-syncing (we
 # already synced above, and a second pull could conflict with the bump commit).
 # project.yml defines configs as lowercase "release"/"debug" — match exactly.
-# CODE_SIGN_IDENTITY forces distribution signing so the archive is App Store-ready.
+# ios-prepare-gen.sh clears the hardcoded "iPhone Developer" identity in the pbxproj
+# so automatic signing can choose Apple Distribution for this archive operation.
 ELECTOR_NO_SYNC=1 xcodebuild archive \
   -project "$project" \
   -scheme "$scheme" \
@@ -93,7 +94,6 @@ ELECTOR_NO_SYNC=1 xcodebuild archive \
   -authenticationKeyIssuerID "$ISSUER" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   CODE_SIGN_STYLE=Automatic \
-  CODE_SIGN_IDENTITY="Apple Distribution" \
   2>&1 | grep -E 'error:|warning:.*error|Archive|Compiling|Linking|BUILD' | tail -20 || true
 
 if [ ! -d "$archive_path" ]; then

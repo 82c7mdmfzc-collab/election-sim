@@ -23,11 +23,16 @@ if [ -z "${pbxproj:-}" ] || [ ! -f "$pbxproj" ]; then
   exit 1
 fi
 
-# (1) + (2) build settings, applied directly to the pbxproj (works for both
+# (1) + (2) + (4) build settings, applied directly to the pbxproj (works for both
 #     `tauri ios build` and a direct Xcode archive).
 /usr/bin/sed -i '' 's/ENABLE_USER_SCRIPT_SANDBOXING = YES;/ENABLE_USER_SCRIPT_SANDBOXING = NO;/g' "$pbxproj"
 /usr/bin/sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14\.0;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' "$pbxproj"
-echo "Patched pbxproj: User Script Sandboxing off, iOS deployment target 15."
+# (4) Clear the hardcoded "iPhone Developer" signing identity so Xcode's automatic
+#     signing can choose Apple Development for device builds and Apple Distribution
+#     for archive/App Store builds. Without this, xcodebuild archive ignores -allowProvisioningUpdates
+#     and stays locked to the development certificate.
+/usr/bin/sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "";/g' "$pbxproj"
+echo "Patched pbxproj: User Script Sandboxing off, iOS deployment target 15, signing identity cleared."
 
 # (3) stage the privacy manifest next to the app target.
 cp "$repo_root/src-tauri/PrivacyInfo.xcprivacy" "$target_dir/PrivacyInfo.xcprivacy"
