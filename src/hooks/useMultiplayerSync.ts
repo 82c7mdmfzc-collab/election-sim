@@ -38,59 +38,81 @@ export function useMultiplayerSync() {
   useEffect(() => {
     if (!lobbyId) return;
 
-    const channel = supabase
-      .channel(`lobby:${lobbyId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'lobbies',
-          filter: `id=eq.${lobbyId}`,
-        },
-        (payload) => {
-          const remote = (payload.new as { game_state?: LobbyGameState }).game_state;
-          if (!remote) return;
+    // A dropped Realtime channel used to be logged and then left dead, so a guest
+    // could sit forever on "Waiting for others…" after a blip. We now auto-reconnect
+    // with backoff until the effect unmounts.
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let retry = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-          const isHost = localId === hostId;
+    const connect = () => {
+      if (cancelled) return;
+      channel = supabase
+        .channel(`lobby:${lobbyId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'lobbies',
+            filter: `id=eq.${lobbyId}`,
+          },
+          (payload) => {
+            const remote = (payload.new as { game_state?: LobbyGameState }).game_state;
+            if (!remote) return;
 
-          // ── Host path: detect all-submitted → resolve ──────────────────────
-          if (isHost && remote.phase === 'PLANNING') {
-            const active = remote.players.filter((p) => !p.eliminated);
-            const allIn  = active.every((p) => remote.submittedPlayers.includes(p.id));
-            const key    = `${remote.turn}:resolved`;
+            const isHost = localId === hostId;
 
-            if (allIn && resolvedForRef.current !== key) {
-              resolvedForRef.current = key;
-              void resolveHostTurn(lobbyId, (resolved) => syncFromPayload(resolved));
-            } else {
-              // Not everyone is in yet — mirror who's ready so the host's waiting
-              // list shows each guest flip to "Ready ✓" as their submission lands.
-              useGameStore.getState().mergeSubmittedFromRemote(remote.turn, remote.submittedPlayers);
+            // ── Host path: detect all-submitted → resolve ──────────────────────
+            if (isHost && remote.phase === 'PLANNING') {
+              const active = remote.players.filter((p) => !p.eliminated);
+              const allIn  = active.every((p) => remote.submittedPlayers.includes(p.id));
+              const key    = `${remote.turn}:resolved`;
+
+              if (allIn && resolvedForRef.current !== key) {
+                resolvedForRef.current = key;
+                void resolveHostTurn(lobbyId, (resolved) => syncFromPayload(resolved));
+              } else {
+                // Not everyone is in yet — mirror who's ready so the host's waiting
+                // list shows each guest flip to "Ready ✓" as their submission lands.
+                useGameStore.getState().mergeSubmittedFromRemote(remote.turn, remote.submittedPlayers);
+              }
+              return;
             }
-            return;
-          }
 
-          // ── All clients: apply phase transitions and new turns ─────────────
-          // Ignore stale PLANNING events from an already-seen turn, but still
-          // mirror the live "who's submitted" list so opponents flip from
-          // "Thinking…" to "Ready ✓" as their submissions land this turn.
-          if (remote.phase === 'PLANNING' && remote.turn <= currentTurn) {
-            useGameStore.getState().mergeSubmittedFromRemote(remote.turn, remote.submittedPlayers);
-            return;
-          }
+            // ── All clients: apply phase transitions and new turns ─────────────
+            // Ignore stale PLANNING events from an already-seen turn, but still
+            // mirror the live "who's submitted" list so opponents flip from
+            // "Thinking…" to "Ready ✓" as their submissions land this turn.
+            if (remote.phase === 'PLANNING' && remote.turn <= currentTurn) {
+              useGameStore.getState().mergeSubmittedFromRemote(remote.turn, remote.submittedPlayers);
+              return;
+            }
 
-          syncFromPayload(remote);
-        },
-      )
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.error(`[multiplayer] Realtime channel error for lobby ${lobbyId}`);
-        }
-      });
+            syncFromPayload(remote);
+          },
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') { retry = 0; return; }
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            if (cancelled) return;
+            console.error(`[multiplayer] Realtime ${status} for lobby ${lobbyId} — reconnecting`);
+            if (channel) { supabase.removeChannel(channel); channel = null; }
+            if (reconnectTimer) clearTimeout(reconnectTimer);
+            const delay = Math.min(800 * 2 ** retry, 8000);
+            retry += 1;
+            reconnectTimer = setTimeout(connect, delay);
+          }
+        });
+    };
+
+    connect();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (channel) supabase.removeChannel(channel);
     };
   // resolvedForRef is stable; omit to avoid unnecessary re-subscriptions.
   }, [lobbyId, localId, hostId, currentTurn, syncFromPayload]);

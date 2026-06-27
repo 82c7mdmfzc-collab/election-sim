@@ -35,6 +35,7 @@ interface PlayerHudCardProps {
   projectedEV: number;
   income: number;
   displayCash: number;
+  reserves: number;
   color?: ResolvedColor;
   borderId: string;
   walletOpen: boolean;
@@ -42,7 +43,7 @@ interface PlayerHudCardProps {
   onClickName: () => void;
 }
 
-function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displayCash, color, borderId, walletOpen, onToggleWallet, onClickName }: PlayerHudCardProps) {
+function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displayCash, reserves, color, borderId, walletOpen, onToggleWallet, onClickName }: PlayerHudCardProps) {
   const securedEV = useSecuredEVs(player.id);
   const portraitUrl = CANDIDATE_MAP[player.candidateId]?.portraitUrl ?? '';
   const fallback = player.name.slice(0, 2).toUpperCase();
@@ -110,6 +111,14 @@ function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displa
               {income > 0 ? '+' : ''}{income}k
             </span>
           )}
+          {reserves > 0 && (
+            <span
+              className="hud-card__reserves"
+              title="Coalition wallet reserves — extra cash this player can spend in those states"
+            >
+              +${reserves.toFixed(0)}k banked
+            </span>
+          )}
           <span className="hud-card__chev">{walletOpen ? '▴' : '▾'}</span>
         </button>
       </div>
@@ -146,6 +155,15 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
 
   const showIncome = phase === 'RESOLUTION';
   const openColor = openWallet ? colors[openWallet] : undefined;
+
+  // Coalition-wallet reserves per player (national cash is shown separately). This
+  // surfaces an opponent's hidden war chest: cash banked in group wallets they can
+  // still spend in those coalitions' states. Uses live working cash during planning.
+  const reservesFor = (p: PlayerState): number => {
+    const wallets =
+      (phase === 'PLANNING' ? workingCash[p.id]?.groupWallets : undefined) ?? p.groupWallets;
+    return Object.values(wallets ?? {}).reduce((a, b) => a + b, 0);
+  };
   const electionPct = Math.round(electionProbability(turn, hungColleges) * 100);
 
   const prevElectionPct = useRef(0);
@@ -217,6 +235,7 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
               projectedEV={result.evByPlayer[p.id] ?? 0}
               income={showIncome ? (lastIncome[p.id] ?? 0) : 0}
               displayCash={phase === 'PLANNING' ? (workingCash[p.id]?.nationalCash ?? p.nationalCash) : p.nationalCash}
+              reserves={reservesFor(p)}
               color={colors[p.id]}
               borderId={p.id === localPlayerId ? myBorder : 'classic'}
               walletOpen={openWallet === p.id}

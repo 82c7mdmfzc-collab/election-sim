@@ -48,25 +48,44 @@ async function invokeResolveTurn(
  * Returns true on success, false on failure so the caller can roll back its
  * optimistic "submitted" state and let the player retry.
  */
+const SUBMIT_TIMEOUT_MS = 12_000;
+const SUBMIT_TIMEOUT = Symbol('submit-timeout');
+
 export async function pushMySubmission(
   lobbyId: string,
   playerId: string,
   intents: PurchaseIntent[],
 ): Promise<boolean> {
-  const { error } = await supabase.functions.invoke('resolve-turn', {
-    body: {
-      lobbyId,
-      action: 'submitTurn',
-      playerId,
-      intents,
-    },
-  });
-  if (error) {
-    console.error('[multiplayer] submitTurn failed:', error);
+  // Race the invoke against a timeout so a hung network ALWAYS resolves this
+  // promise — otherwise the caller's optimistic "submitted" rollback never fires
+  // and the player is stuck on "Waiting for others…". The server merge is
+  // idempotent (submit_turn_pending SETS this player's pending and de-dupes the
+  // submitted list), so re-tapping Submit after a timeout can't double-apply.
+  try {
+    const invoke = supabase.functions.invoke('resolve-turn', {
+      body: { lobbyId, action: 'submitTurn', playerId, intents },
+    });
+    const timeout = new Promise<typeof SUBMIT_TIMEOUT>((resolve) =>
+      setTimeout(() => resolve(SUBMIT_TIMEOUT), SUBMIT_TIMEOUT_MS),
+    );
+    const result = await Promise.race([invoke, timeout]);
+
+    if (result === SUBMIT_TIMEOUT) {
+      console.error('[multiplayer] submitTurn timed out');
+      notifyError('Submitting is taking too long — check your connection and tap Submit again.');
+      return false;
+    }
+    if (result.error) {
+      console.error('[multiplayer] submitTurn failed:', result.error);
+      notifyError('Could not submit your turn. Check your connection and try again.');
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[multiplayer] submitTurn threw:', err);
     notifyError('Could not submit your turn. Check your connection and try again.');
     return false;
   }
-  return true;
 }
 
 /**

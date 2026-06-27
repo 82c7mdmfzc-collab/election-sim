@@ -96,6 +96,10 @@ interface ProfileStore {
   /** The account's permanent username, or null if signed-out / not yet claimed. */
   displayName: string | null;
   ready: boolean;
+  /** True once the signed-in account fetch has settled (success / fail / timeout).
+   *  Gates the one-time username prompt so it never flashes before we actually
+   *  know whether this account already has a username. */
+  accountChecked: boolean;
   /** The most recent award breakdown, for the victory-screen reveal. */
   lastReward: ProgressRewardBreakdown | null;
   /** Rewarded-ad quota for the signed-in account. Null until fetched. */
@@ -204,6 +208,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   guest: true,
   displayName: null,
   ready: false,
+  accountChecked: false,
   lastReward: null,
   adRewardStatus: null,
 
@@ -241,7 +246,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       // onAuthChange (INITIAL_SESSION, from that same storage) hydrates them in. A
       // genuinely signed-out user has no token and falls through to guest as before.
       if (!get().ready && !hasPersistedSession()) {
-        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, adRewardStatus: null });
+        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, accountChecked: true, adRewardStatus: null });
       }
     }
   },
@@ -564,22 +569,33 @@ async function hydrateForUser(
   set: (p: Partial<ProfileStore>) => void,
 ): Promise<void> {
   if (!user) {
-    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, adRewardStatus: null });
+    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, accountChecked: true, adRewardStatus: null });
     return;
   }
   // Mark signed-in and ready up front so the UI boots even if the account fetch
   // is slow; funds/stats/displayName fill in when it returns. A failed/hung fetch
   // leaves a default profile rather than trapping the app on the splash.
-  set({ userId: user.id, guest: false, ready: true, adRewardStatus: null });
+  // accountChecked is reset to false here (re-armed per account, e.g. after an
+  // account switch) and flipped true only once this account's fetch settles below,
+  // so the username prompt never flashes before we know the username state.
+  set({ userId: user.id, guest: false, ready: true, accountChecked: false, adRewardStatus: null });
   let account: Awaited<ReturnType<typeof fetchRemoteAccount>> = null;
   try {
-    account = await fetchRemoteAccount(user.id);
+    // Bound the fetch: on a black-holed network it must still settle so the
+    // accountChecked gate below releases — otherwise a signed-in user with no
+    // cached displayName would be trapped on the splash forever (the gate only
+    // flips true after this await).
+    account = await withTimeout(fetchRemoteAccount(user.id), 5000);
   } catch {
-    /* account fetch failed — keep the default profile, stay signed in */
+    /* account fetch failed or timed out — keep the default profile, stay signed in */
   }
+  // ALWAYS flip accountChecked, even on failure/timeout, so the username gate
+  // resolves: a real new account falls through to the (recoverable) claim screen,
+  // never the unrecoverable splash.
   set({
     displayName: account?.displayName ?? null,
     profile: account?.profile ?? freshProfile(),
+    accountChecked: true,
   });
 
   // If this account arrived via an invite link, record the referrer once. The

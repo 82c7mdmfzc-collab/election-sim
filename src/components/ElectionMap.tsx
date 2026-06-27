@@ -195,6 +195,54 @@ const StateGeo = memo(function StateGeo({
   );
 });
 
+// ── Per-state coalition-unlock progress pip ───────────────────────────────────
+// A tiny bar floated at the state's centroid showing the active player's progress
+// toward the rung threshold that makes this state COUNT toward its coalitions
+// (minRungsForDominance). Fills as you invest, flips to a check once reached. Only
+// rendered for unsecured states you've started building in, to avoid clutter.
+
+const StateProgressPip = memo(function StateProgressPip({
+  stateId, playerId, cx, cy,
+}: {
+  stateId: StateId;
+  playerId: string;
+  cx: number;
+  cy: number;
+}) {
+  const settled = useGameStore((s) => s.rungs[stateId]?.[playerId] ?? 0);
+  const securedById = useGameStore((s) => s.securedBy[stateId]);
+  const pendingRungs = usePendingRungs('state', stateId);
+
+  const usState = STATES_BY_ID.get(stateId);
+  if (!usState || securedById) return null;
+
+  const total = settled + pendingRungs;
+  if (total < 1) return null; // appears only once you've started investing here
+
+  const minR = minRungsForDominance(stateId, usState.electoralVotes);
+  const reached = total >= minR;
+  const pct = Math.max(0, Math.min(total / minR, 1));
+
+  const W = 16;
+  const H = 3;
+
+  return (
+    <g className="state-pip" transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
+      {reached ? (
+        <g className="state-pip__done">
+          <circle r={5} />
+          <path d="M -2.2 0.2 L -0.6 2 L 2.4 -2" />
+        </g>
+      ) : (
+        <g transform={`translate(${-W / 2}, ${-H / 2})`}>
+          <rect className="state-pip__bg" width={W} height={H} rx={1.5} />
+          <rect className="state-pip__fill" width={W * pct} height={H} rx={1.5} />
+        </g>
+      )}
+    </g>
+  );
+});
+
 // ── State hover / action card ─────────────────────────────────────────────────
 
 /** Device safe-area insets (notch / home indicator), measured from a probe. */
@@ -600,12 +648,14 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
             onMoveEnd={handleMoveEnd}
           >
             <Geographies geography={usAtlas as Record<string, unknown>}>
-              {({ geographies }) =>
-                geographies.map((geo) => {
+              {({ geographies, path }) => {
+                const stateNodes: React.ReactNode[] = [];
+                const pipNodes: React.ReactNode[] = [];
+                for (const geo of geographies) {
                   const fips = String((geo as Record<string, unknown>).id ?? '').padStart(2, '0');
                   const stateId = FIPS_TO_STATE[fips];
-                  if (!stateId) return null;
-                  return (
+                  if (!stateId) continue;
+                  stateNodes.push(
                     <StateGeo
                       key={String((geo as Record<string, unknown>).rsmKey ?? fips)}
                       geo={geo}
@@ -621,10 +671,27 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
                       isGroupHighlighted={!!highlightedStateIds?.has(stateId)}
                       isGroupDimmed={!!highlightedStateIds && !highlightedStateIds.has(stateId)}
                       isSelected={pinned?.stateId === stateId}
-                    />
+                    />,
                   );
-                })
-              }
+                  // Coalition-unlock progress pips: only while planning, drawn after
+                  // every state path so they're never hidden behind a neighbour.
+                  if (isInteractive && activePlayer) {
+                    const [cx, cy] = path.centroid(geo);
+                    if (Number.isFinite(cx) && Number.isFinite(cy)) {
+                      pipNodes.push(
+                        <StateProgressPip
+                          key={`pip-${stateId}`}
+                          stateId={stateId}
+                          playerId={activePlayer.id}
+                          cx={cx}
+                          cy={cy}
+                        />,
+                      );
+                    }
+                  }
+                }
+                return [...stateNodes, ...pipNodes];
+              }}
             </Geographies>
           </ZoomableGroup>
         </ComposableMap>

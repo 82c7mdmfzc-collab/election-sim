@@ -51,7 +51,17 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
   const displayNational = phase === 'PLANNING'
     ? (workingCash?.nationalCash ?? player?.nationalCash ?? 0)
     : (player?.nationalCash ?? 0);
+  // War Chest = spend-anywhere national cash PLUS every coalition reserve below,
+  // so the headline reflects the player's true total spending power (not just
+  // national, which read as misleadingly low while wallets held large reserves).
+  const groupReserves = STATE_GROUPS.reduce((sum, g) => {
+    const bal = phase === 'PLANNING'
+      ? (workingCash?.groupWallets[g.id] ?? player?.groupWallets[g.id] ?? 0)
+      : (player?.groupWallets[g.id] ?? 0);
+    return sum + bal;
+  }, 0);
   const animatedNational = useAnimatedNumber(displayNational);
+  const animatedWarChest = useAnimatedNumber(displayNational + groupReserves);
 
   if (!player) return null;
 
@@ -60,7 +70,8 @@ export function WalletDrawer({ playerId, color, onClose }: WalletDrawerProps) {
       <div className="wallet-drawer__head">
         <span className="wallet-drawer__title">{player.name} — Coalition Reserves</span>
         <span className="wallet-drawer__total">
-          War Chest ${animatedNational.toFixed(0)}k
+          War Chest ${animatedWarChest.toFixed(0)}k
+          <span className="wallet-drawer__total-sub"> · ${animatedNational.toFixed(0)}k national</span>
         </span>
         <button type="button" className="wallet-drawer__close" onClick={() => { AudioManager.play('click'); onClose(); }}>×</button>
       </div>
