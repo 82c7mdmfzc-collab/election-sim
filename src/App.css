@@ -3864,14 +3864,16 @@ html.native .shop {
   padding: 0.15rem 0.6rem; font-size: 0.65rem; font-weight: 700; white-space: nowrap;
   background: var(--brand); color: #fff6ea; border-radius: 999px;
 }
+/* Coin art is normalized to a uniform 384px square canvas, so a fixed square box
+   + object-fit renders every pack at the same size. */
 .funds-card__img {
-  height: 88px; width: auto; max-width: 100%; object-fit: contain;
+  width: 150px; height: 150px; max-width: 100%; object-fit: contain;
   margin-top: 0.2rem; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
 }
 /* Shown in place of .funds-card__img when a pack's coin art is missing/fails to
    load (see CoinArt in Shop.tsx) — keeps the card from rendering blank. */
 .funds-card__coin-fallback {
-  width: 72px; height: 72px; margin-top: 0.2rem;
+  width: 150px; height: 150px; margin-top: 0.2rem;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.35));
 }
 .funds-card__amount {
@@ -4798,13 +4800,13 @@ html.native .funds-card__buy { margin-top: auto; padding: 0.45rem 0; } /* pin CT
 html.native .shop-card__portrait,
 html.native .shop-card .portrait-fallback { width: 52px; height: 52px; }
 html.native .shop-card .mod-sheet { font-size: 0.68rem; }
-html.native .funds-card__img { height: clamp(32px, 9dvh, 52px); margin-top: 0; }
-html.native .funds-card__coin-fallback { width: 48px; height: 48px; margin-top: 0; }
-/* Short landscape (phones, ~≤430px tall): the coin pack art is decorative and the
-   $0.99/$19.99 packs ship without it — drop it so amount + price + CTA always fit
-   and every card stays uniform. iPad (tall) keeps the art. */
+html.native .funds-card__img,
+html.native .funds-card__coin-fallback { width: 120px; height: 120px; margin-top: 0; }
+/* Short landscape (phones): smaller box so the bigger art still leaves room for
+   amount + price + CTA. iPad (tall) keeps the larger size above. */
 @media (max-height: 500px) {
-  html.native .funds-card__img { display: block; height: clamp(24px, 7dvh, 38px); }
+  html.native .funds-card__img,
+  html.native .funds-card__coin-fallback { display: block; width: 96px; height: 96px; }
 }
 /* Cosmetics and Earn stack multiple sections, so unlike the single-row rails they
    need to scroll vertically rather than clip inside the fixed-height pane. */
