@@ -32,8 +32,10 @@ const MANIFEST: Record<string, string> = {
   music:             '/sounds/music.mp3',
 };
 
+// The looping background-music track id.
+const MUSIC_TRACK = 'music';
 // Sound IDs treated as background music (looped); everything else is SFX.
-const MUSIC_IDS = new Set(['music']);
+const MUSIC_IDS = new Set([MUSIC_TRACK]);
 
 // Each discrete sound effect maps to a haptic, so every existing
 // AudioManager.play() call site also produces tactile feedback on supported
@@ -66,6 +68,10 @@ class _AudioManager {
   private musicMuted = false;
   private sfxVolume = 0.8;   // 0–1
   private musicVolume = 0.6; // 0–1
+  // Desired background-music state. The looping track is reconciled against this
+  // flag (plus the mute/volume gates) by _syncMusic(), so unmuting or raising the
+  // volume from zero resumes playback instead of leaving it silently stopped.
+  private musicWanted = false;
 
   init(): void {
     for (const [id, path] of Object.entries(MANIFEST)) {
@@ -113,6 +119,8 @@ class _AudioManager {
     if (muted) {
       for (const id of [...this.looping.keys()]) this.stop(id);
     }
+    // Resume background music when global mute is lifted (if it's still wanted).
+    this._syncMusic();
   }
 
   isMuted(): boolean {
@@ -134,22 +142,60 @@ class _AudioManager {
 
   setMusicMuted(v: boolean): void {
     this.musicMuted = v;
-    if (v) {
-      for (const id of [...this.looping.keys()]) {
-        if (MUSIC_IDS.has(id)) this.stop(id);
-      }
-    }
+    // Pause when muted, resume when unmuted — reconciled against the wanted flag.
+    this._syncMusic();
   }
 
   isMusicMuted(): boolean {
     return this.musicMuted;
   }
 
-  /** Set music volume 0–1. Applies immediately to any playing loop. Does NOT change the muted flag. */
+  /** Set music volume 0–1. Applies immediately and starts/stops the loop at the 0 boundary. Does NOT change the muted flag. */
   setMusicVolume(v: number): void {
     this.musicVolume = Math.max(0, Math.min(1, v));
-    for (const [id, node] of this.looping.entries()) {
-      if (MUSIC_IDS.has(id)) node.volume = this.musicVolume;
+    // Applies the new volume to a live loop, and starts/stops it when crossing 0.
+    this._syncMusic();
+  }
+
+  /**
+   * Request background music to play. Idempotent: safe to call on every app
+   * mount. Honors the mute/volume gates and the browser autoplay policy (the
+   * loop is queued and retried on first user interaction if autoplay is blocked).
+   */
+  startMusic(): void {
+    this.musicWanted = true;
+    this._syncMusic();
+  }
+
+  /** Stop background music and clear the wanted flag so it won't auto-resume. */
+  stopMusic(): void {
+    this.musicWanted = false;
+    this.stop(MUSIC_TRACK);
+  }
+
+  /**
+   * Reconcile the looping music track against the desired state. Resumes from the
+   * current position rather than restarting, applies the live volume, and queues
+   * for autoplay-unlock retry if the browser blocks playback.
+   */
+  private _syncMusic(): void {
+    const node = this.sounds.get(MUSIC_TRACK);
+    if (!node) return;
+    const shouldPlay =
+      this.musicWanted && !this.muted && !this.musicMuted && this.musicVolume > 0;
+    if (shouldPlay) {
+      node.loop = true;
+      node.volume = this.musicVolume;
+      if (!this.looping.has(MUSIC_TRACK)) {
+        node.play().catch(() => { this.pendingLoops.add(MUSIC_TRACK); });
+        this.looping.set(MUSIC_TRACK, node);
+      }
+    } else {
+      this.pendingLoops.delete(MUSIC_TRACK);
+      if (this.looping.has(MUSIC_TRACK)) {
+        node.pause();
+        this.looping.delete(MUSIC_TRACK);
+      }
     }
   }
 

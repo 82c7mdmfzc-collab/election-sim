@@ -119,6 +119,40 @@ export function MusicVolumeBar() {
   );
 }
 
+/**
+ * HomeAudioControls — the home-page sound dial. A speaker button that toggles a
+ * small panel holding the SFX + Music volume bars. Available on both web and
+ * native so background music can be tuned or silenced from the main menu.
+ */
+export function HomeAudioControls() {
+  const [open, setOpen] = useState(false);
+  const allMuted = isSfxMuted() && isMusicMuted();
+
+  return (
+    <div className={`home-audio${open ? ' home-audio--open' : ''}`} data-sfx="none">
+      <button
+        type="button"
+        className="home-audio__toggle"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Sound settings"
+        aria-expanded={open}
+        title="Sound"
+      >
+        {allMuted ? <VolumeOffIcon size={20} /> : <VolumeOnIcon size={20} />}
+      </button>
+      {open && (
+        <>
+          <div className="home-audio__scrim" onClick={() => setOpen(false)} aria-hidden />
+          <div className="home-audio__panel" role="dialog" aria-label="Sound settings">
+            <SfxVolumeBar />
+            <MusicVolumeBar />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /** Legacy global mute — kept so web HeaderHud still compiles. */
 export function MuteButton() {
   const [muted, setMutedState] = useState<boolean>(() => isMuted());
