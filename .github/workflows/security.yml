@@ -10,13 +10,21 @@ on:
 jobs:
   security:
     runs-on: ubuntu-latest
+    # The review needs an Anthropic API key. Map the secret to an env var (secrets
+    # can't be referenced in `if:` directly) so the review step is SKIPPED rather
+    # than FAILED when the key isn't configured — otherwise the action exits 1 and
+    # reds-out every PR. Add a CLAUDE_API_KEY repo secret to auto-enable the review.
+    env:
+      CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
 
-      - uses: anthropics/claude-code-security-review@main
+      - name: Run Claude Code security review (skipped if no API key)
+        if: ${{ env.CLAUDE_API_KEY != '' }}
+        uses: anthropics/claude-code-security-review@main
         with:
           comment-pr: true
-          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          claude-api-key: ${{ env.CLAUDE_API_KEY }}
