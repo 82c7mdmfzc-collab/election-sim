@@ -4023,6 +4023,12 @@ html.native .shop {
 }
 .shop-card__name { display: block; font-weight: 800; font-size: 1.05rem; }
 .shop-card__tag { display: block; color: var(--muted); font-size: 0.76rem; }
+.shop-card__income {
+  display: inline-block; margin-top: 0.3rem;
+  padding: 0.1rem 0.45rem; border-radius: var(--r-pill);
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.02em;
+  color: #11240f; background: linear-gradient(180deg, #46d27e, #1fa85b);
+}
 .shop-card__cash { font-size: 0.78rem; color: var(--muted); }
 .shop-card__foot { margin-top: auto; }
 .shop-card__unlock {
@@ -4065,7 +4071,11 @@ button.shop-card {
    .native-select spotlight rules (still used by Daily Challenge + Multiplayer). */
 .cand-select-body { display: flex; flex-direction: column; gap: 0.6rem; min-height: 0; }
 .cand-select-body__hint { margin: 0; }
-html.native .cand-select-body { min-height: 0; }
+/* Mirror the Shop's known-good Recruit pane (.shop__pane.is-active): a height-capped
+   flex column whose overflow is clipped, so the inner .shop__grid.shop-rail resolves
+   .shop-card{max-height:100%} against a real height and scrolls horizontally instead
+   of overflowing the fixed-height native screen. */
+html.native .cand-select-body { min-height: 0; height: 100%; overflow: hidden; }
 
 /* ══ State Group Bar ═══════════════════════════════════════════════════════ */
 
@@ -4438,6 +4448,11 @@ html.native .cand-select-body { min-height: 0; }
 .cand-stats-modal__meta {
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
   margin-top: 0.35rem; font-size: 0.78rem; color: var(--green); font-weight: 600;
+}
+.cand-stats-modal__income {
+  padding: 0.05rem 0.4rem; border-radius: var(--r-pill);
+  font-weight: 800; color: #11240f;
+  background: linear-gradient(180deg, #46d27e, #1fa85b);
 }
 .cand-stats-modal__cta { margin-top: 0.2rem; }
 .cand-stats-modal__subtext {

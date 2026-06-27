@@ -60,6 +60,9 @@ export function CandidateStatsModal({
             <div className="cand-stats-modal__meta">
               <PartyBadge party={candidate.party} />
               <span>${candidate.startingCash}k starting cash</span>
+              {candidate.roundIncome ? (
+                <span className="cand-stats-modal__income">+${candidate.roundIncome}k / round</span>
+              ) : null}
             </div>
           </div>
           <button
