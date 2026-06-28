@@ -373,15 +373,15 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     setCosmeticBusy(c.id);
     setCosmeticMsg(null);
     AudioManager.play('click');
-    const ok = await unlockCosmetic(c.id);
-    if (ok) {
+    const result = await unlockCosmetic(c.id);
+    if (result.ok) {
       AudioManager.play('victory');
       setSelectedShareFrame(c.id);
       setEquippedFrame(c.id);
       setCosmeticMsg(`Unlocked ${c.name} — equipped.`);
       track('cosmetic_unlocked', { cosmetic_id: c.id, category: c.category, price_funds: c.unlockCost });
     } else {
-      setCosmeticMsg('Could not unlock — please try again.');
+      setCosmeticMsg(result.message);
     }
     setCosmeticBusy(null);
   }
@@ -396,15 +396,15 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     setCosmeticBusy(m.id);
     setCosmeticMsg(null);
     AudioManager.play('click');
-    const ok = await unlockCosmetic(m.id);
-    if (ok) {
+    const result = await unlockCosmetic(m.id);
+    if (result.ok) {
       AudioManager.play('victory');
       setSelectedVictoryMessage(m.id);
       setEquippedVM(m.id);
       setCosmeticMsg(`Unlocked ${m.label} — equipped.`);
       track('cosmetic_unlocked', { cosmetic_id: m.id, category: 'victory_message', price_funds: m.unlockCost });
     } else {
-      setCosmeticMsg('Could not unlock — please try again.');
+      setCosmeticMsg(result.message);
     }
     setCosmeticBusy(null);
   }

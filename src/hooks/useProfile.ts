@@ -31,6 +31,7 @@ import {
   unlockCosmeticRemote,
   deleteAccountRemote,
   type AdRewardClaimRemote,
+  type UnlockRemoteErrorReason,
 } from '../game/profile';
 import type { AdRewardStatus } from '../utils/rewardedAds';
 import { computeReward, type RewardBreakdown } from '../game/rewards';
@@ -117,7 +118,7 @@ interface ProfileStore {
   /** Server-validated FREE claim (account-only; server owns the "free now" rule). */
   claimFreeCharacter(characterId: string): Promise<boolean>;
   /** Server-validated cosmetic unlock (account-only; server owns the price). */
-  unlockCosmetic(cosmeticId: string): Promise<boolean>;
+  unlockCosmetic(cosmeticId: string): Promise<CosmeticUnlockResult>;
   isUnlocked(characterId: string): boolean;
   sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
   verifyEmailCode(email: string, code: string): Promise<{ error?: string }>;
@@ -136,6 +137,10 @@ export type AdRewardClaimResult =
   | { status: 'limit'; adStatus: AdRewardStatus }
   | { status: 'auth_required' }
   | { status: 'error'; message: string };
+
+export type CosmeticUnlockResult =
+  | { ok: true }
+  | { ok: false; reason: UnlockRemoteErrorReason; message: string };
 
 /**
  * A fresh copy of the default profile.
@@ -436,15 +441,17 @@ export const useProfile = create<ProfileStore>((set, get) => ({
 
   async unlockCosmetic(cosmeticId) {
     const { profile, userId } = get();
-    if (profile.unlockedCharacters.includes(`cosmetic:${cosmeticId}`)) return true;
-    if (!userId) return false; // unlocks are account-only
-
-    const updated = await unlockCosmeticRemote(cosmeticId);
-    if (updated) {
-      set({ profile: updated });
-      return true;
+    if (profile.unlockedCharacters.includes(`cosmetic:${cosmeticId}`)) return { ok: true };
+    if (!userId) {
+      return { ok: false, reason: 'auth', message: 'Sign in to unlock cosmetics.' };
     }
-    return false;
+
+    const result = await unlockCosmeticRemote(cosmeticId);
+    if (result.ok) {
+      set({ profile: result.profile });
+      return { ok: true };
+    }
+    return result;
   },
 
   isUnlocked(characterId) {

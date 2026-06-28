@@ -344,6 +344,41 @@ export async function unlockCharacterRemote(characterId: string): Promise<Profil
   return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
 }
 
+export type UnlockRemoteErrorReason =
+  | 'not_configured'
+  | 'missing_function'
+  | 'auth'
+  | 'insufficient_funds'
+  | 'unknown_item'
+  | 'unknown';
+
+export type UnlockCosmeticRemoteResult =
+  | { ok: true; profile: Profile }
+  | { ok: false; reason: UnlockRemoteErrorReason; message: string };
+
+function classifyUnlockRpcError(error: unknown, fallback = 'Could not unlock cosmetic.'): { reason: UnlockRemoteErrorReason; message: string } {
+  const rawMessage = (error as { message?: string })?.message ?? fallback;
+  const code = String((error as { code?: string })?.code ?? '');
+  const message = rawMessage.toLowerCase();
+
+  if (code === 'PGRST202' || code === '42883' || message.includes('could not find the function') || message.includes('does not exist')) {
+    return {
+      reason: 'missing_function',
+      message: 'Cosmetic purchases need the latest database update. Apply supabase/cosmetics.sql, then try again.',
+    };
+  }
+  if (message.includes('insufficient funds')) {
+    return { reason: 'insufficient_funds', message: 'Not enough Campaign Funds for this cosmetic.' };
+  }
+  if (message.includes('no profile') || message.includes('permission denied') || message.includes('jwt') || message.includes('auth')) {
+    return { reason: 'auth', message: 'Sign in again, then try unlocking this cosmetic.' };
+  }
+  if (message.includes('unknown cosmetic')) {
+    return { reason: 'unknown_item', message: 'This cosmetic is not available to purchase yet.' };
+  }
+  return { reason: 'unknown', message: rawMessage || fallback };
+}
+
 /** Server-validated FREE claim (server owns the "free right now" rule — e.g. George
  *  Washington in July). Grants the character for 0 funds. Returns updated profile.
  *  See claim_free_character in supabase/profiles.sql + isCandidateFreeClaimAvailable. */
@@ -359,14 +394,19 @@ export async function claimFreeCharacterRemote(characterId: string): Promise<Pro
 
 /** Server-validated cosmetic unlock (server owns the price; stores a `cosmetic:<id>`
  *  token in unlocked_characters). Returns the updated profile. See supabase/cosmetics.sql. */
-export async function unlockCosmeticRemote(cosmeticId: string): Promise<Profile | null> {
-  if (!isSupabaseConfigured) return null;
+export async function unlockCosmeticRemote(cosmeticId: string): Promise<UnlockCosmeticRemoteResult> {
+  if (!isSupabaseConfigured) {
+    return { ok: false, reason: 'not_configured', message: 'Cosmetic purchases are not configured in this build.' };
+  }
   const { data, error } = await supabase.rpc('unlock_cosmetic', { p_cosmetic: cosmeticId });
   if (error) {
     console.warn('unlockCosmeticRemote failed:', error.message);
-    return null;
+    return { ok: false, ...classifyUnlockRpcError(error) };
   }
-  return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
+  if (!data) {
+    return { ok: false, reason: 'unknown', message: 'Could not unlock cosmetic. Please try again.' };
+  }
+  return { ok: true, profile: rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) };
 }
 
 // ── Daily Challenge cross-device sync (see supabase/daily.sql) ─────────────────

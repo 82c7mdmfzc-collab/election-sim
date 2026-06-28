@@ -10,4 +10,8 @@
 \ir profiles.sql
 \ir lobbies.sql
 \ir rewards.sql
+\ir cosmetics.sql
+\ir iap.sql
+\ir ads.sql
+\ir daily.sql
 \ir referrals.sql
