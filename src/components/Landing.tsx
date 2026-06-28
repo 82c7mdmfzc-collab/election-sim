@@ -6,6 +6,7 @@
 import { BrandMark } from './BrandMark';
 import { SignInButtons } from './SignInButtons';
 import { RotatingTip } from './RotatingTip';
+import { HomeAudioControls } from './MuteButton';
 import { CANDIDATES } from '../game/candidates';
 import { isNativeRuntime } from '../utils/platform';
 
@@ -26,6 +27,7 @@ export function Landing({ onContinueAsGuest, primaryLabel = 'Start Solo' }: Land
   const native = isNativeRuntime();
   return (
     <div className="landing">
+      <HomeAudioControls />
       <BrandMark />
 
       <div className="landing__hero">

@@ -337,6 +337,7 @@ function App() {
     // (accountChecked is true here), so this never flashes for existing accounts.
     screen = (
       <div className="landing">
+        <HomeAudioControls />
         <BrandMark />
         <div className="landing__card">
           <h2 className="landing__title">Choose your username</h2>

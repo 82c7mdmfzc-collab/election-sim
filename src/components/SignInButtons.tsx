@@ -5,8 +5,9 @@
  * Passwordless with two clear modes:
  *   • Sign In       — rejects an unknown email (prompts to create instead)
  *   • Create Account — makes a new account
- * Web OAuth is available where configured. Native iOS uses the email-code path
- * until OAuth deep links are wired, which avoids broken app-return flows.
+ * Apple, Google, and email-code sign-in are offered on both web and native iOS.
+ * Native OAuth opens the provider in an in-app browser and returns through the
+ * com.playelector.app:// deep link (see utils/nativeAuthCallback).
  */
 
 import { useEffect, useState } from 'react';

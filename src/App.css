@@ -3097,8 +3097,11 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 
 /* ── Home sound dial ───────────────────────────────────────────────────────── */
 /* `.home > .home-audio` (not a bare `.home-audio`) so it outranks the later
-   `.home > * { position: relative }` rule and stays pinned to the corner. */
-.home > .home-audio {
+   `.home > * { position: relative }` rule and stays pinned to the corner.
+   `.landing > .home-audio` pins the same dial on the signed-out login screen and
+   the username-claim screen, where background music also plays. */
+.home > .home-audio,
+.landing > .home-audio {
   position: absolute;
   top: calc(1rem + env(safe-area-inset-top));
   left: calc(1rem + env(safe-area-inset-left));
