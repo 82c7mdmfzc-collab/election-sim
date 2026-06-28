@@ -1,28 +1,25 @@
 # Elector Analytics
 
-Elector uses PostHog for free product analytics. Analytics is fail-closed: if
-`VITE_POSTHOG_KEY` is missing, no analytics client is initialized and every
-`track()` call is a no-op.
+Elector uses PostHog for product analytics. Analytics is fail-closed: if `VITE_POSTHOG_KEY` is missing, no analytics client is initialized and every `track()` call is a no-op.
 
 ## Setup
 
-1. Create a PostHog project in EU cloud.
-2. Add these production env vars:
-   - `VITE_POSTHOG_KEY`
-   - `VITE_POSTHOG_HOST=https://eu.i.posthog.com`
-   - `VITE_APP_VERSION=1.0.0`
-3. Open the app and confirm `app_opened` appears in PostHog Live Events.
+Production env vars:
 
-## Privacy Defaults
+- `VITE_POSTHOG_KEY`
+- `VITE_POSTHOG_HOST=https://eu.i.posthog.com`
+- `VITE_APP_VERSION=1.0.0`
+
+PostHog defaults in `src/utils/analytics.ts`:
 
 - Manual events only.
-- Autocapture is off.
-- Session replay is off.
-- Pageview and pageleave capture are off.
-- Persistence is memory-only.
-- Person profiles are created only after account identification.
-- Do not send email, username, room code, lobby ID, invite link, referral code,
-  raw URL, raw error text, or detailed board click streams.
+- Autocapture off.
+- Session recording off.
+- Pageview/pageleave off.
+- Memory-only persistence.
+- Person profiles only after account identification.
+
+Do not send email, username, room code, lobby id, invite link, referral code, raw URL, raw error text, or detailed board click streams.
 
 ## Super Properties
 
@@ -39,91 +36,111 @@ Every event includes:
 
 Onboarding:
 
-- `app_opened`: `entry_surface`, `has_saved_session`
-- `tutorial_started`: `source`, `step_count`
-- `tutorial_completed`: `source`, `step_count`
-- `tutorial_skipped`: `source`, `step_index`, `step_count`
-- `coach_dismissed`: `turn_number`, `coach_title`
+- `app_opened`
+- `tutorial_started`
+- `tutorial_completed`
+- `tutorial_skipped`
+- `coach_dismissed`
 
-Core loop:
+Game loop:
 
-- `game_started`: `game_id`, `game_mode`, `candidate_id`, `opponent_count`,
-  `player_count`, `bot_count`, `difficulty`, `turn_timer_seconds`
-- `game_finished`: `game_id`, `game_mode`, `result`, `candidate_id`,
-  `final_ev_self`, `final_ev_winner`, `duration_seconds`, `turn_number`,
-  `secured_states`, `state_groups_dominated`, `national_groups_led`,
-  `national_groups_earning`, `bot_difficulty`, `opponent_count`
-- `game_abandoned`: `game_id`, `game_mode`, `phase`, `turn_number`,
-  `duration_seconds`, `reason`
+- `game_started`
+- `game_finished`
+- `game_abandoned`
 
 Account:
 
-- `account_prompt_opened`: `trigger`
-- `auth_started`: `method`, `mode`
-- `auth_completed`: `method`, `mode`
-- `auth_failed`: `method`, `mode`, `reason_category`
+- `account_prompt_opened`
+- `auth_started`
+- `auth_completed`
+- `auth_failed`
 
-Economy and shop:
+Economy and store:
 
-- `shop_opened`: `source`, `platform`, `native_billing_available`
-- `checkout_started`: `product_id`, `product_type`, `value_usd`, `platform`
-- `checkout_result`: `product_id`, `product_type`, `status`,
-  `reason_category`, `value_usd`, `platform`
-- `item_unlocked`: `item_id`, `item_type`, `price_funds`
-- `funds_earned`: `amount`, `source`, `claimed`, `game_mode`
-- `achievement_claimed`: `achievement_id`, `achievement_tree`, `reward_amount`
+- `shop_opened`
+- `checkout_started`
+- `checkout_result`
+- `item_unlocked`
+- `funds_earned`
+- `achievement_claimed`
+
+Daily:
+
+- `daily_challenge_opened`
+- `daily_challenge_started`
+- `daily_challenge_completed`
+- `daily_challenge_won`
+
+Cosmetics:
+
+- `cosmetic_shop_opened`
+- `cosmetic_previewed`
+- `cosmetic_unlocked`
+
+Rewarded ads:
+
+- `rewarded_ad_started`
+- `rewarded_ad_claimed`
+- `rewarded_ad_limited`
+- `rewarded_ad_cancelled`
+- `rewarded_ad_claim_failed`
 
 Sharing:
 
-- `share_started`: `surface`, `share_type`, `method`, `result`
-- `share_completed`: `surface`, `share_type`, `method`, `result`
-- `share_failed`: `surface`, `share_type`, `method`, `reason_category`
+- `share_started`
+- `share_completed`
+- `share_failed`
+- `result_shared`
 
-Multiplayer health:
+Multiplayer:
 
-- `lobby_created`: `visibility`, `player_count`, `candidate_id`
-- `lobby_joined`: `visibility`, `candidate_id`, `occupied_seats`,
-  `player_count`
-- `online_match_failed`: `reason`, `visibility`
+- `lobby_created`
+- `lobby_joined`
+- `online_match_failed`
 
 Reliability:
 
-- `runtime_error`: `surface`, `reason_category`, `has_component_stack`
+- `runtime_error`
 
 ## Launch Dashboards
 
 Activation:
 
-- Funnel: `app_opened` -> `game_started` -> `game_finished`
-- Breakdown: `platform`, `game_mode`, `source`
+- Funnel: `app_opened` → `game_started` → `game_finished`
+- Breakdown: `platform`, `game_mode`, `is_account`
 
 Onboarding:
 
-- Funnel: `tutorial_started` -> `tutorial_completed` -> `game_started`
+- Funnel: `tutorial_started` → `tutorial_completed` → `game_started`
 - Watch `tutorial_skipped` by `step_index`.
 
 Retention:
 
-- D1, D7, D30 retention on `game_started`, not `app_opened`.
-- Break down by `game_mode`, `is_account`, first `candidate_id`, and launch
-  cohort.
+- D1, D7, D30 retention on `game_started`.
+- Break down by `game_mode`, `platform`, first `candidate_id`, and launch cohort.
 
 Economy:
 
 - `funds_earned` by `source`
 - `achievement_claimed` by `achievement_tree`
 - `item_unlocked` by `item_type`
+- `cosmetic_unlocked` by `category`
 
-Shop:
+Store:
 
-- Funnel: `shop_opened` -> `checkout_started` -> `checkout_result`
+- Funnel: `shop_opened` → `checkout_started` → `checkout_result`
 - Filter `checkout_result.status = completed` for conversion.
 - Watch failed `reason_category` by platform.
 
+Ads:
+
+- `rewarded_ad_started` → `rewarded_ad_claimed`
+- Watch `rewarded_ad_limited` by platform and account cohort.
+
 Sharing:
 
-- Funnel: `game_finished` -> `share_started` -> `share_completed`
-- Break down by `method` to verify native iOS share support.
+- Funnel: `game_finished` → `share_started` / `result_shared`
+- Break down by method and share type.
 
 Multiplayer:
 
@@ -133,7 +150,7 @@ Multiplayer:
 ## Five Numbers
 
 1. D7 retention on `game_started`
-2. Activation: `app_opened` -> `game_finished`
-3. Guest to account: `account_prompt_opened` -> `auth_completed`
-4. Shop conversion: `shop_opened` -> completed `checkout_result`
-5. Share rate: `game_finished` -> `share_completed`
+2. Activation: `app_opened` → `game_finished`
+3. Guest-to-account: `account_prompt_opened` → `auth_completed`
+4. Store conversion: `shop_opened` → completed `checkout_result`
+5. Share rate: `game_finished` → `result_shared`

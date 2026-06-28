@@ -4,7 +4,7 @@
 > discussion of marketing, monetization, game balance, and dominant-strategy analysis.
 > Every number here is pulled directly from the live game's source and server logic.
 > Currency note: all in-game costs are in **$1k units** ("$250k income" is stored as `250`).
-> Meta-currency ("Campaign Credits") is a separate soft currency and is always written as "Credits".
+> Meta-currency ("Campaign Funds") is a separate soft currency and is always written as "Funds".
 
 ---
 
@@ -21,15 +21,15 @@ network tracks, call states permanently, and outmaneuver rivals to 270.
 - **Platforms:**
   - **Website** — playelector.com (the "secondary website" rail; full game runs in browser).
   - **iOS native app** — wrapped with **Tauri** (Rust + WebView), bundle `com.playelector.app`.
-  - **Android** — planned, deferred.
+  - **Android** — fast-follow after web + iOS.
 - **Modes:**
   - **Solo vs bots** — 1 human + **1–3 AI opponents**, three difficulty tiers; **no account required**.
   - **Pass-and-play** — hot-seat on one device.
   - **Online** — real-time matches against other players (Supabase-backed; account required).
 - **Player count:** 2–4 seats in every mode.
 - **Tech stack:** React 19 + TypeScript + Vite + Zustand front end; **Supabase** (Postgres + Auth +
-  Edge Functions) for accounts, economy, and online play; **PostHog** analytics; **Sentry** crash
-  reporting; **Google AdMob** for optional rewarded ads; **Apple StoreKit** (via a Tauri IAP plugin)
+  Edge Functions) for accounts, economy, and online play; **PostHog** analytics; **Google AdMob**
+  for optional rewarded ads; **Apple StoreKit** (via a Tauri IAP plugin)
   for real-money purchases on iOS.
 
 The game engine is a **pure, deterministic, server-authoritative** module (no randomness except an
@@ -284,9 +284,9 @@ plausibly dominate, deny the current leader, and bank a war chest for late boss-
 
 ---
 
-## 11. Meta-economy — "Campaign Credits" (the soft currency)
+## 11. Meta-economy — "Campaign Funds" (the soft currency)
 
-Campaign Credits are an **account-only** progression currency (Supabase `profiles` table, mutated only by
+Campaign Funds are an **account-only** progression currency (Supabase `profiles` table, mutated only by
 server `SECURITY DEFINER` RPCs). **There is no guest/local economy** — signed-out players have no Funds,
 unlocks, or stats. The server owns every amount (anti-cheat); the client only reports range-checked
 outcomes.
@@ -351,14 +351,14 @@ online → 75) · Network Favorite (win 10 online → 100).
 **Roster & Community:** Recruiter (unlock 1 premium → 25) · Full Bench (own all premium → 100) · Field
 Office (1 referral → 50) · Ground Game (3 referrals → 100).
 
-Total achievement Funds available ≈ **1,300**.
+Total achievement Funds available ≈ **1,390**.
 
 ---
 
 ## 13. Real-money monetization (IAP)
 
 **Native iOS only** — Apple **StoreKit** consumables via a Tauri IAP plugin. **No web billing** (a prior
-Stripe web rail was removed). On the website the "Get Campaign Credits" section is hidden; players top up
+Stripe web rail was removed). On the website the paid funds cards are hidden; players top up
 only in the iOS app. The server (`fulfill_purchase`) owns grant amounts and is **idempotent on the
 transaction id** (replayed receipts never double-credit). App Store Connect sets the **per-territory**
 price; the listed USD is a fallback shown until StoreKit's localized price loads.
@@ -414,12 +414,8 @@ This is the main built-in growth loop: K-factor depends on invites-sent × signu
   turn based, USA, vote, coalition`.
 - **Legal/positioning spine:** satire/parody disclaimer enabling use of real political figures; "not
   affiliated/endorsed." This is both a legal shield and part of the comedic brand.
-- **Domain/brand:** playelector.com; privacy at playelector.com/privacy.
-
-> ⚠️ **Doc/code mismatch to flag:** the saved App Store review notes claim "NO IN-APP PURCHASES in this
-> build." The codebase **does** ship native StoreKit IAP (§13). The review-notes copy predates the IAP
-> work; whichever build is actually submitted must have matching IAP disclosure. Treat §13 as the current
-> product reality.
+- **Domain/brand:** playelector.com; privacy at playelector.com/privacy; support at playelector.com/support.
+- **Current iOS release state:** build 25 has been uploaded to App Store Connect/TestFlight.
 
 ---
 
@@ -429,8 +425,7 @@ PostHog events exist for the monetization/growth funnel, useful for any growth a
 `shop_opened` (with source + platform + native-billing availability) · `item_unlocked` (candidate, price
 in Funds) · `checkout_started` / `checkout_result` (SKU, USD value, platform, status, failure reason) ·
 `rewarded_ad_started` / `_claimed` / `_limited` / `_cancelled` / `_claim_failed` (placement, amount,
-remaining, provider). Crash/perf via Sentry. Privacy questionnaire: 8 data types collected; **Tracking =
-No** across the board.
+remaining, provider). Privacy posture is manual analytics with no PostHog autocapture or session replay.
 
 ---
 
@@ -441,14 +436,13 @@ Factual relationships derived from the numbers above — useful seeds for analys
 1. **Hub primacy.** CA, FL, NY, TX, NC each sit in 5 coalitions. Leading one contributes EV toward up to
    five dominance checks simultaneously, and (for cost) hubs resist candidate penalties because the best
    affinity across their groups is applied.
-2. **Snowball curve.** Coalition payouts (47–109/turn) dwarf the flat 250 national income once you stack
+2. **Snowball curve.** Coalition payouts (40–110/turn) become powerful once you stack
    2–3 of them; income compounds into more rungs, which defends/extends dominance. Early breadth → mid-game
    depth is the intended arc.
 3. **Boss-rung economics.** Only CA & TX have a 4× final rung (600 to top them). They are the most
    expensive secures (2,850) but also the densest hubs — late-game "war chest" plays.
-4. **National-ladder ROI.** Every ladder pays back the 4-rung leader investment in ~2 turns; Women's Vote
-   (60/turn for 30/rung) is the richest. They feed **flexible** cash, which is strictly more useful than
-   earmarked wallet money.
+4. **National-ladder ROI.** Networks pay back the 4-level leader investment in roughly 7–8 turns before
+   modifiers. They feed **flexible** cash, which is strictly more useful than earmarked wallet money.
 5. **Clash as a weapon and a tax.** Deliberate clashing denies a rival a needed state/secure but costs you
    the spend too; it's an EV-trade decision. Reading opponents' likely end-rung counts is the skill ceiling.
 6. **Evaporation discipline.** Don't bank earmarked wallets you might lose; spend them inside their lane
@@ -467,11 +461,10 @@ Factual relationships derived from the numbers above — useful seeds for analys
 
 ## 19. Open questions an analyst might probe
 
-- **Shallow sink risk:** with roster unlocks (max 9,000 Funds) as the only sink and a generous earn rate,
-  what keeps high-engagement / paying players spending after week ~2? (Cosmetics, seasonal characters,
-  battle-pass, ranked, board variants are all unbuilt levers.)
-- **IAP ceiling:** the $8.99 pack already buys the whole catalog; is there a reason to ever buy $14.99
-  today? What content would justify higher-tier spend?
+- **Sink depth:** current Funds sinks include 28,000 in premium candidates plus 15,000 in live cosmetics.
+  What cadence of new cosmetics/candidates keeps engaged players motivated without creating pay-to-win pressure?
+- **IAP ladder fit:** the $19.99 pack now has a collector/supporter role. Does conversion cluster around the
+  starter, most-popular, or top pack once TestFlight purchase telemetry exists?
 - **Ads vs IAP cannibalization:** 5 free 20–60 Funds ad-claims per 12h (≈ up to 600 Funds/day) plus
   per-game rewards may undercut the impulse to buy Funds. Worth modeling.
 - **Virality math:** 500+500 Funds per completed-first-game referral — strong incentive; the gate is

@@ -1,108 +1,123 @@
-# Monetization, Virality & Growth — Setup Runbook
+# Monetization, Virality & Growth Runbook
 
-Covers the monetization and growth systems: real-money **IAP**, **rewarded ads**,
-the **share-card**, **referrals**, and the **July Washington grant**. Code is in the repo; the steps below
-are the manual deploy/config that must happen for them to work in production.
+Current as of 2026-06-28.
 
-> Deploy order matters: **apply SQL first → deploy Edge Functions → configure
-> store secrets → deploy web/native builds.** Clients must never call a
-> function/RPC that isn't live yet. (SQL and Edge Functions now **auto-deploy on
-> push to `main`** via `.github/workflows/deploy-db.yml` and `deploy-functions.yml`;
-> the manual commands below are the fallback / what CI runs under the hood.)
+## Monetization Posture
 
-## 1. Database (applied in dependency order — CI does this on push to `main`)
+Elector v1 is a fair soft launch:
 
-1. `supabase/profiles.sql` — adds `'washington'` to the `unlock_character` catalog and
-   the **July-2026 free grant** in `handle_new_user()` (window `2026-07-01`..`2026-08-01` UTC).
-2. `supabase/rewards.sql` — unchanged, but referrals depend on its `game_rewards` ledger.
-3. `supabase/referrals.sql` — referral codes, `set_referrer`, and the `game_rewards`
-   AFTER-INSERT trigger that pays both parties on the invitee's first finished game.
-4. `supabase/iap.sql` — `purchases` ledger + `fulfill_purchase` (service-role only).
-5. `supabase/ads.sql` — rewarded-ad ledger, `get_ad_reward_status`, and
-   `claim_ad_reward` (server-random 20-60 Funds, max 5 claims per 12 hours).
+- Campaign Funds are earnable through play.
+- Paid candidates are earnable sidegrades, not direct cash purchases.
+- Cosmetics are the preferred repeat-spend sink.
+- IAP is native iOS only for v1.
+- There is no web Stripe rail.
+- Rewarded ads are opt-in only and never automatic.
 
-All are idempotent and safe to re-run.
+## Campaign Funds Sources
 
-## 2. Edge Functions
+- Game completion rewards: server-calculated by `complete_game_result`, capped at 60 before daily diminishing returns.
+- Daily finish streak: 10–100 Funds per UTC day, once per day.
+- Achievement claims: 10–100 Funds each.
+- Rewarded ads: 20–60 Funds, max 5 claims per rolling 12 hours.
+- Referrals: 500 Funds to both accounts when the invited player finishes their first game.
+- Native iOS IAP: six consumable funds packs.
 
-Auto-deployed on push to `main` by `.github/workflows/deploy-functions.yml`
-(`resolve-turn` + `fulfill-purchase`). To deploy by hand:
+## Campaign Funds Sinks
 
+- Premium candidates:
+  - Ronald Reagan: 4,500
+  - George Washington: 4,500
+  - Keir Starmer: 4,500
+  - John F. Kennedy: 4,500
+  - Nigel Farage: 10,000
+- Result card frames:
+  - Patriot: 3,000
+  - Gold Standard: 3,000
+- Victory messages:
+  - Landslide: 3,000
+  - Humbled: 3,000
+  - Fired Up: 3,000
+
+Free candidates are Bobby Tooley, Donald Trump, Kamala Harris, Abraham Lincoln, and Joe Biden.
+
+## Database
+
+The production deploy workflow applies these SQL files in dependency order:
+
+```text
+profiles -> lobbies -> rewards -> cosmetics -> iap -> ads -> daily -> referrals -> moderation -> notifications
 ```
-supabase functions deploy fulfill-purchase
+
+Manual fallback:
+
+```bash
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/profiles.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/lobbies.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/rewards.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/cosmetics.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/iap.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/ads.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/daily.sql
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/referrals.sql
 ```
 
-## 3. Web IAP (Stripe) — removed
+## Native IAP
 
-The Stripe web purchasing rail has been **removed entirely** — the `stripe-checkout`
-and `stripe-webhook` Edge Functions are deleted, no `STRIPE_*` secrets are used, and the
-client never opens Stripe Checkout. Campaign Funds are sold **only in the native iOS app**
-via Apple StoreKit (§4); web players earn Funds through gameplay. Nothing to configure here.
+Client catalog lives in `src/utils/iap.ts`; server grants live in `supabase/iap.sql`; Edge verification lives in `supabase/functions/fulfill-purchase/index.ts`.
 
-## 4. Native IAP (iOS / Android) — remaining hands-on work
+| SKU | Funds | USD fallback | GBP fallback |
+| --- | ---: | ---: | ---: |
+| `funds_600` | 600 | $0.99 | £0.99 |
+| `funds_1500` | 1,500 | $2.99 | £1.99 |
+| `funds_4000` | 4,000 | $4.99 | £3.99 |
+| `funds_9000` | 9,000 | $8.99 | £7.99 |
+| `funds_20000` | 20,000 | $14.99 | £14.99 |
+| `funds_45000` | 45,000 | $19.99 | £19.99 |
 
-The server endpoint (`fulfill-purchase`) and client routing (`src/utils/iap.ts`) are done
-and **fail closed**. The iOS app uses `@choochmeque/tauri-plugin-iap-api` / StoreKit 2 directly;
-Stripe Checkout is not shown in native builds.
-Until verification is configured, native purchases cannot credit funds. To finish each native rail:
+iOS is implemented with StoreKit via `@choochmeque/tauri-plugin-iap-api`. Android verification is intentionally deferred.
 
-1. **Tauri IAP plugin.** iOS is wired through `tauri-plugin-iap`; Android Play Billing remains deferred.
-   The iOS purchase call returns a StoreKit signed transaction JWS that the client forwards as `receipt`.
-2. **Server verification** (`supabase/functions/fulfill-purchase/index.ts`,
-   `verifyApple` / `verifyGoogle` — currently throw `VerificationUnavailable`):
-   - iOS secrets: `APPLE_ISSUER_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` → App Store Server API.
-   - Android secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`, `ANDROID_PACKAGE_NAME` → Play Developer API.
-3. **Store consoles:** create the consumable products (`funds_600`, `funds_1500`, `funds_4000`,
-   `funds_9000`, `funds_20000`, `funds_45000`) in App Store Connect with matching product ids.
-4. **Test:** Apple **sandbox** account / Play **license tester** → buy in TestFlight /
-   internal testing → funds credited → reinstall + sign in → balance persists
-   (consumables are account-bound via the server ledger, not StoreKit "restore").
+Required Supabase secrets for iOS crediting:
 
-## 5. Rewarded ads
+```bash
+supabase secrets set APPLE_ISSUER_ID=...
+supabase secrets set APPLE_KEY_ID=...
+supabase secrets set APPLE_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)"
+```
 
-- The database side is `supabase/ads.sql`. The client calls `claim_ad_reward` only
-  after an ad completes; the server owns the random payout and the rolling quota.
-- Current launch target is iOS only. Android AdMob app/ad-unit setup is intentionally
-  deferred until the Android build is ready.
-- AdMob iOS:
-  - Publisher ID: `pub-5364561069734393`
-  - App ID: `ca-app-pub-5364561069734393~8538342864`
-  - Rewarded ad unit: `ca-app-pub-5364561069734393/7845987969`
-  - app-ads.txt: `google.com, pub-5364561069734393, DIRECT, f08c47fec0942fa0`
-- Production UI is hidden unless a real rewarded-ad bridge is present or
-  `VITE_ENABLE_INLINE_REWARDED_ADS=true` is set. Keep the inline fallback off in
-  production unless you intentionally want a first-party sponsored break with no ad-network revenue.
-- Inject this bridge before the shop renders:
-  ```ts
-  window.__ELECTOR_ADS__ = {
-    async showRewardedAd({ placement }) {
-      // Call AdMob / Unity Ads / your provider here.
-      // Resolve only after the provider confirms the rewarded ad completed.
-      return { completed: true, provider: 'admob', adUnit: 'ca-app-pub-...' };
-    },
-  };
-  ```
-- **Test:** sign in → Shop → Watch ad → provider completion → balance increases by
-  20-60 Funds → repeat 5 times → 6th attempt is blocked until the oldest claim is
-  12 hours old. Confirm a second device sees the same server quota after opening Shop.
-- **Compliance:** if third-party ads are enabled, update App Store Connect / Play
-  Data Safety / privacy policy and remove any "no third-party advertising" claims.
-  If the provider tracks across apps, ATT or the platform equivalent may be required.
+Deploy:
 
-## 6. Referrals
+```bash
+supabase functions deploy fulfill-purchase --project-ref rwavsfyjjqfwefabcfvv
+```
 
-- No secrets. After `referrals.sql` is applied, the client auto-captures `?ref=CODE` on
-  load (`useProfile.init`) and calls `set_referrer` after sign-in. Invite UI is in the Shop.
-- Reward = **500 Funds each**, paid when the **invitee finishes their first game** (trigger).
-  One payout per invited account ever (unique `referral_rewards.referred_user_id`).
-- **Test:** A invites B via the link → B signs up (no reward) → B finishes one game → both
-  +500 → B's 2nd game pays nothing → self-referral / reused code rejected.
-- **Compliance:** never tie the reward to a store review (Apple 3.1.1 / Google).
+Test: purchase in TestFlight/sandbox, confirm balance updates, reinstall/sign in, confirm balance persists, then replay the same transaction and confirm no double-credit.
 
-## 7. July Washington grant
+## Rewarded Ads
 
-- After `profiles.sql` is applied, accounts created in the July-2026 window get `washington`
-  free; everyone else can buy it for **1500 Funds** in the Shop. Stats are a **net-neutral
-  sidegrade** (affinities/payoutModifiers sum to zero) — keep it that way if edited.
-- Optional art: `public/assets/portraits/washington.png` + `tokens/washington_token.png`
-  (initials fallback renders until then).
+- SQL: `supabase/ads.sql`
+- Client: `src/utils/rewardedAds.ts`, `src/components/Shop.tsx`
+- iOS app id: `ca-app-pub-5364561069734393~8538342864`
+- iOS rewarded ad unit: `ca-app-pub-5364561069734393/7845987969`
+- `app-ads.txt`: `google.com, pub-5364561069734393, DIRECT, f08c47fec0942fa0`
+
+Production UI is hidden unless a native bridge is available or `VITE_ENABLE_INLINE_REWARDED_ADS=true` is intentionally set.
+
+Test: sign in → Shop → Watch ad → provider completion → balance increases by 20–60 Funds → repeat 5 times → 6th attempt is blocked until the oldest claim is 12 hours old.
+
+## Referrals
+
+- SQL: `supabase/referrals.sql`
+- Client capture: `?ref=CODE` in `useProfile.init`
+- Reward: 500 Funds each after the invited account finishes its first game.
+- One payout per invited account ever.
+- Self-referral and reused-code abuse should be rejected server-side.
+
+## July Washington Grant
+
+`claim_free_character('washington')` is server-validated and available in July UTC. Washington otherwise costs 4,500 Funds and remains a net-neutral sidegrade.
+
+## Compliance Notes
+
+- Do not add external payment links to the iOS app.
+- Do not tie referrals or rewards to App Store reviews.
+- If personalized ads/IDFA are enabled later, update App Store privacy answers and add ATT messaging.

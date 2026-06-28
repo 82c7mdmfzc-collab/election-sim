@@ -11,9 +11,10 @@ Copy-paste into App Store Connect. Char limits noted.
 - **Price**: Free (with In-App Purchases)
 
 ## URLs
-- **Support URL**: `https://playelector.com`
+- **Support URL**: `https://playelector.com/support`
 - **Marketing URL**: `https://playelector.com`
 - **Privacy Policy URL**: `https://playelector.com/privacy`
+- **Account deletion URL**: `https://playelector.com/delete-account`
 
 ## Promotional text (170)
 `Campaign across all 50 states, build coalitions, and outspend your rivals in the strategy game of winning the US Electoral College. Solo, pass-and-play, or online.`
@@ -33,7 +34,7 @@ national coalitions, lock down the map, and race your rivals to 270.
 • PASS-AND-PLAY — hot-seat with friends on one device.
 • ONLINE — real-time matches against other players.
 • A ROSTER OF CANDIDATES — each with their own strengths across coalitions.
-• EARN & UNLOCK — win games to earn Campaign Funds and unlock new candidates.
+• EARN & UNLOCK — win games to earn Campaign Funds and unlock candidates and cosmetics.
 
 Deep but quick to learn: every turn is a fresh budgeting puzzle of where to
 push, where to defend, and which coalitions pay off.
@@ -44,7 +45,7 @@ for parody and commentary.
 ```
 
 ## What's New (v1.0)
-`First release. Solo vs bots, pass-and-play, and online matches. Race to 270!`
+`First release. Solo vs bots, pass-and-play, online matches, Campaign Funds, and cosmetic sharing. Race to 270!`
 
 ## App Review notes (paste verbatim — pre-empts the likely rejections)
 ```
@@ -58,8 +59,8 @@ for parody and commentary.
   "Campaign Funds" bundles (funds_600, funds_1500, funds_4000, funds_9000, funds_20000, funds_45000) via
   Apple StoreKit. Purchases are OPTIONAL — Campaign Funds are also earned by
   playing — and there is NO external or web purchase link inside the iOS app.
-  Funds unlock additional candidates and cosmetic items. There is no subscription
-  and no real-money gambling.
+  Funds unlock earnable sidegrade candidates and cosmetic items. There is no
+  subscription and no real-money gambling.
 • OPTIONAL REWARDED ADS: The Shop includes an opt-in rewarded ad button. Ads are
   never shown automatically; completing one grants a small random amount of
   Campaign Funds, capped server-side.
@@ -80,4 +81,4 @@ Data collected:
 
 ## Assets you still need to produce
 - **Screenshots** (landscape): 6.7" iPhone set required; capture menu, the board mid-game, a coalition/shop screen, the VS matchup, a victory screen. (Take from `tauri:ios:dev` on a simulator.)
-- **App icon**: 1024×1024 from `public/assets/brand/icon-1024.png` (Xcode/Tauri generates the rest).
+- **App icon**: 1024×1024 from `public/assets/brand/icon-1024.png` (already used for generated Tauri/Xcode icons; replace only when final art changes).

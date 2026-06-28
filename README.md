@@ -1,10 +1,12 @@
 # Elector
 
-Elector is a turn-based strategy game about winning the US Electoral College. Players spend campaign funds across states and national networks, build coalition income, secure states, and race to 270 electoral votes.
+Elector is a turn-based strategy game about winning the US Electoral College. Players spend campaign budgets across states and national networks, build coalition income, secure states, and race to 270 electoral votes.
 
 ## Release Target
 
 Public v1 is focused on **web + iOS**. Android assets/config are present, but Android is treated as a fast-follow release after web and TestFlight/App Store verification.
+
+Latest iOS upload: build `25`, delivered to App Store Connect/TestFlight with delivery UUID `e8aabaf6-9dea-4b02-a7db-e998854d690a`.
 
 ## Stack
 
@@ -26,7 +28,7 @@ npm run test:mobile-native
 node test_vsbot_smoke.mjs
 ```
 
-`test_vsbot_smoke.mjs` expects a dev server on `http://localhost:5174`.
+`test_vsbot_smoke.mjs` expects a dev server on `http://127.0.0.1:5174`.
 
 ## Release Gates
 

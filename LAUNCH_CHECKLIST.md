@@ -1,156 +1,100 @@
-# Elector — Launch Checklist (PlayElector.com)
+# Elector — Public Release Checklist
 
-Handoff reference for the Web + iOS + Android launch. Check items off as you go.
-Last updated by the launch-prep work session.
+Current as of 2026-06-28. Public v1 is **web + iOS first**; Android is a fast-follow once the Play Billing and store setup work is active.
 
-## Key facts / IDs
-- **Domain:** PlayElector.com (Namecheap)
-- **Bundle ID / app name:** `com.playelector.app` / "Elector"
-- **Supabase project ref:** `rwavsfyjjqfwefabcfvv` (org `rypixathprcujzuwpbkf`)
-- **Supabase URL:** https://rwavsfyjjqfwefabcfvv.supabase.co
-- **Vercel project:** `election-sim` (org `sitterworldcup`) → alias https://election-sim-ten.vercel.app
-- **GitHub repo:** 82c7mdmfzc-collab/election-sim — PR #1 (`launch-prep` → `main`)
+## Current State
 
----
+- **App:** Elector, bundle id `com.playelector.app`, version `1.0.0`.
+- **Latest iOS build:** build `25`, uploaded to App Store Connect/TestFlight. Delivery UUID: `e8aabaf6-9dea-4b02-a7db-e998854d690a`.
+- **GitHub:** `main` / `origin/main` at `3558c72` (`chore: bump iOS build number to 25`).
+- **Supabase project:** `rwavsfyjjqfwefabcfvv`, URL `https://rwavsfyjjqfwefabcfvv.supabase.co`.
+- **Vercel project:** `election-sim`; production domain target is `playelector.com`.
+- **Required pages:** `/privacy`, `/support`, and `/delete-account` are present in `public/` and routed by `vercel.json`.
 
-## ✅ DONE (this session)
-- [x] Premium mobile release polish: player-facing Solo language, game-first signed-out landing,
-      compact Solo candidate perk chips, cleaner currency treatment, and non-emoji tutorial badges.
-- [x] Native release safety: generated Tauri icons from `public/assets/brand/icon-1024.png`, removed
-      stale `app.security.devmodeUrl`, and gated native paid Campaign Funds unless StoreKit/Play
-      Billing bridge support is present.
-- [x] Added `IOS_RELEASE_GUIDE.md` with TestFlight commands, Xcode fields, App Store Connect fields,
-      reviewer note, simulator smoke checklist, and final-icon replacement command.
-- [x] Security: server-side reward calc + dedup (`claim_game_reward`, `game_rewards`), all MP phase
-      transitions moved into the `resolve-turn` Edge Function, `push_game_state` disabled+revoked,
-      server-owned deadlines, guest stale-state rejection, Edge CORS allowlist, sanitizer hardening,
-      room-code validation, GRANTs.
-- [x] Bugs: ErrorBoundary, global toast + retry on network failures, session-restore retry/catch.
-- [x] Mobile/QoL: `100dvh` Safari overflow fix, `viewport-fit=cover` + safe-area insets,
-      phone-portrait bottom-sheet state card, ≥44px tap targets, focus-visible, lazy images.
-- [x] Rebrand: `com.playelector.app` + "Elector", OG/Twitter tags, web manifest.
-- [x] 3 SQL files applied to production (`profiles.sql`, `lobbies.sql`, `rewards.sql`).
-- [x] Edge Function `resolve-turn` deployed to production.
-- [x] New client deployed to Vercel production (env vars confirmed set).
-- [x] Code committed to `launch-prep`, PR #1 opened.
+## Done
 
----
+- [x] Public-release readiness pass committed and pushed.
+- [x] Bobby Tooley restored as a free neutral baseline; premium candidate roster is now Reagan, Washington, Starmer, Farage, and JFK.
+- [x] Server premium-unlock counting fixed in `supabase/rewards.sql`.
+- [x] CI DB deploy order includes `profiles`, `lobbies`, `rewards`, `cosmetics`, `iap`, `ads`, `daily`, `referrals`, `moderation`, `notifications`.
+- [x] iOS project generated and archive/upload flow works via `scripts/ios-upload.sh`.
+- [x] Native OAuth URL scheme `com.playelector.app://auth-callback` registered in Tauri/iOS config.
+- [x] App icon, PWA icons, OG image, logo, portraits, tokens, group art, coin art, and victory art are present.
+- [x] Automated gates pass: `npm run test`, `npm run lint`, `npm run build`, `npm run test:mobile-native`, and `node test_vsbot_smoke.mjs`.
 
-## 1. Immediate verification (do first)
-- [ ] Open https://election-sim-ten.vercel.app on desktop — plays, no console CSP errors.
-- [ ] Open it on your **phone** — confirm the screen no longer overscrolls (the Safari fix).
-- [ ] **2-device online multiplayer test** (critical — the phase-authority refactor is unit-tested
-      but not yet exercised against a real lobby): host on one device, join on another, play a full
-      game through an **election → game-over**. Confirm turns advance, no stalls, winner is correct.
-- [ ] Confirm Campaign Funds update after a game and that replaying the same finished game does NOT
-      grant funds twice (reward dedup).
-- [ ] Merge PR #1 into `main` so the repo's default branch matches production (housekeeping; Vercel
-      is already serving the built artifact).
+## Before Public Web Launch
 
-## 2. Rotate the two leaked credentials (security)
-Both were pasted/visible in the assistant chat and should be considered compromised:
-- [ ] **Supabase secret key** (`sb_secret_…`): Supabase → Project Settings → API Keys → roll the
-      secret key. Update it anywhere it's stored server-side (Edge Function secrets / server env).
-      It must NEVER be in client code or a `VITE_`-prefixed var.
-- [ ] **GitHub token** (`ghp_…`) embedded in the git remote URL: GitHub → Settings → Developer
-      settings → Personal access tokens → regenerate. Then update the remote:
-      `git remote set-url origin https://<NEW_TOKEN>@github.com/82c7mdmfzc-collab/election-sim.git`
+- [ ] Point `playelector.com` and `www.playelector.com` at Vercel; choose the primary redirect.
+- [ ] Confirm production env vars in Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST=https://eu.i.posthog.com`, `VITE_APP_VERSION=1.0.0`.
+- [ ] Deploy `main` to Vercel production.
+- [ ] Open `https://playelector.com`, `/privacy`, `/support`, and `/delete-account` on desktop and phone.
+- [ ] Run a fresh guest flow: landing → tutorial skip/complete → solo game starts.
+- [ ] Run a signed-in progression flow: finish game → Campaign Funds/stats update → replay same game id does not double-grant.
 
-## 3. Supabase auth configuration (before public launch)
-Accounts are **required for online play** and the economy is account-only. Dashboard → Authentication:
-- [ ] **Anonymous = OFF** (no guest economy; durable accounts fix the online submit/identity drift).
-- [ ] **Google** provider ON (OAuth client id/secret).
-- [ ] **Apple** provider ON (Service ID, Team ID, Key ID, private key).
-- [ ] **Email** ON; set sender/branding. Set **OTP Length = 8** and **OTP Expiry = 900s** (15 min),
-      and add `{{ .Token }}` to the Magic Link email template so the 8-digit code shows (keep the link too).
-- [ ] **URL Configuration:** Site URL = `https://playelector.com`. Add Redirect URLs:
-      `https://playelector.com`, `https://www.playelector.com`, the Vercel preview domain,
-      `http://localhost:5174`, and the mobile deep link `com.playelector.app://auth-callback`.
-- [ ] **Rate Limits / Attestation:** enable rate limiting + CAPTCHA (hCaptcha/Turnstile) on
-      sign-ups to stop account farming.
+## Supabase / Security
 
-## 4. Namecheap — domain
-- [x] Finish purchasing **PlayElector.com** (paid 2026-06-15). Verify free **Domain Privacy
-      (WhoisGuard)** is toggled ON in Namecheap → Domain List → Manage.
-- [ ] Point DNS at Vercel (either set Vercel's nameservers, or add the A record `@ → 76.76.21.21`
-      and CNAME `www → cname.vercel-dns.com` that Vercel shows you).
-- [ ] Create **support@playelector.com** (email forwarding to your inbox is fine) — a support email
-      is required by both app stores.
+- [ ] Confirm `SUPABASE_DB_URL` and `SUPABASE_ACCESS_TOKEN` GitHub secrets are set so DB/function deploy workflows work from `main`.
+- [ ] Confirm SQL deploy has applied all current files in `.github/workflows/deploy-db.yml`.
+- [ ] Confirm Edge Functions deployed: `resolve-turn` and `fulfill-purchase`.
+- [ ] Auth settings:
+  - Anonymous auth OFF.
+  - Email auth ON with 8-digit OTP and 900-second expiry.
+  - Magic Link template includes both `{{ .ConfirmationURL }}` and `{{ .Token }}`.
+  - Google provider ON.
+  - Apple provider ON.
+  - Redirect URLs include `https://playelector.com`, `https://www.playelector.com`, Vercel preview URL, `http://127.0.0.1:5174`, `http://localhost:5174`, and `com.playelector.app://auth-callback`.
+- [ ] Rotate any credentials that were ever pasted into chat or shell history: Supabase secret/service-role keys and any GitHub PAT.
+- [ ] Verify RLS:
+  - anon `GET /rest/v1/profiles` does not expose other users.
+  - anon direct `POST`/`PATCH` to `lobbies` is rejected.
+  - non-participant cannot read an `in_progress` lobby.
+- [ ] Replay old exploits: double reward claim, raw lobby write, stale guest state, early phase resolution before server deadline.
 
-## 5. Vercel — domain + required pages
-- [ ] Vercel → project → Settings → **Domains**: add `playelector.com` and `www.playelector.com`;
-      follow DNS prompts; choose primary redirect (www→apex or apex→www). SSL is automatic.
-- [x] Add reachable **/privacy** and **/support** pages on the domain (store review requires both).
-      Built `public/privacy.html` + `public/support.html` (CSP-safe, inline styles) and added
-      `/privacy` + `/support` rewrites to `vercel.json`. Live once the next deploy ships.
-- [ ] Re-confirm `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are set for Production (they are).
-- [x] Create an **og-image.png** (1200×630) at `public/assets/brand/og-image.png` (referenced by the
-      OG tags) and a real app logo at `public/assets/brand/elector_logo.png`. Both generated on-brand
-      via `scripts/gen-brand-assets.py` (orange wordmark, accent "o", "Race to 270" OG card).
+## iOS / TestFlight
 
-## 6. App icons (one master → all sizes)
-- [x] Temporary 1024×1024 PNG master icon exists at `public/assets/brand/icon-1024.png` (opaque for iOS).
-- [x] Ran `npx tauri icon public/assets/brand/icon-1024.png` — populated `src-tauri/icons/` with
-      desktop, iOS, and Android icon assets. Final art swap: `npx tauri icon /path/to/final-1024.png`.
-- [ ] Add final Android adaptive-icon foreground/background and iOS/Android splash art if desired.
-- [x] Regenerate PWA PNG icons (192/512 + maskable-512, 180 apple-touch) and add them to
-      `public/manifest.webmanifest`; added `apple-touch-icon` link to `index.html`. `favicon.svg`
-      left as-is (still on-brand). A 1024 master icon (`public/assets/brand/icon-1024.png`, opaque,
-      iOS-safe) is ready for the `tauri icon` step below.
+- [x] Full Xcode, CocoaPods, Cargo, iOS Rust targets, App Store Connect API key, and generated Xcode project are present on this machine.
+- [x] Build `25` uploaded to App Store Connect/TestFlight.
+- [ ] Wait for App Store Connect processing.
+- [ ] Add build `25` to internal TestFlight testing.
+- [ ] Confirm app privacy, age rating, support URL, privacy URL, and account deletion URL in App Store Connect.
+- [ ] Create/confirm the six consumable IAP products: `funds_600`, `funds_1500`, `funds_4000`, `funds_9000`, `funds_20000`, `funds_45000`.
+- [ ] Confirm App Store Server API secrets are set in Supabase for purchase verification: `APPLE_ISSUER_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`.
+- [ ] Sandbox/TestFlight test every funds pack at least once: purchase → server verifies → balance credits once → replay does not double-credit.
+- [ ] Test iOS auth: email code, Google OAuth, Apple OAuth, native deep-link return.
+- [ ] Test iOS rewarded ad path and quota: 5 claims per rolling 12 hours, 6th blocked.
+- [ ] Capture required screenshots: Home, Solo setup, gameplay, account/progression, shop, victory.
 
-## 7. Apple — App Store (no account yet)
-- [ ] Enroll in **Apple Developer Program** ($99/yr) at developer.apple.com (individual enrollment is
-      fastest; allow 24–48h).
-- [ ] Install latest **Xcode** + Command Line Tools, select full Xcode with `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`, and install Rust/Cargo.
-- [ ] `npm run tauri:ios:init` (generates `src-tauri/gen/apple`). Current machine blocker:
-      `cargo`/`rustc` and full Xcode simulator tools are not available on PATH.
-- [ ] In Xcode: Bundle Identifier = `com.playelector.app`, Display Name = "Elector"; under
-      Signing & Capabilities select your Team (let Xcode manage signing); set deployment target
-      iOS 15+, landscape-left/right only, icons/splash.
-- [ ] In **App Store Connect**: create app record; fill App Privacy (you collect account data via
-      Supabase — declare it), age rating, category (Games/Strategy), description, keywords,
-      support URL (`https://playelector.com/support`), privacy URL (`https://playelector.com/privacy`),
-      screenshots (6.7" + 5.5" iPhone + iPad — capture from the simulator).
-- [ ] `npm run tauri:ios:build` → upload via Xcode Organizer/Transporter → **TestFlight** first.
-- [ ] Submit for App Review (note for reviewers: Solo and pass-and-play need no login; online
-      play and the shop require a free account — Apple/Google/email sign-in is provided).
+## Online Multiplayer Gate
 
-## 8. Google — Play Store (no account yet)
-- [ ] Create **Google Play Console** account ($25 one-time); identity verification can take 1–2 days.
-- [ ] Install **Android Studio** + SDK + NDK + JDK; set `ANDROID_HOME`.
-- [ ] `npm run tauri:android:init` (generates `src-tauri/gen/android`).
-- [ ] Set `applicationId` = `com.playelector.app` and app label "Elector"; add adaptive icons + splash.
-- [ ] Create an **upload keystore** (`keytool -genkey …`); store it safely (losing it blocks future
-      updates); enroll in **Play App Signing**.
-- [ ] `npm run tauri:android:build` → signed **.aab**.
-- [ ] Play Console: complete Data Safety form, content rating, target audience, privacy policy URL,
-      store listing (title, descriptions, screenshots, 1024×500 feature graphic, 512×512 icon).
-- [ ] Upload `.aab` to **Internal testing** first; note: new personal accounts may require a 14-day
-      closed test (~12 testers) before Production — plan that lead time.
+- [ ] Two-device web ↔ web full game through election/game-over.
+- [ ] Two-device iOS ↔ web full game through election/game-over.
+- [ ] Confirm turn submissions, waiting state, phase transitions, election tally, game-over rewards, and lobby recovery after refresh.
 
-## 9. Deep links / magic-link return
-- [x] Register URL scheme `com.playelector.app://` in the Tauri config / iOS Info.plist.
-- [ ] Confirm `com.playelector.app://auth-callback` is in the Supabase redirect allowlist (step 3).
+## Android Fast-Follow
 
-## 10. Final pre-launch verification
-- [ ] iOS: `npm run tauri:ios:dev` on simulator + a real device — icons/splash/name = "Elector",
-      safe-area correct on a notched device, online MP works vs the web client, magic-link returns.
-- [ ] Android: `npm run tauri:android:dev` on emulator + a real device — same checks.
-- [ ] Replay the old exploits and confirm they now fail: double reward claim (rejected), forced
-      early resolve before server deadline (rejected), any raw `push_game_state` call (errors).
-- [ ] Ship a TestFlight build; have 2–3 people complete a full game on web + iOS.
-- [ ] When Android moves from fast-follow to active launch, ship a Play Internal build and repeat the same checks.
+- [ ] Install/configure Android Studio, SDK, NDK, JDK, and `ANDROID_HOME`.
+- [ ] Run `npm run tauri:android:init`.
+- [ ] Configure app id `com.playelector.app`, app label, adaptive icons, splash art, upload keystore, and Play App Signing.
+- [ ] Implement/finish Google Play Billing receipt verification in `fulfill-purchase`.
+- [ ] Upload an `.aab` to Play Internal Testing and repeat the web/iOS smoke gates.
 
----
+## Deferred
 
-## Deferred (non-blocking, post-launch)
-- WebP image conversion (needs `cwebp`; `loading="lazy"` already added).
-- Bundle code-splitting (client JS is ~1.27 MB / 389 KB gzip after the current release build,
-  dominated by map/game data and native/progression UI). Prioritize shop/native/progression-heavy
-  surfaces after v1 unless real-device startup performance is poor.
-- Turn-1 deadline is still host-set (turns 2+ are server-owned) — minor residual.
+- Bundle code-splitting: current production build warns on the main JS chunk at about 1.27 MB minified / 389 KB gzip. Prioritize shop/native/progression surfaces after v1 unless real-device startup performance is poor.
+- WebP conversion for image assets.
+- Android production release.
 
-## Handy commands
-- Redeploy Edge Function: `npm run build:edge && supabase functions deploy resolve-turn --project-ref rwavsfyjjqfwefabcfvv`
-- Redeploy web: `vercel --prod` (already logged in as `82c7mdmfzc-collab`)
-- Tests / typecheck / build: `npm run test` · `npx tsc -b` · `npm run build`
+## Handy Commands
+
+```bash
+npm run test
+npm run lint
+npm run build
+npm run test:mobile-native
+npm run dev -- --host 127.0.0.1 --port 5174
+node test_vsbot_smoke.mjs
+npm run build:edge
+supabase functions deploy resolve-turn --project-ref rwavsfyjjqfwefabcfvv
+supabase functions deploy fulfill-purchase --project-ref rwavsfyjjqfwefabcfvv
+ELECTOR_NO_SYNC=1 scripts/ios-upload.sh
+```
