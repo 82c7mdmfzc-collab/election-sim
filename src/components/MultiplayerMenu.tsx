@@ -72,6 +72,13 @@ const BOT_DIFFICULTIES: { id: BotDifficulty; label: string }[] = [
   { id: 'impossible', label: 'Impossible' },
 ];
 
+const TIME_OPTIONS: { label: string; value: number | null }[] = [
+  { label: '60s', value: 60 },
+  { label: '90s', value: 90 },
+  { label: '2:00', value: 120 },
+  { label: 'Unlimited', value: null },
+];
+
 // ── Waiting-room player list (host + guest share this) ───────────────────
 function WaitingRoomPlayerList({
   hostId,
@@ -145,6 +152,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   const [playerCount, setPlayerCount]       = useState(2);
   const [myCandidate, setMyCandidate]       = useState<CandidateDef | null>(null);
   const [botDifficulty, setBotDifficulty]   = useState<BotDifficulty>('medium');
+  const [turnTimeLimit, setTurnTimeLimit]   = useState<number | null>(null);
 
   // Candidate whose "click to see stats" popup is open (null = closed). Mirrors the
   // Shop / Solo / Daily pickers: tap a card → CandidateStatsModal → Choose.
@@ -274,7 +282,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     setErrorMsg(null);
 
     try {
-      const gameState = await rpcStartGame(lobby.id, useGameStore.getState().turnTimeLimit);
+      const gameState = await rpcStartGame(lobby.id, turnTimeLimit);
       syncFromPayload(gameState);
       resumeGame();
     } catch (e) {
@@ -528,18 +536,33 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       <div className="setup native-screen mp-screen mp-screen--creating">
         <div className="setup__header">
           <h1 className="setup__title">Host a Game</h1>
-          <div className="setup__count">
-            <span>How many players?</span>
-            {[2, 3, 4].map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`setup__count-btn${playerCount === n ? ' is-active' : ''}`}
-                onClick={() => { AudioManager.play('click'); setPlayerCount(n); }}
-              >
-                {n}
-              </button>
-            ))}
+          <div className="mp-host-controls">
+            <div className="setup__count">
+              <span>Players</span>
+              {[2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`setup__count-btn${playerCount === n ? ' is-active' : ''}`}
+                  onClick={() => { AudioManager.play('click'); setPlayerCount(n); }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div className="setup__count setup__timelimit">
+              <span>Turn Time</span>
+              {TIME_OPTIONS.map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  className={`setup__count-btn${turnTimeLimit === o.value ? ' is-active' : ''}`}
+                  onClick={() => { AudioManager.play('click'); setTurnTimeLimit(o.value); }}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -618,49 +641,66 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           <div className="mp-wait__code">{lobby.room_code}</div>
           <p className="mp-wait__hint">Share this code with friends — they each join on their own device.</p>
           <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
-          <div className="setup__count" style={{ marginTop: '1rem' }}>
-            <span>Bot difficulty:</span>
-            {BOT_DIFFICULTIES.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                className={`setup__count-btn${botDifficulty === d.id ? ' is-active' : ''}`}
-                onClick={() => { AudioManager.play('click'); setBotDifficulty(d.id); }}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="setup__start"
-            style={{ marginTop: '0.65rem', opacity: 0.85 }}
-            disabled={!canAddBot || loading}
-            onClick={addBotSeat}
-          >
-            {canAddBot ? 'Add Computer Seat' : 'Lobby Full'}
-          </button>
-          {botSeats.length > 0 && (
-            <div className="setup__seats" style={{ marginTop: '0.65rem' }}>
-              {botSeats.map((b) => {
-                const cand = CANDIDATE_MAP[b.candidateId];
-                return (
-                  <span key={b.id} className="setup__seat is-filled">
-                    {cand?.name ?? b.candidateId} ({b.botDifficulty ?? 'medium'})
-                    <button
-                      type="button"
-                      className="mp-back"
-                      style={{ marginLeft: 'auto', padding: '0.15rem 0.45rem' }}
-                      onClick={() => removeBotSeat(b.id)}
-                      disabled={loading}
-                    >
-                      Remove
-                    </button>
-                  </span>
-                );
-              })}
+          <div className="mp-bot-panel">
+            <div className="mp-bot-panel__head">
+              <span>Computer Seats</span>
+              <strong>{botSeats.length}/{Math.max(0, playerCount - 1)}</strong>
             </div>
-          )}
+            <div className="mp-bot-panel__controls">
+              <div className="mp-bot-difficulty" role="radiogroup" aria-label="Bot difficulty">
+                {BOT_DIFFICULTIES.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`mp-bot-difficulty__btn${botDifficulty === d.id ? ' is-active' : ''}`}
+                    onClick={() => { AudioManager.play('click'); setBotDifficulty(d.id); }}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="mp-bot-add"
+                disabled={!canAddBot || loading}
+                onClick={addBotSeat}
+              >
+                {canAddBot ? 'Add Computer' : 'Lobby Full'}
+              </button>
+            </div>
+            {botSeats.length > 0 && (
+              <div className="mp-bot-list">
+                {botSeats.map((b) => {
+                  const cand = CANDIDATE_MAP[b.candidateId];
+                  return (
+                    <div key={b.id} className="mp-bot-chip">
+                      <span className="mp-bot-chip__avatar">
+                        <Avatar
+                          src={cand?.portraitUrl ?? ''}
+                          initials="AI"
+                          name={cand?.name ?? b.candidateId}
+                          className="cand-token"
+                        />
+                      </span>
+                      <span className="mp-bot-chip__text">
+                        <strong>{cand?.name ?? b.candidateId}</strong>
+                        <em>{b.botDifficulty ?? 'medium'}</em>
+                      </span>
+                      <button
+                        type="button"
+                        className="mp-bot-chip__remove"
+                        aria-label={`Remove ${cand?.name ?? 'computer seat'}`}
+                        onClick={() => removeBotSeat(b.id)}
+                        disabled={loading}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           {errorMsg && <p className="mp-error">{errorMsg}</p>}
           <button
             type="button"

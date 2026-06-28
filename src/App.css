@@ -2220,6 +2220,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .mp-error { color: var(--danger-red); font-size: 0.82rem; margin-top: 0.5rem; }
 .mp-hint  { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; }
 
+.mp-host-controls { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+
 .mp-name-row  { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 1rem; }
 .mp-name-label {
   font-family: var(--font-display); font-size: 0.72rem;
@@ -2290,6 +2292,81 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   font-family: var(--font-display); font-size: 0.65rem;
   font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   background: var(--blue); color: #fff; border-radius: 999px; padding: 0.12rem 0.5rem;
+}
+
+.mp-bot-panel {
+  width: min(760px, 100%);
+  display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(245, 184, 80, 0.2);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, rgba(19, 42, 76, 0.72), rgba(11, 24, 46, 0.78));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.mp-bot-panel__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  font-family: var(--font-display); font-size: 0.78rem; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.mp-bot-panel__head strong { color: var(--gold); font-size: 0.82rem; }
+.mp-bot-panel__controls { display: flex; align-items: center; gap: 0.65rem; }
+.mp-bot-difficulty {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex; align-items: center; gap: 0.25rem;
+  padding: 0.18rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-pill);
+  background: rgba(5, 14, 30, 0.45);
+}
+.mp-bot-difficulty__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 0.55rem;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  cursor: pointer;
+}
+.mp-bot-difficulty__btn.is-active {
+  background: var(--blue);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(47, 128, 237, 0.28);
+}
+.mp-bot-add {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 1rem;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--brand-top) 0%, var(--brand) 52%, var(--brand-deep) 100%);
+  color: #fff6ea;
+  font-family: var(--font-display);
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.mp-bot-add:disabled { opacity: 0.55; cursor: default; }
+.mp-bot-list { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+.mp-bot-chip {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+.mp-bot-chip__avatar { width: 30px; height: 30px; flex: 0 0 auto; }
+.mp-bot-chip__text { min-width: 0; display: flex; flex-direction: column; gap: 0.05rem; }
+.mp-bot-chip__text strong { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 0.78rem; }
+.mp-bot-chip__text em { color: var(--muted); font-size: 0.66rem; font-style: normal; text-transform: capitalize; }
+.mp-bot-chip__remove {
+  border: none; background: transparent; color: var(--gold);
+  font-weight: 800; font-size: 0.68rem; cursor: pointer;
 }
 
 /* ══ Modifier sheet ════════════════════════════════════════════════════════ */
@@ -4674,6 +4751,21 @@ html.native .cand-card.is-active,
 html.native .setup__roster .cand-card.is-active { box-shadow: 0 0 0 2px var(--gold), var(--shadow-md); }
 
 html.native .mp-screen { gap: 0.45rem; }
+html.native .mp-host-controls {
+  flex: 0 1 auto;
+  max-width: min(760px, 72vw);
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+}
+html.native .mp-host-controls .setup__count {
+  flex: 0 1 auto;
+}
+html.native .mp-host-controls .setup__timelimit {
+  min-width: 0;
+}
+html.native .mp-host-controls .setup__timelimit .setup__count-btn {
+  min-width: 40px;
+}
 html.native .mp-choice {
   align-self: center; justify-self: center;
   display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr));
@@ -4739,6 +4831,41 @@ html.native .mp-player-name {
   text-overflow: ellipsis;
 }
 html.native .mp-player-cand { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.native .mp-bot-panel {
+  width: min(760px, 82vw);
+  padding: 0.55rem;
+  gap: 0.4rem;
+}
+html.native .mp-bot-panel__head { font-size: 0.66rem; }
+html.native .mp-bot-panel__controls { gap: 0.45rem; }
+html.native .mp-bot-difficulty { gap: 0.18rem; }
+html.native .mp-bot-difficulty__btn {
+  min-height: 32px;
+  padding: 0 0.45rem;
+  font-size: 0.76rem;
+}
+html.native .mp-bot-add {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+html.native .mp-bot-list {
+  max-height: 44px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+}
+html.native .mp-bot-list::-webkit-scrollbar { display: none; }
+html.native .mp-bot-chip {
+  flex: 0 0 auto;
+  padding: 0.25rem 0.35rem;
+}
+html.native .mp-bot-chip__avatar { width: 26px; height: 26px; }
+html.native .mp-bot-chip__text strong { max-width: 104px; font-size: 0.72rem; }
+html.native .mp-bot-chip__text em,
+html.native .mp-bot-chip__remove { font-size: 0.62rem; }
 
 /* Shop renders 4 rows (header, tabs, body, foot) — the shared native-screen grid
    only defines 3 tracks, which collapsed the tabs and starved the body. Give the
