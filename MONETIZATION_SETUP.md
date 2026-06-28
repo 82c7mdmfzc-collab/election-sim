@@ -5,11 +5,12 @@ the **share-card**, **referrals**, and the **July Washington grant**. Code is in
 are the manual deploy/config that must happen for them to work in production.
 
 > Deploy order matters: **apply SQL first → deploy Edge Functions → configure
-> store/Stripe secrets → deploy web/native builds.** Clients must never call a
-> function/RPC that isn't live yet. (CI auto-apply of SQL is still blocked by the
-> workflow-scope PAT, so apply SQL by hand in the Supabase SQL editor.)
+> store secrets → deploy web/native builds.** Clients must never call a
+> function/RPC that isn't live yet. (SQL and Edge Functions now **auto-deploy on
+> push to `main`** via `.github/workflows/deploy-db.yml` and `deploy-functions.yml`;
+> the manual commands below are the fallback / what CI runs under the hood.)
 
-## 1. Database (Supabase SQL editor, in order)
+## 1. Database (applied in dependency order — CI does this on push to `main`)
 
 1. `supabase/profiles.sql` — adds `'washington'` to the `unlock_character` catalog and
    the **July-2026 free grant** in `handle_new_user()` (window `2026-07-01`..`2026-08-01` UTC).
@@ -24,22 +25,19 @@ All are idempotent and safe to re-run.
 
 ## 2. Edge Functions
 
+Auto-deployed on push to `main` by `.github/workflows/deploy-functions.yml`
+(`resolve-turn` + `fulfill-purchase`). To deploy by hand:
+
 ```
 supabase functions deploy fulfill-purchase
 ```
 
-## 3. Web IAP (Stripe) — retired rail
+## 3. Web IAP (Stripe) — removed
 
-- Deprecated historical notes below; do not configure or deploy Stripe for the iOS release.
-- Secrets were `supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_...`
-  (use **test** keys first).
-- Stripe Dashboard → Developers → Webhooks → add endpoint = the `stripe-webhook` URL,
-  event **`checkout.session.completed`**. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
-- USD prices live in `stripe-checkout/index.ts` (`WEB_PRICE_CENTS`); the **funds/characters
-  granted** live server-side in `iap.sql` (`fulfill_purchase`). Keep SKUs in sync across:
-  `src/utils/iap.ts` (FUNDS_BUNDLES) ↔ `stripe-checkout` ↔ `iap.sql`.
-- **Test:** Shop → Buy Funds → Stripe test card `4242 4242 4242 4242` → return to app →
-  funds appear (webhook credited). Replay the webhook in Stripe → **no double-grant**.
+The Stripe web purchasing rail has been **removed entirely** — the `stripe-checkout`
+and `stripe-webhook` Edge Functions are deleted, no `STRIPE_*` secrets are used, and the
+client never opens Stripe Checkout. Campaign Funds are sold **only in the native iOS app**
+via Apple StoreKit (§4); web players earn Funds through gameplay. Nothing to configure here.
 
 ## 4. Native IAP (iOS / Android) — remaining hands-on work
 

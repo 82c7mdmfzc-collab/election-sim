@@ -74,9 +74,9 @@ Verified already present: `tutorial_started/completed/skipped`, `share_started/c
 - **Full move-level daily determinism** — v1 fixes the scenario, not bot moves / election timing (would
   need a seeded RNG through the store + bot driver). Deferred intentionally.
 - **Map themes & profile banners** — typed + placeholder UI only.
-- **Internal docs still stale** (non-blocking, not reviewer-facing): `MONETIZATION_SETUP.md` and a line in
-  `LAUNCH_CHECKLIST.md` still describe the removed Stripe rail and the old `window.__ELECTOR_IAP__` bridge.
-  Update when convenient.
+- **Internal docs cleaned up** (2026-06-28): `MONETIZATION_SETUP.md` §3 now states the Stripe rail is
+  removed instead of giving setup steps, and its deploy notes reflect CI auto-deploy. `LAUNCH_CHECKLIST.md`
+  no longer references Stripe or the old `window.__ELECTOR_IAP__` bridge.
 
 ---
 
