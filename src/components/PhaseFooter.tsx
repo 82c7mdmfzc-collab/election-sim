@@ -147,6 +147,7 @@ export function ResolutionRecap({ className }: { className?: string }) {
   }, []);
 
   const electionChance = electionProbability(turn, hungColleges);
+  const electionNextTurn = turn === ELECTION_START_TURN - 1;
   const active = players.filter((p) => !p.eliminated);
 
   return (
@@ -187,7 +188,9 @@ export function ResolutionRecap({ className }: { className?: string }) {
 
       <div className="resolution__foot">
         <span className="resolution__chance">
-          {electionChance > 0
+          {electionNextTurn
+            ? 'Election next turn'
+            : electionChance > 0
             ? `Election chance: ${Math.round(electionChance * 100)}%`
             : `Election Night from Turn ${ELECTION_START_TURN}`}
         </span>

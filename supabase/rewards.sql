@@ -196,7 +196,7 @@ declare
   v_bot_count    integer := greatest(0, least(coalesce(p_bot_count, 0), 3));
   v_opponents    integer := greatest(0, least(coalesce(p_opponent_count, 0), 3));
   v_mode         text := case when p_mode in ('single', 'bot', 'online') then p_mode else 'single' end;
-  v_bot_diff     text := case when p_bot_difficulty in ('easy', 'medium', 'hard') then p_bot_difficulty else null end;
+  v_bot_diff     text := case when p_bot_difficulty in ('easy', 'medium', 'hard', 'impossible') then p_bot_difficulty else null end;
   v_reward       integer;
   v_games_today  integer;
   v_today_total  integer;
@@ -333,9 +333,9 @@ begin
     'securedStatesLifetime', coalesce((prof.achievement_counters->>'securedStatesLifetime')::integer, 0) + v_secured,
     'botEasyWins', coalesce((prof.achievement_counters->>'botEasyWins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff = 'easy' then 1 else 0 end,
     'botMediumWins', coalesce((prof.achievement_counters->>'botMediumWins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff = 'medium' then 1 else 0 end,
-    'botHardWins', coalesce((prof.achievement_counters->>'botHardWins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff = 'hard' then 1 else 0 end,
-    'botThreeHardWins', coalesce((prof.achievement_counters->>'botThreeHardWins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff = 'hard' and v_bot_count >= 3 then 1 else 0 end,
-    'botHard350Wins', coalesce((prof.achievement_counters->>'botHard350Wins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff = 'hard' and v_ev >= 350 then 1 else 0 end,
+    'botHardWins', coalesce((prof.achievement_counters->>'botHardWins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff in ('hard', 'impossible') then 1 else 0 end,
+    'botThreeHardWins', coalesce((prof.achievement_counters->>'botThreeHardWins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff in ('hard', 'impossible') and v_bot_count >= 3 then 1 else 0 end,
+    'botHard350Wins', coalesce((prof.achievement_counters->>'botHard350Wins')::integer, 0) + case when p_won and v_mode = 'bot' and v_bot_diff in ('hard', 'impossible') and v_ev >= 350 then 1 else 0 end,
     'maxCoalitionsSingleGame', greatest(coalesce((prof.achievement_counters->>'maxCoalitionsSingleGame')::integer, 0), v_coalitions),
     'maxSecuredStatesSingleGame', greatest(coalesce((prof.achievement_counters->>'maxSecuredStatesSingleGame')::integer, 0), v_secured),
     'maxWinEv', greatest(coalesce((prof.achievement_counters->>'maxWinEv')::integer, 0), case when p_won then v_ev else 0 end),

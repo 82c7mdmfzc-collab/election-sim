@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveLobbyTurn } from './resolveLobbyTurn';
-import { buildPendingSubmission } from './lobbySecurity';
+import { buildLobbyGameStateFromWaiting, buildPendingSubmission } from './lobbySecurity';
 import { ALL_STATES } from './statesData';
 import { NATIONAL_GROUPS, STATE_GROUPS } from './config';
 import type { LobbyGameState, PlayerState } from './types';
@@ -86,6 +86,32 @@ describe('resolveLobbyTurn', () => {
     });
     // p2 is eliminated, so p1 alone counts as "all submitted"
     expect(resolveLobbyTurn(state)).not.toBeNull();
+  });
+
+  it('auto-submits server-side bot turns in online games', () => {
+    const state = makeLobbyState({
+      players: [makePlayer('p1'), makePlayer('p2', { isBot: true, botDifficulty: 'hard' })],
+      submittedPlayers: ['p1'],
+      pendingSubmissions: { p1: [], p2: [] },
+    });
+    const outcome = resolveLobbyTurn(state);
+    expect(outcome).not.toBeNull();
+    expect((outcome!.resolved.lastRoundPurchases ?? []).some((p) => p.playerId === 'p2')).toBe(true);
+  });
+
+  it('builds waiting-room bots with independent difficulties', () => {
+    const built = buildLobbyGameStateFromWaiting({
+      playerCount: 3,
+      hostPlayerId: 'host-seat',
+      players: [
+        { id: 'host-seat', candidateId: 'trump', name: 'Host', isHost: true },
+        { id: 'bot-easy', candidateId: 'harris', name: 'AI_1', isHost: false, isBot: true, botDifficulty: 'easy' },
+        { id: 'bot-impossible', candidateId: 'lincoln', name: 'AI_2', isHost: false, isBot: true, botDifficulty: 'impossible' },
+      ],
+    });
+    expect(built).not.toBeNull();
+    expect(built!.players.find((p) => p.id === 'bot-easy')?.botDifficulty).toBe('easy');
+    expect(built!.players.find((p) => p.id === 'bot-impossible')?.botDifficulty).toBe('impossible');
   });
 
   it('recomputes forged pending purchases before resolution', () => {

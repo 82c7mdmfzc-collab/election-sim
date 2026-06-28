@@ -28,7 +28,8 @@ import { CandidateStatsModal } from './CandidateStatsModal';
 const DIFFICULTIES: { id: BotDifficulty; label: string; blurb: string }[] = [
   { id: 'easy',   label: 'Easy',   blurb: 'Loose, low-pressure decisions.' },
   { id: 'medium', label: 'Medium', blurb: 'Balanced map control and steady pressure.' },
-  { id: 'hard',   label: 'Hard',   blurb: 'Sharper denial, coalition pushes, and secure finishes.' },
+  { id: 'hard',   label: 'Hard',   blurb: 'Sharper denial, coalition pushes, attacks, and secure finishes.' },
+  { id: 'impossible', label: 'Impossible', blurb: 'Legal-only expert pressure: ruthless EV denial and perk exploitation.' },
 ];
 
 const TIME_OPTIONS: { label: string; value: number | null }[] = [
@@ -53,6 +54,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
 
   const [myId, setMyId] = useState(ownedCandidates[0]?.id ?? CANDIDATES[0].id);
   const [difficulty, setDifficulty] = useState<BotDifficulty>('medium');
+  const [botDifficulties, setBotDifficulties] = useState<Record<string, BotDifficulty>>({});
   const [opponents, setOpponents] = useState(1);
   const [turnTimeLimit, setTurnTimeLimit] = useState<number | null>(null);
   const [statsModalId, setStatsModalId] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
 
   function start() {
     const chosen = [me, ...botRoster];
-    const botSeats = Object.fromEntries(botRoster.map((b) => [b.id, difficulty]));
+    const botSeats = Object.fromEntries(botRoster.map((b) => [b.id, botDifficulties[b.id] ?? difficulty]));
     AudioManager.play('confirm');
     startGame(chosen, turnTimeLimit, botSeats);
   }
@@ -106,7 +108,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
         </div>
 
         <div className="setup__count">
-          <span>Difficulty:</span>
+          <span>Default AI:</span>
           {DIFFICULTIES.map((d) => (
             <button
               key={d.id}
@@ -169,9 +171,32 @@ export function BotSetup({ onBack }: BotSetupProps) {
         </div>
 
         <div className="setup__seats">
-          <span className="setup__seat is-filled">
-            Opposition: <strong>{botRoster.map((b) => `${b.name} (${difficulty})`).join(', ')}</strong>
-          </span>
+          {botRoster.map((b, idx) => {
+            const diff = botDifficulties[b.id] ?? difficulty;
+            return (
+              <span key={b.id} className="setup__seat is-filled" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                <span>
+                  Bot {idx + 1}: <strong>{b.name}</strong> <em>({diff})</em>
+                </span>
+                <span className="setup__count" style={{ margin: '0.35rem 0 0', justifyContent: 'flex-start' }}>
+                  {DIFFICULTIES.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      className={`setup__count-btn${diff === d.id ? ' is-active' : ''}`}
+                      onClick={() => {
+                        AudioManager.play('click');
+                        setBotDifficulties((cur) => ({ ...cur, [b.id]: d.id }));
+                      }}
+                      title={d.blurb}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </span>
+              </span>
+            );
+          })}
         </div>
       </div>
 

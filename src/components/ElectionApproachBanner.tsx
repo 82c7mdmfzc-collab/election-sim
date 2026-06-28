@@ -83,15 +83,15 @@ export function ElectionApproachBanner() {
         <div className="election-approach__glow" aria-hidden />
         <div className="election-approach__icon" aria-hidden>🗳️</div>
         <div className="election-approach__kicker">
-          {isPre ? 'Final Stretch' : 'Election Night'}
+          {isPre ? 'Election Next Turn' : 'Election Night'}
         </div>
         <h2 className="election-approach__title">
-          {isPre ? 'Election Night Approaching' : 'The Vote Is Live'}
+          {isPre ? 'Election next turn' : 'The Vote Is Live'}
         </h2>
         <p className="election-approach__body">
           {isPre ? (
-            <>From <strong>next round</strong>, the national vote can be called at any time.
-            Lock in your battleground states now.</>
+            <>The election can be called from <strong>next turn</strong>.
+            Shift to EVs now and lock in your battleground states.</>
           ) : (
             <>Any round can now trigger the national vote — <strong>{chance}% chance</strong> when
             this round resolves. Make every move count.</>

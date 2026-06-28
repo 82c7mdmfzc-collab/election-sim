@@ -20,6 +20,7 @@
 --     SECURITY DEFINER RPCs that validate the caller:
 --       - create_lobby ........ caller becomes host; records host participant
 --       - join_lobby_player ... caller is bound to the player UUID they claim
+--       - set_lobby_bots ...... host-only waiting-room computer seats
 --       - start_game .......... disabled; Edge Function builds initial state
 --       - submit_turn_pending . service-only atomic write of validated pending
 --       - push_game_state ..... disabled
@@ -404,6 +405,91 @@ begin
 end;
 $$;
 
+-- ── RPC: set_lobby_bots — host adds/removes waiting-room computer seats ───────
+create or replace function public.set_lobby_bots(
+  p_lobby_id uuid,
+  p_bots     jsonb
+)
+returns setof public.lobbies
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid        uuid := auth.uid();
+  v_state      jsonb;
+  v_status     text;
+  v_cap        integer;
+  v_humans     jsonb := '[]'::jsonb;
+  v_bots       jsonb := '[]'::jsonb;
+  v_seen       text[] := '{}';
+  v_bot        jsonb;
+  v_id         text;
+  v_candidate  text;
+  v_name       text;
+  v_diff       text;
+  v_row        public.lobbies;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+  if not public.is_lobby_host(p_lobby_id) then raise exception 'only the host may manage bots'; end if;
+  if p_bots is null or jsonb_typeof(p_bots) <> 'array' then raise exception 'invalid bots'; end if;
+
+  select game_state, status, player_count
+    into v_state, v_status, v_cap
+    from public.lobbies where id = p_lobby_id for update;
+
+  if v_state is null then raise exception 'lobby not found'; end if;
+  if v_status <> 'waiting' then raise exception 'lobby not waiting'; end if;
+
+  for v_bot in select * from jsonb_array_elements(coalesce(v_state->'players', '[]'::jsonb))
+  loop
+    if coalesce((v_bot->>'isBot')::boolean, false) = false then
+      v_humans := v_humans || jsonb_build_array(v_bot);
+      v_seen := array_append(v_seen, v_bot->>'candidateId');
+    end if;
+  end loop;
+
+  if jsonb_array_length(v_humans) + jsonb_array_length(p_bots) > coalesce(v_cap, 2) then
+    raise exception 'lobby full';
+  end if;
+
+  for v_bot in select * from jsonb_array_elements(p_bots)
+  loop
+    if v_bot is null or jsonb_typeof(v_bot) <> 'object' then raise exception 'invalid bot'; end if;
+    v_id := v_bot->>'id';
+    v_candidate := v_bot->>'candidateId';
+    v_name := coalesce(v_bot->>'name', 'AI');
+    v_diff := coalesce(v_bot->>'botDifficulty', 'medium');
+
+    if v_id is null or v_id !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+      raise exception 'invalid bot.id';
+    end if;
+    if v_name !~ '^[A-Za-z0-9_-]{2,20}$' then raise exception 'invalid bot.name'; end if;
+    if not public.is_known_candidate(v_candidate) then raise exception 'unknown bot candidate'; end if;
+    if v_candidate = any(v_seen) then raise exception 'candidate already taken'; end if;
+    if v_diff not in ('easy', 'medium', 'hard', 'impossible') then raise exception 'invalid bot difficulty'; end if;
+
+    v_seen := array_append(v_seen, v_candidate);
+    v_bots := v_bots || jsonb_build_array(jsonb_build_object(
+      'id', v_id,
+      'candidateId', v_candidate,
+      'name', v_name,
+      'isHost', false,
+      'isBot', true,
+      'botDifficulty', v_diff
+    ));
+  end loop;
+
+  update public.lobbies
+     set game_state = jsonb_set(v_state, '{players}', v_humans || v_bots, true),
+         updated_at = now()
+   where id = p_lobby_id
+   returning * into v_row;
+
+  return next v_row;
+end;
+$$;
+
 -- ── RPC: ensure_participant — repair a missing participant binding on rejoin ───
 -- Called on session restore (page refresh / device switch). If the caller's seat
 -- exists in the lobby but their lobby_participants row is missing (e.g. an earlier
@@ -651,6 +737,8 @@ revoke execute on function public.create_lobby(text, boolean, integer, jsonb) fr
 grant execute on function public.create_lobby(text, boolean, integer, jsonb)      to authenticated;
 revoke execute on function public.join_lobby_player(uuid, jsonb) from public, anon;
 grant execute on function public.join_lobby_player(uuid, jsonb)                   to authenticated;
+revoke execute on function public.set_lobby_bots(uuid, jsonb) from public, anon;
+grant execute on function public.set_lobby_bots(uuid, jsonb)                     to authenticated;
 revoke execute on function public.start_game(uuid, jsonb) from public, anon, authenticated;
 revoke execute on function public.submit_turn_pending(uuid, text, jsonb, uuid) from public, anon, authenticated;
 grant execute on function public.submit_turn_pending(uuid, text, jsonb, uuid)     to service_role;

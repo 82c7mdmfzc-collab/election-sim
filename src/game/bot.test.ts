@@ -144,10 +144,11 @@ function simulateDuel(
     easy: players.filter((p) => p.botDifficulty === 'easy').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
     medium: players.filter((p) => p.botDifficulty === 'medium').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
     hard: players.filter((p) => p.botDifficulty === 'hard').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
+    impossible: players.filter((p) => p.botDifficulty === 'impossible').reduce((sum, p) => sum + (evs[p.id] ?? 0), 0),
   };
 }
 
-const DIFFICULTIES: BotDifficulty[] = ['easy', 'medium', 'hard'];
+const DIFFICULTIES: BotDifficulty[] = ['easy', 'medium', 'hard', 'impossible'];
 
 describe('planBotTurn — legality', () => {
   for (const diff of DIFFICULTIES) {
@@ -171,11 +172,12 @@ describe('planBotTurn — legality', () => {
 });
 
 describe('planBotTurn — behavior', () => {
-  it('spends when it has funds (medium & hard make purchases)', () => {
+  it('spends when it has funds (medium, hard & impossible make purchases)', () => {
     const state = freshGame();
     const botId = state.players[1].id;
     expect(planBotTurn(state, botId, 'medium', mulberry32(1)).length).toBeGreaterThan(0);
     expect(planBotTurn(state, botId, 'hard', mulberry32(1)).length).toBeGreaterThan(0);
+    expect(planBotTurn(state, botId, 'impossible', mulberry32(1)).length).toBeGreaterThan(0);
   });
 
   it('is deterministic for a fixed rng seed', () => {
@@ -221,9 +223,52 @@ describe('planBotTurn — behavior', () => {
     expect(hardSpend).toBeGreaterThan(0);
   });
 
+  it('supports multiple bot difficulties in one game', () => {
+    const players = [
+      { ...playerFromCandidate(CANDIDATES[0], { id: 'human', name: 'Human' }) },
+      { ...playerFromCandidate(CANDIDATES[1], { id: 'easy-bot', name: 'Easy' }), isBot: true, botDifficulty: 'easy' as const },
+      { ...playerFromCandidate(CANDIDATES[2], { id: 'impossible-bot', name: 'Impossible' }), isBot: true, botDifficulty: 'impossible' as const },
+    ];
+    const state = createInitialGameStateFromPlayers(players);
+    const easyMoves = planBotTurn(state, 'easy-bot', players[1].botDifficulty!, mulberry32(2));
+    const impossibleMoves = planBotTurn(state, 'impossible-bot', players[2].botDifficulty!, mulberry32(2));
+    assertLegal(state, 'easy-bot', easyMoves);
+    assertLegal(state, 'impossible-bot', impossibleMoves);
+    expect(impossibleMoves.length).toBeGreaterThan(0);
+  });
+
+  it('hard attacks a leader-held EV target before the election can roll', () => {
+    const state = freshGame();
+    const leaderId = state.players[0].id;
+    const botId = state.players[1].id;
+    state.turn = 10;
+    state.rungs.CA[leaderId] = 2;
+    state.reachSeq.CA[leaderId] = 1;
+    state.rungs.TX[leaderId] = 2;
+    state.reachSeq.TX[leaderId] = 2;
+    const moves = planBotTurn(state, botId, 'hard', mulberry32(11));
+    expect(moves.some((m) => m.kind === 'state' && ['CA', 'TX'].includes(m.targetId))).toBe(true);
+    assertLegal(state, botId, moves);
+  });
+
+  it('impossible values perk-relevant national groups when buying income ladders', () => {
+    const state = freshGame();
+    const botId = state.players[1].id;
+    state.players[1] = {
+      ...state.players[1],
+      affinities: { ...state.players[1].affinities, 'Gun Lobby': 0.4 },
+      payoutModifiers: { ...state.players[1].payoutModifiers, 'Gun Lobby': 0.4 },
+      nationalCash: 2000,
+    };
+    const moves = planBotTurn(state, botId, 'impossible', () => 0);
+    expect(moves.some((m) => m.kind === 'national' && m.targetId === 'Gun Lobby')).toBe(true);
+    assertLegal(state, botId, moves);
+  });
+
   it('calibrates full simulated games by difficulty tier', () => {
     const mediumVsEasy = { easy: 0, medium: 0 };
     const hardVsMedium = { medium: 0, hard: 0 };
+    const impossibleVsHard = { hard: 0, impossible: 0 };
 
     for (let seed = 1; seed <= 5; seed++) {
       for (let c = 0; c < 3; c++) {
@@ -236,6 +281,11 @@ describe('planBotTurn — behavior', () => {
         const hmB = simulateDuel('medium', 'hard', seed + 150, c);
         hardVsMedium.hard += hmA.hard + hmB.hard;
         hardVsMedium.medium += hmA.medium + hmB.medium;
+
+        const ihA = simulateDuel('impossible', 'hard', seed + 200, c);
+        const ihB = simulateDuel('hard', 'impossible', seed + 250, c);
+        impossibleVsHard.impossible += ihA.impossible + ihB.impossible;
+        impossibleVsHard.hard += ihA.hard + ihB.hard;
       }
     }
 
@@ -246,5 +296,6 @@ describe('planBotTurn — behavior', () => {
     // strictly ahead, which is fragile to a few knife-edge games.
     expect(mediumVsEasy.medium).toBeGreaterThan(mediumVsEasy.easy);
     expect(hardVsMedium.hard).toBeGreaterThanOrEqual(hardVsMedium.medium * 0.97);
+    expect(impossibleVsHard.impossible).toBeGreaterThanOrEqual(impossibleVsHard.hard * 0.97);
   }, 30000);
 });

@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CANDIDATE_MAP } from '../game/candidates';
-import { electionProbability } from '../game/config';
+import { ELECTION_START_TURN, electionProbability } from '../game/config';
 import {
   useElectoralResult,
   useGameStore,
@@ -165,6 +165,7 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
     return Object.values(wallets ?? {}).reduce((a, b) => a + b, 0);
   };
   const electionPct = Math.round(electionProbability(turn, hungColleges) * 100);
+  const electionNextTurn = turn === ELECTION_START_TURN - 1;
 
   const prevElectionPct = useRef(0);
   useEffect(() => {
@@ -209,9 +210,9 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
         <span className="header-hud__target" title="First to 270 electoral votes wins the election">
           Victory Target <strong>270 EV</strong>
         </span>
-        {electionPct > 0 && (
+        {(electionNextTurn || electionPct > 0) && (
           <span className={`hud__elect-pill${electionPct >= 50 ? ' is-high' : ''}`}>
-            ⚡ Election {electionPct}%
+            ⚡ {electionNextTurn ? 'Election next turn' : `Election ${electionPct}%`}
           </span>
         )}
         {timer.isActive && timer.display && (
@@ -258,7 +259,7 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
 
       {showElectionBanner && (
         <div className="election-imminent-banner">
-          ⚡ ELECTION IMMINENT — The next turn could trigger a vote!
+          ⚡ ELECTION NEXT TURN — Shift to EVs before the vote can be called.
         </div>
       )}
 

@@ -208,6 +208,17 @@ function activePlayers(players: PlayerState[]): PlayerState[] {
   return players.filter((p) => !p.eliminated);
 }
 
+const BOT_DIFFICULTY_RANK: Record<BotDifficulty, number> = { easy: 1, medium: 2, hard: 3, impossible: 4 };
+
+function strongestBotDifficulty(players: PlayerState[]): BotDifficulty | null {
+  let best: BotDifficulty | null = null;
+  for (const p of players) {
+    if (!p.isBot || !p.botDifficulty) continue;
+    if (!best || BOT_DIFFICULTY_RANK[p.botDifficulty] > BOT_DIFFICULTY_RANK[best]) best = p.botDifficulty;
+  }
+  return best;
+}
+
 function trackStartedGame(
   gameId: string,
   mode: 'single' | 'bot' | 'online',
@@ -223,7 +234,7 @@ function trackStartedGame(
     opponent_count: Math.max(0, players.length - 1),
     player_count: players.length,
     bot_count: bots.length,
-    difficulty: bots[0]?.botDifficulty ?? null,
+    difficulty: strongestBotDifficulty(players),
     turn_timer_seconds: turnTimeLimit,
   });
 }
@@ -548,7 +559,7 @@ export const useGameStore = create<GameStore>()(
             // If this device is the host AND everyone is now in, resolve immediately
             // without waiting for the Realtime round-trip.
             const allDone = snap.players
-              .filter((p) => !p.eliminated)
+              .filter((p) => !p.eliminated && !p.isBot)
               .every((p) => nextSubmitted.includes(p.id));
 
             if (allDone && localPlayerId === hostPlayerId) {

@@ -11,10 +11,12 @@
  * isolation (see bot.test.ts), mirroring the engine.ts pattern.
  *
  * Difficulty tiers:
- *   easy   — random legal moves, spends nearly all cash, ignores tactics.
- *   medium — greedy value (EV per $) with affinity awareness; builds leads.
- *   hard   — adds coalition-dominance pushes, denial of the leader's states,
- *            securing, deeper sprints, and a late-game cash reserve.
+ *   easy       — loose legal moves, spends most cash, light perk awareness.
+ *   medium     — greedy value (EV per $) with perk and coalition awareness.
+ *   hard       — adds aggressive leader denial, coalition breaks, securing,
+ *                and pre-election EV pressure.
+ *   impossible — legal-only expert pressure: lowest noise, strongest denial,
+ *                best EV math, and ruthless pre-election attacks.
  */
 
 import {
@@ -22,6 +24,7 @@ import {
   calcStateCost,
   calcNationalCost,
   computeWalletSplit,
+  groupDominanceProgress,
   maxBuyableThisTurn,
   tallyElectoralVotes,
 } from './engine';
@@ -45,41 +48,66 @@ const STATE_BY_ID = Object.fromEntries(ALL_STATES.map((s) => [s.id, s]));
 
 // Difficulty knobs. easy is handled by a dedicated random path.
 interface Knobs {
-  reserveFrac: number;      // fraction of total funds to keep unspent
+  reserveFrac: number;      // fraction of total funds to keep unspent; stays tiny because bots play to win
   depth: number;            // max rungs to sprint into a single top target
   secureBonus: number;      // value multiplier for reaching a state's max (securing)
   dominanceBonus: number;   // value boost for states that create/preserve dominance
   denialBonus: number;      // value boost for contesting the leader's states
   swingBonus: number;       // value boost for EVs that swing from another player
+  perkBonus: number;        // value boost for groups matching candidate perks
+  attackBonus: number;      // value boost for breaking opponent EV/income engines
+  preElectionEVBonus: number;// extra EV urgency the round before elections open
   clashPenalty: number;     // score multiplier when a visible pending clash is likely
   nationalChance: number;   // chance to also invest in a national ladder
   jitter: number;           // random noise; higher = less reliable play
 }
 
-const KNOBS: Record<'medium' | 'hard', Knobs> = {
+const KNOBS: Record<'medium' | 'hard' | 'impossible', Knobs> = {
   medium: {
-    reserveFrac: 0.04,
+    reserveFrac: 0.01,
     depth: 1,
     secureBonus: 0.7,
     dominanceBonus: 0.35,
     denialBonus: 0.15,
     swingBonus: 0.35,
+    perkBonus: 0.45,
+    attackBonus: 0.2,
+    preElectionEVBonus: 0.55,
     clashPenalty: 0.75,
-    nationalChance: 0.35,
+    nationalChance: 0.3,
     jitter: 0.08,
   },
   hard: {
-    reserveFrac: 0.07,
+    reserveFrac: 0.005,
     depth: 3,
     secureBonus: 1.25,
     dominanceBonus: 1.2,
-    denialBonus: 0.95,
-    swingBonus: 1.05,
+    denialBonus: 1.25,
+    swingBonus: 1.25,
+    perkBonus: 0.9,
+    attackBonus: 1.1,
+    preElectionEVBonus: 1.65,
     clashPenalty: 0.08,
-    nationalChance: 0.45,
+    nationalChance: 0.34,
     jitter: 0.025,
   },
+  impossible: {
+    reserveFrac: 0,
+    depth: 4,
+    secureBonus: 1.75,
+    dominanceBonus: 1.65,
+    denialBonus: 1.85,
+    swingBonus: 1.8,
+    perkBonus: 1.25,
+    attackBonus: 1.65,
+    preElectionEVBonus: 2.35,
+    clashPenalty: 0.02,
+    nationalChance: 0.42,
+    jitter: 0.005,
+  },
 };
+
+const ELECTION_START_TURN = 11;
 
 /** Running wallet/pending simulation so the plan stays affordable and legal. */
 interface Sim {
@@ -96,6 +124,27 @@ function makeSim(player: PlayerState): Sim {
 
 function totalFunds(p: PlayerState): number {
   return p.nationalCash + Object.values(p.groupWallets).reduce((a, b) => a + b, 0);
+}
+
+function perkWeight(player: PlayerState, groupId: string): number {
+  const affinity = Math.max(0, player.affinities[groupId] ?? 0);
+  const payout = Math.max(0, player.payoutModifiers[groupId] ?? 0);
+  return affinity + payout * 0.85;
+}
+
+function isPreElectionTurn(state: GameState): boolean {
+  return state.turn === ELECTION_START_TURN - 1;
+}
+
+function topOpponentEv(state: GameState, selfId: string): { id: string | null; ev: number } {
+  const election = tallyElectoralVotes(state);
+  let id: string | null = null;
+  let ev = 0;
+  for (const p of state.players.filter((x) => !x.eliminated && x.id !== selfId)) {
+    const cur = election.evByPlayer[p.id] ?? 0;
+    if (cur > ev) { id = p.id; ev = cur; }
+  }
+  return { id, ev };
 }
 
 /**
@@ -169,6 +218,19 @@ function chooseStateRungs(state: GameState, sim: Sim, stateId: string, preferred
     return rungs - 1;
   }
   return rungs;
+}
+
+function affordableStateRungs(state: GameState, sim: Sim, stateId: string, preferred: number): number {
+  const us = STATE_BY_ID[stateId];
+  if (!us) return 0;
+  const startRung = state.rungs[stateId]?.[sim.player.id] ?? 0;
+  const pending = sim.pending[stateId] ?? 0;
+  const discount = bestAffinityForState(sim.player, stateId);
+  for (let r = chooseStateRungs(state, sim, stateId, preferred); r >= 1; r--) {
+    const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, r, discount);
+    if (computeWalletSplit(sim.player, stateId, cost)) return r;
+  }
+  return 0;
 }
 
 // ── Scoring (medium / hard) ────────────────────────────────────────────────────
@@ -274,6 +336,27 @@ function dominancePressureByState(state: GameState, selfId: string): Record<stri
   return pressure;
 }
 
+function coalitionBreakPressure(state: GameState, selfId: string, stateId: string): number {
+  const groups = STATE_GROUPS_BY_STATE[stateId] ?? [];
+  let pressure = 0;
+  for (const gid of groups) {
+    const group = STATE_GROUPS.find((g) => g.id === gid);
+    if (!group) continue;
+    const dom = state.stateGroupDominance[gid];
+    if (!dom || dom === selfId) continue;
+
+    const progress = groupDominanceProgress(group, state.rungs, state.reachSeq, state.players);
+    const opponentEv = progress.evByPlayer[dom] ?? 0;
+    const stateEv = STATE_BY_ID[stateId]?.electoralVotes ?? 0;
+    const canBreak = opponentEv > progress.threshold && opponentEv - stateEv <= progress.threshold;
+    const opponent = state.players.find((p) => p.id === dom);
+    const wallet = opponent?.groupWallets[gid] ?? 0;
+    const engineValue = group.bonusPayout + wallet * 0.25;
+    pressure += canBreak ? engineValue / 75 : engineValue / 220;
+  }
+  return pressure;
+}
+
 function scoreState(
   state: GameState,
   sim: Sim,
@@ -290,38 +373,39 @@ function scoreState(
 
   const { max: oppMax, leaderId } = opponentMaxRungs(state, stateId, sim.player.id);
   const leader = stateLeader(state, stateId);
-  const election = tallyElectoralVotes(state);
-  const topOpponentEv = Math.max(
-    0,
-    ...state.players
-      .filter((p) => !p.eliminated && p.id !== sim.player.id)
-      .map((p) => election.evByPlayer[p.id] ?? 0),
-  );
+  const opponentLeader = topOpponentEv(state, sim.player.id);
   const discount = bestAffinityForState(sim.player, stateId);
-  const plannedRungs = chooseStateRungs(state, sim, stateId, k.depth);
+  const plannedRungs = affordableStateRungs(state, sim, stateId, k.depth);
   if (plannedRungs <= 0) return -Infinity;
   const endRung = myRungs + plannedRungs;
   const plannedCost = calcStateCost(stateId, us.baseCampaignCost, myRungs, plannedRungs, discount) || 1;
 
+  const preElection = isPreElectionTurn(state);
+  const leaderPressure = opponentLeader.ev >= WIN_THRESHOLD - 80 ? 1.45 : opponentLeader.ev >= WIN_THRESHOLD - 130 ? 1.2 : 1;
   let value = us.electoralVotes * (leader === sim.player.id ? 0.35 : 1);
   // Taking or holding the lead is the point — buying past the current leader.
   if (leader !== sim.player.id && endRung > oppMax) value += us.electoralVotes * 0.8;
   else if (leader === sim.player.id && endRung > oppMax) value += us.electoralVotes * 0.12;
   // EVs that move from another player to us are worth roughly double in a close race.
   if (leader && leader !== sim.player.id && endRung > oppMax) {
-    const urgency = topOpponentEv >= WIN_THRESHOLD - 80 ? 1.35 : 1;
-    value += us.electoralVotes * k.swingBonus * urgency;
+    value += us.electoralVotes * k.swingBonus * leaderPressure;
+    if (leader === opponentLeader.id) value += us.electoralVotes * k.attackBonus * leaderPressure;
   }
+  if (preElection) value += us.electoralVotes * k.preElectionEVBonus * (leader === sim.player.id ? 0.4 : 1);
   // Securing (reaching the top) locks the EV permanently.
   if (endRung >= us.maxRungs) value += us.electoralVotes * k.secureBonus;
   // Push coalitions we can plausibly dominate or must defend.
   value += us.electoralVotes * (dominancePressure[stateId] ?? 0) * k.dominanceBonus;
+  value += us.electoralVotes * coalitionBreakPressure(state, sim.player.id, stateId) * k.attackBonus;
   // Deny the current opponent leader on valuable turf.
   if (k.denialBonus > 0 && leaderId && oppMax > myRungs) {
-    value += us.electoralVotes * k.denialBonus;
+    value += us.electoralVotes * k.denialBonus * (leaderId === opponentLeader.id ? leaderPressure : 1);
   }
   if (STATE_GROUPS_BY_STATE[stateId]?.length) {
     value += STATE_GROUPS_BY_STATE[stateId].length * 0.2;
+    for (const gid of STATE_GROUPS_BY_STATE[stateId]) {
+      value += us.electoralVotes * perkWeight(sim.player, gid) * k.perkBonus;
+    }
   }
 
   const visibleClash = wouldMatchVisiblePending(
@@ -375,23 +459,32 @@ export function planBotTurn(
 }
 
 function planEasy(state: GameState, sim: Sim, moves: BotMove[], rng: () => number): void {
-  // Random, low-commitment play: it ignores EV density, sometimes toys with a
-  // national ladder, and usually leaves money on the table.
-  if (rng() < 0.15) {
-    const ladders = NATIONAL_GROUPS.filter((g) => !state.natSecuredBy[g.id]);
-    shuffle(ladders, rng);
+  // Loose but no longer idle: it spends most cash, with a small tilt toward
+  // candidate perks but little tactical awareness.
+  if (rng() < 0.18 && !isPreElectionTurn(state)) {
+    const ladders = NATIONAL_GROUPS
+      .filter((g) => !state.natSecuredBy[g.id])
+      .sort((a, b) => perkWeight(sim.player, b.id) - perkWeight(sim.player, a.id));
+    if (rng() < 0.45) shuffle(ladders, rng);
     const mv = ladders[0] ? commitNational(sim, state, ladders[0].id, 1) : null;
     if (mv) moves.push(mv);
   }
 
-  const spendFloor = totalFunds(sim.player) * (0.72 + rng() * 0.16);
-  const pool = ALL_STATES.filter((s) => !state.securedBy[s.id]).map((s) => s.id);
+  const spendFloor = totalFunds(sim.player) * (0.12 + rng() * 0.14);
+  const pool = ALL_STATES
+    .filter((s) => !state.securedBy[s.id])
+    .map((s) => ({
+      id: s.id,
+      weight: s.electoralVotes + (STATE_GROUPS_BY_STATE[s.id] ?? []).reduce((sum, gid) => sum + perkWeight(sim.player, gid) * 18, 0),
+    }))
+    .sort((a, b) => b.weight - a.weight)
+    .map((s) => s.id);
   shuffle(pool, rng);
-  for (let pass = 0; pass < 1; pass++) {
+  for (let pass = 0; pass < 3; pass++) {
     let spentThisPass = false;
     for (const sid of pool) {
       if (totalFunds(sim.player) <= spendFloor) return;
-      if (rng() < 0.48) continue;
+      if (rng() < 0.28) continue;
       const mv = commitState(sim, state, sid, 1);
       if (mv) { moves.push(mv); spentThisPass = true; }
     }
@@ -400,18 +493,20 @@ function planEasy(state: GameState, sim: Sim, moves: BotMove[], rng: () => numbe
 }
 
 function planSmart(state: GameState, sim: Sim, moves: BotMove[], k: Knobs, rng: () => number): void {
-  const electionPressure = state.turn >= 11 ? Math.max(0, state.turn - 10) * 0.01 : 0;
+  const electionPressure = state.turn >= ELECTION_START_TURN - 1 ? Math.max(0, state.turn - 9) * 0.01 : 0;
   const reserve = totalFunds(sim.player) * Math.max(0, k.reserveFrac - electionPressure);
   const dominancePressure = dominancePressureByState(state, sim.player.id);
+  const preElection = isPreElectionTurn(state);
 
   // Optional: invest in a national ladder for flexible income, weighted by net
-  // payout per cost rather than picking the same ladder every time.
-  if (rng() < k.nationalChance && state.turn <= 11) {
+  // payout and candidate perks rather than picking the same ladder every time.
+  if (!preElection && rng() < k.nationalChance && state.turn <= ELECTION_START_TURN) {
     const ladder = [...NATIONAL_GROUPS]
       .filter((g) => !state.natSecuredBy[g.id])
       .map((g) => ({
         id: g.id,
-        score: g.turnBonus / Math.max(1, calcNationalCost(g.id, state.natRungs[g.id]?.[sim.player.id] ?? 0, 1, sim.player)),
+        score: (g.turnBonus * (1 + Math.max(0, sim.player.payoutModifiers[g.id] ?? 0)) + perkWeight(sim.player, g.id) * 60)
+          / Math.max(1, calcNationalCost(g.id, state.natRungs[g.id]?.[sim.player.id] ?? 0, 1, sim.player)),
       }))
       .sort((a, b) => b.score - a.score)[0];
     if (ladder) {

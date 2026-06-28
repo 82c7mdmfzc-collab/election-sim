@@ -69,7 +69,7 @@ export interface GameResult {
   securedStates: number;
   coalitionsDominated: number;
   mode: GameCompletionMode;
-  botDifficulty: 'easy' | 'medium' | 'hard' | null;
+  botDifficulty: 'easy' | 'medium' | 'hard' | 'impossible' | null;
   botCount: number;
   turns: number;
   electoralVotes: number;
@@ -542,7 +542,7 @@ function advanceCounters(
   if (result.won && result.mode === 'bot') {
     if (result.botDifficulty === 'easy') next.botEasyWins = c.botEasyWins + 1;
     if (result.botDifficulty === 'medium') next.botMediumWins = c.botMediumWins + 1;
-    if (result.botDifficulty === 'hard') {
+    if (result.botDifficulty === 'hard' || result.botDifficulty === 'impossible') {
       next.botHardWins = c.botHardWins + 1;
       next.botThreeHardWins = c.botThreeHardWins + (result.botCount >= 3 ? 1 : 0);
       next.botHard350Wins = c.botHard350Wins + (result.electoralVotes >= 350 ? 1 : 0);

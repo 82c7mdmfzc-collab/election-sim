@@ -13,6 +13,7 @@ import type { LobbyGameState, PendingPurchase, PlayerState, PurchaseIntent, Wait
 
 const MAX_INTENTS_PER_TURN = 100;
 const ALLOWED_TURN_LIMITS = new Set([30, 60, 120]);
+const ALLOWED_BOT_DIFFICULTIES = new Set(['easy', 'medium', 'hard', 'impossible']);
 
 function isPurchaseKind(v: unknown): v is PurchaseIntent['kind'] {
   return v === 'state' || v === 'national';
@@ -155,7 +156,13 @@ export function buildLobbyGameStateFromWaiting(
     if (!candidate || seenCandidates.has(wp.candidateId)) return null;
     if (typeof wp.id !== 'string' || typeof wp.name !== 'string') return null;
     seenCandidates.add(wp.candidateId);
-    players.push(playerFromCandidate(candidate, { id: wp.id, name: wp.name }));
+    const base = playerFromCandidate(candidate, { id: wp.id, name: wp.name });
+    if (wp.isBot) {
+      if (!wp.botDifficulty || !ALLOWED_BOT_DIFFICULTIES.has(wp.botDifficulty)) return null;
+      players.push({ ...base, isBot: true, botDifficulty: wp.botDifficulty });
+    } else {
+      players.push(base);
+    }
   }
 
   const core = createInitialGameStateFromPlayers(players);

@@ -62,7 +62,7 @@ export interface PlayerState {
   botDifficulty?: BotDifficulty;
 }
 
-export type BotDifficulty = 'easy' | 'medium' | 'hard';
+export type BotDifficulty = 'easy' | 'medium' | 'hard' | 'impossible';
 
 // ── Progress tracking ─────────────────────────────────────────────────────────
 /** Current rung count per state per player. */
@@ -199,6 +199,10 @@ export interface WaitingPlayer {
   candidateId: string;  // e.g., 'harris', 'trump'
   name: string;         // custom display name entered by the player
   isHost: boolean;
+  /** Waiting-room computer seat. Bots are host-managed and have no auth binding. */
+  isBot?: boolean;
+  /** Bot strength for waiting-room computer seats. */
+  botDifficulty?: BotDifficulty;
 }
 
 export interface WaitingLobbyState {

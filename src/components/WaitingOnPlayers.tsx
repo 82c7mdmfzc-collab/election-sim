@@ -21,7 +21,7 @@ export function WaitingOnPlayers() {
 
         <ul className="waiting-players__list">
           {active.map((p) => {
-            const ready = submittedPlayers.includes(p.id);
+            const ready = p.isBot || submittedPlayers.includes(p.id);
             const hex   = colors[p.id]?.hex ?? '#64748b';
             return (
               <li
@@ -32,7 +32,7 @@ export function WaitingOnPlayers() {
                 <span className="waiting-players__dot" aria-hidden />
                 <span className="waiting-players__name">{p.name}</span>
                 <span className="waiting-players__badge">
-                  {ready ? 'Ready ✓' : 'Waiting…'}
+                  {p.isBot ? 'Computer' : ready ? 'Ready ✓' : 'Waiting…'}
                 </span>
               </li>
             );

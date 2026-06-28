@@ -37,9 +37,10 @@ import {
   rpcStartGame,
   rpcFindLobbyByCode,
   rpcListPublicLobbies,
+  rpcSetLobbyBots,
   type LobbyRow,
 } from '../utils/supabaseClient';
-import type { LobbyGameState, WaitingLobbyState, WaitingPlayer } from '../game/types';
+import type { BotDifficulty, LobbyGameState, WaitingLobbyState, WaitingPlayer } from '../game/types';
 
 type Screen =
   | 'main'
@@ -63,6 +64,13 @@ function randomId(): string {
   if (c && typeof c.randomUUID === 'function') return c.randomUUID();
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
+
+const BOT_DIFFICULTIES: { id: BotDifficulty; label: string }[] = [
+  { id: 'easy', label: 'Easy' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'hard', label: 'Hard' },
+  { id: 'impossible', label: 'Impossible' },
+];
 
 // ── Waiting-room player list (host + guest share this) ───────────────────
 function WaitingRoomPlayerList({
@@ -91,6 +99,7 @@ function WaitingRoomPlayerList({
             <span className="mp-player-name">{p.name}</span>
             <span className="mp-player-cand">{cand?.name ?? p.candidateId}</span>
             {p.id === hostId && <span className="mp-player-badge">Host</span>}
+            {p.isBot && <span className="mp-player-badge">Computer{p.botDifficulty ? ` · ${p.botDifficulty}` : ''}</span>}
           </div>
         );
       })}
@@ -135,6 +144,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   // ── Create-flow state ──────────────────────────────────────────────────────
   const [playerCount, setPlayerCount]       = useState(2);
   const [myCandidate, setMyCandidate]       = useState<CandidateDef | null>(null);
+  const [botDifficulty, setBotDifficulty]   = useState<BotDifficulty>('medium');
 
   // Candidate whose "click to see stats" popup is open (null = closed). Mirrors the
   // Shop / Solo / Daily pickers: tap a card → CandidateStatsModal → Choose.
@@ -175,7 +185,10 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
 
           // Update the live player list for both host and guest
           const gs = row.game_state as WaitingLobbyState | null;
-          if (gs?.players) setWaitingPlayers(gs.players);
+          if (gs?.players) {
+            setWaitingPlayers(gs.players);
+            setPlayerCount(gs.playerCount);
+          }
 
           // Guest: when game starts, sync payload → App.tsx routes to GameShell
           if (
@@ -373,9 +386,52 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     setMyPlayerId(guestId);
     setLobby(foundLobby);
     const existing = (foundLobby.game_state as WaitingLobbyState)?.players ?? [];
+    setPlayerCount((foundLobby.game_state as WaitingLobbyState)?.playerCount ?? playerCount);
     setWaitingPlayers([...existing, guestPlayer]);
     setMultiplayerMeta({ lobbyId: foundLobby.id, localPlayerId: guestId, hostPlayerId });
     setScreen('waiting-guest');
+  }
+
+  async function replaceBots(nextBots: WaitingPlayer[]) {
+    if (!lobby) return;
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const row = await rpcSetLobbyBots(lobby.id, nextBots);
+      const gs = row.game_state as WaitingLobbyState;
+      setLobby(row);
+      setWaitingPlayers(gs.players ?? []);
+      AudioManager.play('confirm');
+    } catch (e) {
+      setErrorMsg(`Could not update bots: ${(e as Error).message}`);
+      track('online_match_failed', { reason: 'set_lobby_bots' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function addBotSeat() {
+    const existing = waitingPlayers;
+    if (existing.length >= playerCount) return;
+    const taken = new Set(existing.map((p) => p.candidateId));
+    const candidate = CANDIDATES.find((c) => !taken.has(c.id));
+    if (!candidate) return;
+    const bots = existing.filter((p) => p.isBot);
+    void replaceBots([
+      ...bots,
+      {
+        id: randomId(),
+        candidateId: candidate.id,
+        name: `AI_${bots.length + 1}`,
+        isHost: false,
+        isBot: true,
+        botDifficulty,
+      },
+    ]);
+  }
+
+  function removeBotSeat(botId: string) {
+    void replaceBots(waitingPlayers.filter((p) => p.isBot && p.id !== botId));
   }
 
   // ── Candidate IDs already claimed in the found lobby ─────────────────────
@@ -549,6 +605,8 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   if (screen === 'waiting-host' && lobby) {
     const hostId   = (lobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
     const canStart = waitingPlayers.length >= playerCount;
+    const canAddBot = waitingPlayers.length < playerCount;
+    const botSeats = waitingPlayers.filter((p) => p.isBot);
 
     return (
       <div className="setup native-screen mp-screen mp-screen--waiting">
@@ -560,6 +618,49 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           <div className="mp-wait__code">{lobby.room_code}</div>
           <p className="mp-wait__hint">Share this code with friends — they each join on their own device.</p>
           <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
+          <div className="setup__count" style={{ marginTop: '1rem' }}>
+            <span>Bot difficulty:</span>
+            {BOT_DIFFICULTIES.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                className={`setup__count-btn${botDifficulty === d.id ? ' is-active' : ''}`}
+                onClick={() => { AudioManager.play('click'); setBotDifficulty(d.id); }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="setup__start"
+            style={{ marginTop: '0.65rem', opacity: 0.85 }}
+            disabled={!canAddBot || loading}
+            onClick={addBotSeat}
+          >
+            {canAddBot ? 'Add Computer Seat' : 'Lobby Full'}
+          </button>
+          {botSeats.length > 0 && (
+            <div className="setup__seats" style={{ marginTop: '0.65rem' }}>
+              {botSeats.map((b) => {
+                const cand = CANDIDATE_MAP[b.candidateId];
+                return (
+                  <span key={b.id} className="setup__seat is-filled">
+                    {cand?.name ?? b.candidateId} ({b.botDifficulty ?? 'medium'})
+                    <button
+                      type="button"
+                      className="mp-back"
+                      style={{ marginLeft: 'auto', padding: '0.15rem 0.45rem' }}
+                      onClick={() => removeBotSeat(b.id)}
+                      disabled={loading}
+                    >
+                      Remove
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
           {errorMsg && <p className="mp-error">{errorMsg}</p>}
           <button
             type="button"

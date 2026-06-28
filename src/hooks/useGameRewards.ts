@@ -23,7 +23,7 @@ import type { BotDifficulty } from '../game/types';
 const inflightClaims = new Set<string>();
 const finishedTracked = new Set<string>();
 const dailyChallengeRecorded = new Set<string>();
-const DIFFICULTY_RANK: Record<BotDifficulty, number> = { easy: 1, medium: 2, hard: 3 };
+const DIFFICULTY_RANK: Record<BotDifficulty, number> = { easy: 1, medium: 2, hard: 3, impossible: 4 };
 
 export function useGameRewards(): void {
   const phase = useGameStore((s) => s.phase);

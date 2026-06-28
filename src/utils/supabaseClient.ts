@@ -54,6 +54,21 @@ export async function rpcJoinLobbyPlayer(
   if (error) throw error;
 }
 
+/** Host-only: replace the waiting-room bot seats. Humans remain untouched. */
+export async function rpcSetLobbyBots(
+  lobbyId: string,
+  bots: WaitingPlayer[],
+): Promise<LobbyRow> {
+  const { data, error } = await supabase
+    .rpc('set_lobby_bots', {
+      p_lobby_id: lobbyId,
+      p_bots: bots,
+    })
+    .single();
+  if (error || !data) throw error ?? new Error('set_lobby_bots returned no row');
+  return data as LobbyRow;
+}
+
 /** Create a lobby as the host (server records host_uid = auth.uid()). */
 export async function rpcCreateLobby(args: {
   roomCode: string;

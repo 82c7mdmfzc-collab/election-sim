@@ -4,7 +4,7 @@
  * Subscribes to postgres_changes UPDATE events on the lobbies row for the
  * current lobbyId. On each event:
  *
- *   Host: if remote.phase is still PLANNING and all players have submitted,
+ *   Host: if remote.phase is still PLANNING and all human players have submitted,
  *         calls resolveHostTurn (guarded by a ref to prevent double-resolution).
  *
  *   All:  for any non-PLANNING phase update, or when a new turn number arrives,
@@ -66,7 +66,7 @@ export function useMultiplayerSync() {
 
             // ── Host path: detect all-submitted → resolve ──────────────────────
             if (isHost && remote.phase === 'PLANNING') {
-              const active = remote.players.filter((p) => !p.eliminated);
+              const active = remote.players.filter((p) => !p.eliminated && !p.isBot);
               const allIn  = active.every((p) => remote.submittedPlayers.includes(p.id));
               const key    = `${remote.turn}:resolved`;
 
