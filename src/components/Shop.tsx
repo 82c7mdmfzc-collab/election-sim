@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PREMIUM_CANDIDATES, PLAYER_COLORS } from '../game/candidates';
 import { isCandidateFreeClaimAvailable } from '../game/promos';
-import { VICTORY_MESSAGES } from '../game/victoryMessages';
+import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
@@ -355,6 +355,14 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     track('cosmetic_previewed', { cosmetic_id: id, category: 'share_frame' });
   }
 
+  function equipVictoryMessage(id: string) {
+    AudioManager.play('click');
+    setSelectedVictoryMessage(id);
+    setEquippedVM(id);
+    setCosmeticMsg(null);
+    track('cosmetic_previewed', { cosmetic_id: id, category: 'victory_message' });
+  }
+
   async function unlockOrEquipFrame(c: CosmeticDef) {
     if (isCosmeticAvailable(c.id, unlocked)) { equipFrame(c.id); return; }
     if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
@@ -372,6 +380,29 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       setEquippedFrame(c.id);
       setCosmeticMsg(`Unlocked ${c.name} — equipped.`);
       track('cosmetic_unlocked', { cosmetic_id: c.id, category: c.category, price_funds: c.unlockCost });
+    } else {
+      setCosmeticMsg('Could not unlock — please try again.');
+    }
+    setCosmeticBusy(null);
+  }
+
+  async function unlockOrEquipVictoryMessage(m: VictoryMessage) {
+    if (isVictoryMessageAvailable(m.id, unlocked)) { equipVictoryMessage(m.id); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
+    if (funds < m.unlockCost) {
+      setCosmeticMsg(`Earn ${(m.unlockCost - funds).toLocaleString()} more Campaign Funds to unlock ${m.label}.`);
+      return;
+    }
+    setCosmeticBusy(m.id);
+    setCosmeticMsg(null);
+    AudioManager.play('click');
+    const ok = await unlockCosmetic(m.id);
+    if (ok) {
+      AudioManager.play('victory');
+      setSelectedVictoryMessage(m.id);
+      setEquippedVM(m.id);
+      setCosmeticMsg(`Unlocked ${m.label} — equipped.`);
+      track('cosmetic_unlocked', { cosmetic_id: m.id, category: 'victory_message', price_funds: m.unlockCost });
     } else {
       setCosmeticMsg('Could not unlock — please try again.');
     }
@@ -656,21 +687,33 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         <section className={`shop__pane shop__pane--messages${tab === 'messages' ? ' is-active' : ''}`}>
           <h2 className="shop__section">Victory Messages</h2>
           <p className="shop__sub">Choose the speech your winner delivers on the victory screen.</p>
+          {cosmeticMsg && <div className="shop__purchase-msg">{cosmeticMsg}</div>}
           <div className="shop__vm-list shop-rail">
             {VICTORY_MESSAGES.map((m) => {
-              const equipped = equippedVM === m.id;
+              const owned = isVictoryMessageAvailable(m.id, unlocked);
+              const equipped = owned && equippedVM === m.id;
+              const affordable = funds >= m.unlockCost;
+              const foot = owned
+                ? (equipped ? 'Equipped' : 'Equip')
+                : cosmeticBusy === m.id
+                  ? 'Unlocking…'
+                  : guest
+                    ? 'Sign in to unlock'
+                    : `Unlock — ${m.unlockCost.toLocaleString()} Campaign Funds`;
               return (
                 <button
                   key={m.id}
                   type="button"
-                  className={`vm-card${equipped ? ' is-equipped' : ''}`}
-                  onClick={() => { AudioManager.play('click'); setSelectedVictoryMessage(m.id); setEquippedVM(m.id); }}
+                  className={`vm-card${equipped ? ' is-equipped' : ''}${owned ? '' : ' is-locked'}`}
+                  disabled={cosmeticBusy !== null}
+                  onClick={() => unlockOrEquipVictoryMessage(m)}
                 >
                   <span className="vm-card__label">
                     {m.label}
                     {equipped && <span className="vm-card__badge">Equipped</span>}
                   </span>
                   <span className="vm-card__text">“{m.text}”</span>
+                  <span className={`vm-card__foot${!owned && !affordable && !guest ? ' is-dim' : ''}`}>{foot}</span>
                 </button>
               );
             })}

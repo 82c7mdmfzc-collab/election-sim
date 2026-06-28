@@ -3,7 +3,7 @@ import { useGameStore, usePlayerColors } from '../game/store';
 import { AudioManager } from '../utils/audioManager';
 import { ALL_STATES } from '../game/statesData';
 import { CANDIDATE_MAP } from '../game/candidates';
-import { victoryMessageText } from '../game/victoryMessages';
+import { DEFAULT_VICTORY_MESSAGE_ID, isVictoryMessageAvailable, victoryMessageText } from '../game/victoryMessages';
 import { getSelectedVictoryMessage, getSelectedShareFrame } from '../utils/localPrefs';
 import { shareFramePalette } from '../game/cosmetics';
 import { renderShareCardSvg, svgToPngBlob, sharePng, shareLine, dramaticEvent, shareCardDims } from '../utils/shareImage';
@@ -13,6 +13,7 @@ import { RewardReveal } from './RewardReveal';
 import { Avatar } from './Avatar';
 import { NextChallengeHint, ProgressPanel } from './ProgressPanel';
 import { isNativeRuntime } from '../utils/platform';
+import { useProfile } from '../hooks/useProfile';
 
 const CONFETTI_COLORS = [
   '#2563eb', // blue
@@ -52,6 +53,7 @@ export function VictoryPodium() {
   const startGame = useGameStore((s) => s.startGame);
   const multiplayerMode = useGameStore((s) => s.multiplayerMode);
   const turnTimeLimit = useGameStore((s) => s.turnTimeLimit);
+  const unlockedCosmetics = useProfile((s) => s.profile.unlockedCharacters);
   const colors = usePlayerColors();
 
   useEffect(() => {
@@ -173,7 +175,11 @@ export function VictoryPodium() {
   // The equipped victory-message cosmetic shown in the speech box. (The victory
   // screen no longer paints a per-winner full-bleed preset photo — the themed
   // gradient + portrait + confetti carry the moment on every candidate.)
-  const victorySpeech = victoryMessageText(getSelectedVictoryMessage());
+  const selectedVictoryMessage = getSelectedVictoryMessage();
+  const visibleVictoryMessage = isVictoryMessageAvailable(selectedVictoryMessage, unlockedCosmetics)
+    ? selectedVictoryMessage
+    : DEFAULT_VICTORY_MESSAGE_ID;
+  const victorySpeech = victoryMessageText(visibleVictoryMessage);
 
   // Rank players by EVs descending
   const ranked = useMemo(() => {

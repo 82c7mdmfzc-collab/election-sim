@@ -48,8 +48,8 @@ export const DEFAULT_SHARE_FRAME_ID = 'midnight';
 export const COSMETICS: readonly CosmeticDef[] = [
   // ── share_frame (LIVE) ────────────────────────────────────────────────────────
   { id: 'midnight', category: 'share_frame', name: 'Midnight',      description: 'The classic navy result card.',  unlockCost: 0 },
-  { id: 'patriot',  category: 'share_frame', name: 'Patriot',       description: 'Bold red-white-blue result card.', unlockCost: 600 },
-  { id: 'gold',     category: 'share_frame', name: 'Gold Standard', description: 'Black-tie gold result card.',     unlockCost: 600 },
+  { id: 'patriot',  category: 'share_frame', name: 'Patriot',       description: 'Bold red-white-blue result card.', unlockCost: 3000 },
+  { id: 'gold',     category: 'share_frame', name: 'Gold Standard', description: 'Black-tie gold result card.',     unlockCost: 3000 },
   // ── placeholders (typed; not yet equippable) ───────────────────────────────────
   { id: 'theme_dusk',    category: 'map_theme',      name: 'Dusk Map',      description: 'A warm dusk palette for the board.', unlockCost: 800, comingSoon: true },
   { id: 'banner_laurel', category: 'profile_banner', name: 'Laurel Banner', description: 'A laurel banner for your profile.',  unlockCost: 500, comingSoon: true },

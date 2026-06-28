@@ -9,15 +9,19 @@
 -- so the two never collide. The SERVER owns the price catalog so the client cannot
 -- spoof a cheaper cost. Mirrors unlock_character() in profiles.sql.
 --
--- Catalog MUST match `unlockCost` for every priced cosmetic in src/game/cosmetics.ts.
+-- Catalog MUST match `unlockCost` for every priced cosmetic in
+-- src/game/cosmetics.ts and src/game/victoryMessages.ts.
 
 create or replace function public.unlock_cosmetic(p_cosmetic text)
 returns public.profiles language plpgsql security definer set search_path = public as $$
 declare prof public.profiles; v_cost integer; v_token text;
 begin
   v_cost := case p_cosmetic
-    when 'patriot' then 600
-    when 'gold'    then 600
+    when 'patriot'   then 3000
+    when 'gold'      then 3000
+    when 'landslide' then 3000
+    when 'humble'    then 3000
+    when 'fired_up'  then 3000
     else null end;
   if v_cost is null then raise exception 'unlock_cosmetic: unknown cosmetic %', p_cosmetic; end if;
 
