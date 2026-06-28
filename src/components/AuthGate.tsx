@@ -15,6 +15,7 @@ import { AudioManager } from '../utils/audioManager';
 import { UsernameClaim } from './UsernameClaim';
 import { SignInButtons } from './SignInButtons';
 import { ProgressPanel } from './ProgressPanel';
+import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 
 interface AuthGateProps {
   onClose: () => void;
@@ -162,6 +163,16 @@ export function AuthGate({ onClose }: AuthGateProps) {
           Elector is a satirical game and is not affiliated with, authorized, or endorsed by any
           person, party, or government depicted; all names and likenesses are used for parody and
           commentary.
+        </p>
+
+        <p className="auth-gate__legal-links">
+          <button type="button" className="signin__inline-link" onClick={() => void openExternal(PRIVACY_URL)}>
+            Privacy Policy
+          </button>
+          <span className="auth-gate__legal-sep" aria-hidden="true">·</span>
+          <button type="button" className="signin__inline-link" onClick={() => void openExternal(TERMS_URL)}>
+            Terms of Service
+          </button>
         </p>
       </div>
     </div>
