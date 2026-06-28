@@ -2369,6 +2369,24 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   font-weight: 800; font-size: 0.68rem; cursor: pointer;
 }
 
+.mp-existing-players {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 0.1rem;
+}
+.mp-existing-players__label {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* ══ Modifier sheet ════════════════════════════════════════════════════════ */
 
 .mod-sheet { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -4812,6 +4830,15 @@ html.native .mp-wait {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 0.45rem;
 }
+html.native .mp-screen--waiting .mp-wait {
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  padding: 0.1rem 0.35rem 0.2rem;
+  scrollbar-width: none;
+}
+html.native .mp-screen--waiting .mp-wait::-webkit-scrollbar { display: none; }
 html.native .mp-wait__code { font-size: clamp(2.1rem, 11dvh, 4rem); margin: 0; }
 html.native .mp-wait__hint { margin: 0; text-align: center; }
 html.native .mp-players {
@@ -4822,6 +4849,17 @@ html.native .mp-players {
   gap: 0.65rem;
   margin: 0;
 }
+html.native .mp-screen--waiting .mp-players {
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: min(620px, 82vw);
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding: 0.05rem;
+}
+html.native .mp-screen--waiting .mp-players::-webkit-scrollbar { display: none; }
 html.native .mp-player-row {
   min-width: 0;
   min-height: clamp(74px, 20dvh, 118px);
@@ -4833,6 +4871,10 @@ html.native .mp-player-row {
   padding: 0.55rem;
   border-left-width: 1px;
   border-top: 4px solid var(--p-color, var(--border));
+}
+html.native .mp-screen--waiting .mp-player-row {
+  flex: 0 0 clamp(132px, 19vw, 250px);
+  min-height: clamp(58px, 15dvh, 88px);
 }
 html.native .mp-player-row--empty { border-style: dashed; color: var(--muted); }
 html.native .mp-player-token { width: clamp(34px, 9dvh, 52px); height: clamp(34px, 9dvh, 52px); }
@@ -4851,8 +4893,16 @@ html.native .mp-bot-panel {
   padding: 0.55rem;
   gap: 0.4rem;
 }
+html.native .mp-screen--waiting .mp-bot-panel {
+  flex: 0 0 auto;
+  width: min(620px, 82vw);
+}
 html.native .mp-bot-panel__head { font-size: 0.66rem; }
-html.native .mp-bot-panel__controls { gap: 0.45rem; }
+html.native .mp-bot-panel__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+}
 html.native .mp-bot-difficulty { gap: 0.18rem; }
 html.native .mp-bot-difficulty__btn {
   min-height: 32px;
@@ -4881,6 +4931,97 @@ html.native .mp-bot-chip__avatar { width: 26px; height: 26px; }
 html.native .mp-bot-chip__text strong { max-width: 104px; font-size: 0.72rem; }
 html.native .mp-bot-chip__text em,
 html.native .mp-bot-chip__remove { font-size: 0.62rem; }
+html.native .mp-screen--waiting .mp-wait > .setup__start {
+  margin-top: 0.25rem !important;
+  flex: 0 0 auto;
+}
+html.native .mp-screen--waiting .mp-wait > .mp-back {
+  flex: 0 0 auto;
+}
+html.native .mp-screen--picking {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+html.native .mp-screen--picking > .cand-select-body {
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.35rem;
+  min-width: 0;
+}
+html.native .mp-screen--picking > .mp-hint {
+  display: none;
+}
+html.native .mp-screen--picking > .mp-error {
+  grid-row: 2;
+  align-self: end;
+  justify-self: center;
+  z-index: 1;
+  max-width: min(520px, 86vw);
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid rgba(226, 59, 78, 0.35);
+  border-radius: var(--r-sm);
+  background: rgba(8, 18, 36, 0.88);
+}
+html.native .mp-screen--picking > .setup__foot {
+  grid-row: 3;
+}
+html.native .mp-screen--picking .cand-select-body__hint {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+html.native .mp-screen--picking .shop-rail {
+  min-height: 0;
+  height: 100%;
+  padding: 0.25rem 0.8rem 0.35rem;
+}
+html.native .mp-screen--picking .shop-card {
+  flex-basis: clamp(210px, 32vw, 280px);
+  width: clamp(210px, 32vw, 280px);
+}
+html.native .mp-existing-players {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.05rem 0.25rem 0.1rem;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+}
+html.native .mp-existing-players::-webkit-scrollbar { display: none; }
+html.native .mp-existing-players .mp-player-row {
+  flex: 0 0 clamp(128px, 23vw, 188px);
+  min-height: 54px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  justify-items: start;
+  align-content: center;
+  text-align: left;
+  gap: 0.05rem 0.42rem;
+  padding: 0.34rem 0.48rem;
+}
+html.native .mp-existing-players .mp-player-token {
+  grid-row: 1 / 3;
+  width: 34px;
+  height: 34px;
+}
+html.native .mp-existing-players .mp-player-name {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+html.native .mp-existing-players .mp-player-cand {
+  font-size: 0.66rem;
+}
+html.native .mp-existing-players .mp-player-badge {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  align-self: center;
+}
 
 /* Shop renders 4 rows (header, tabs, body, foot) — the shared native-screen grid
    only defines 3 tracks, which collapsed the tabs and starved the body. Give the

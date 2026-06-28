@@ -810,8 +810,8 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
         </div>
         <div className="cand-select-body">
         {existingPlayers.length > 0 && (
-          <div className="mp-wait" style={{ marginBottom: '1rem' }}>
-            <p className="mp-wait__hint" style={{ marginBottom: '0.5rem' }}>Already here:</p>
+          <div className="mp-existing-players" aria-label="Players already in this room">
+            <span className="mp-existing-players__label">Already here</span>
             {existingPlayers.map((p) => {
               const c = CANDIDATE_MAP[p.candidateId];
               return (
