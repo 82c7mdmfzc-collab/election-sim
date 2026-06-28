@@ -570,7 +570,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       <div className="shop__body">
         <p className="shop__sub">Win games to earn Campaign Funds, then recruit new candidates to your roster.</p>
 
-        <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}`}>
+        <section className={`shop__pane shop__pane--funds${tab === 'funds' ? ' is-active' : ''}${purchaseMsg ? ' has-purchase-message' : ''}`}>
           <h2 className="shop__section" style={{ marginTop: '0.5rem' }}>Buy Campaign Funds</h2>
           <p className="shop__sub">
             {showPaidFunds

@@ -39,18 +39,33 @@ export const FUNDS_BUNDLES: readonly FundsBundle[] = [
   { sku: 'funds_45000', funds: 45000, priceLabel: '$19.99', priceGBP: '£19.99', badge: 'Most Funds', imageUrl: '/assets/coins/funds_45000.png' },
 ];
 
-/** True when the runtime locale is a UK English region (en-GB, cy-GB, gd-GB…). */
-function isUKLocale(): boolean {
+/** True when the runtime looks UK-based. StoreKit's formattedPrice is still the
+ *  authority; this only prevents a USD fallback when the app/device locale is
+ *  generic en-US but the device timezone is UK. */
+function isUKRuntimeRegion(): boolean {
   if (typeof navigator === 'undefined') return false;
   const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
-  return langs.some((l) => /-GB$/i.test(l || ''));
+  if (langs.some((l) => /-GB$/i.test(l || ''))) return true;
+
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return [
+      'Europe/London',
+      'Europe/Belfast',
+      'Europe/Guernsey',
+      'Europe/Isle_of_Man',
+      'Europe/Jersey',
+    ].includes(tz);
+  } catch {
+    return false;
+  }
 }
 
 /** Display price to show before/without StoreKit's authoritative localized price.
  *  Picks the user's local currency by region so a UK player never flashes USD.
  *  StoreKit's formattedPrice always overrides this when it resolves. */
 export function localFallbackPrice(bundle: FundsBundle): string {
-  return isUKLocale() ? bundle.priceGBP : bundle.priceLabel;
+  return isUKRuntimeRegion() ? bundle.priceGBP : bundle.priceLabel;
 }
 
 export type IapPlatform = PlatformKind;
