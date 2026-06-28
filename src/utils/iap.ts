@@ -39,9 +39,7 @@ export const FUNDS_BUNDLES: readonly FundsBundle[] = [
   { sku: 'funds_45000', funds: 45000, priceLabel: '$19.99', priceGBP: '£19.99', badge: 'Most Funds', imageUrl: '/assets/coins/funds_45000.png' },
 ];
 
-/** True when the runtime looks UK-based. StoreKit's formattedPrice is still the
- *  authority; this only prevents a USD fallback when the app/device locale is
- *  generic en-US but the device timezone is UK. */
+/** True when the runtime looks UK-based. */
 function isUKRuntimeRegion(): boolean {
   if (typeof navigator === 'undefined') return false;
   const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
@@ -61,11 +59,23 @@ function isUKRuntimeRegion(): boolean {
   }
 }
 
+function isUsdPrice(price: string): boolean {
+  return /^\s*(US\$|\$|USD\b)/i.test(price);
+}
+
 /** Display price to show before/without StoreKit's authoritative localized price.
  *  Picks the user's local currency by region so a UK player never flashes USD.
  *  StoreKit's formattedPrice always overrides this when it resolves. */
 export function localFallbackPrice(bundle: FundsBundle): string {
   return isUKRuntimeRegion() ? bundle.priceGBP : bundle.priceLabel;
+}
+
+/** Final visible price for a funds bundle. StoreKit is normally authoritative, but
+ *  TestFlight/sandbox can return USD when the device context is UK. In that case
+ *  show the local GBP tier documented for App Store Connect instead. */
+export function displayFundsPrice(bundle: FundsBundle, storePrice?: string): string {
+  if (storePrice && !(isUKRuntimeRegion() && isUsdPrice(storePrice))) return storePrice;
+  return localFallbackPrice(bundle);
 }
 
 export type IapPlatform = PlatformKind;

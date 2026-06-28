@@ -15,7 +15,7 @@ import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
-import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, localFallbackPrice, nativeIapAvailable, purchase } from '../utils/iap';
+import { FUNDS_BUNDLES, displayFundsPrice, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
 import { cosmeticsByCategory, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
 import {
@@ -299,10 +299,6 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
   const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
-  // True while StoreKit's localized prices are still loading on iOS, so we show a
-  // neutral placeholder instead of the hardcoded USD label (a UK user should never
-  // flash "$8.99" before "£8.99" resolves).
-  const [pricesLoading, setPricesLoading] = useState(nativeIapAvailable());
   const billingPlatform = iapPlatform();
   const hasNativeBilling = nativeIapAvailable();
   const showPaidFunds = hasNativeBilling; // native StoreKit only — no web billing
@@ -337,7 +333,6 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
     void getFundsPrices().then((prices) => {
       if (cancelled) return;
       setNativePrices(prices);
-      setPricesLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
@@ -582,19 +577,21 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
             <div className="funds-grid shop-rail">
               {FUNDS_BUNDLES.map((b) => {
                 const nativePrice = nativePrices[b.sku];
-                // StoreKit's localized price when it resolves, else a locale-aware
-                // fallback (£ for UK) so the price is always visible and never USD-only.
-                const displayPrice = nativePrice ?? (pricesLoading ? '…' : localFallbackPrice(b));
+                // StoreKit's localized price when it resolves, with a UK guard for
+                // sandbox/TestFlight returning USD despite a UK device context.
+                const displayPrice = displayFundsPrice(b, nativePrice);
                 return (
                   <div key={b.sku} className="funds-card">
                     {b.badge && <span className="funds-card__badge">{b.badge}</span>}
                     <CoinArt src={b.imageUrl} />
-                    <div className="funds-card__amount">
-                      <span className="coin-inline coin-inline--large" aria-hidden />
-                      {b.funds.toLocaleString()}
+                    <div className="funds-card__details">
+                      <div className="funds-card__amount">
+                        <span className="coin-inline coin-inline--large" aria-hidden />
+                        {b.funds.toLocaleString()}
+                      </div>
+                      <div className="funds-card__label">Campaign Funds</div>
+                      <div className="funds-card__price">{displayPrice}</div>
                     </div>
-                    <div className="funds-card__label">Campaign Funds</div>
-                    <div className="funds-card__price">{displayPrice}</div>
                     <button
                       type="button"
                       className="funds-card__buy"
