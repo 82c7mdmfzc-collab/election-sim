@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { APPLE_SIGNIN_ENABLED, NATIVE_OAUTH_ENABLED, isNativeRuntime } from '../utils/authClient';
 import { track } from '../utils/analytics';
+import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 
 // Seconds to disable re-sending after a code is emailed. Supabase enforces a
 // per-email cooldown (~60s) server-side; mirroring it here stops users from
@@ -222,6 +223,17 @@ export function SignInButtons() {
           )}
         </p>
       )}
+
+      <p className="signin__legal">
+        By continuing you agree to our{' '}
+        <button type="button" className="signin__inline-link" onClick={() => void openExternal(PRIVACY_URL)}>
+          Privacy&nbsp;Policy
+        </button>
+        {' '}and{' '}
+        <button type="button" className="signin__inline-link" onClick={() => void openExternal(TERMS_URL)}>
+          Terms
+        </button>.
+      </p>
     </div>
   );
 }

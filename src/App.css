@@ -3473,6 +3473,18 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   background: none; border: none; cursor: pointer; padding: 0;
   color: var(--brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px;
 }
+/* Legal links shown in the sign-in flow and account panel (App Review 5.1.1). */
+.signin__legal {
+  margin: 0.15rem auto 0; max-width: 22rem; text-align: center;
+  font-size: 0.7rem; line-height: 1.45; color: var(--muted); opacity: 0.85;
+}
+.signin__legal .signin__inline-link { font-size: 0.7rem; font-weight: 600; }
+.auth-gate__legal-links {
+  margin: 0.5rem auto 0; display: flex; gap: 0.55rem; align-items: center;
+  justify-content: center; font-size: 0.72rem;
+}
+.auth-gate__legal-links .signin__inline-link { font-size: 0.72rem; font-weight: 600; }
+.auth-gate__legal-sep { color: var(--muted); opacity: 0.55; }
 /* ── Phone ergonomics: compact header, bigger touch targets, tidy footer ──── */
 @media (max-width: 768px), (max-height: 600px) {
   .header-hud { padding: 0.4rem 0.6rem; }
