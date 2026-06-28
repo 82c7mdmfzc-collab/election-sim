@@ -5,7 +5,7 @@
  */
 import puppeteer from 'puppeteer';
 
-const URL = 'http://localhost:5174';
+const URL = 'http://127.0.0.1:5174';
 const log = (...a) => console.log('[smoke]', ...a);
 
 const browser = await puppeteer.launch({ headless: 'new' });
@@ -21,9 +21,9 @@ try {
 
   await page.goto(URL, { waitUntil: 'networkidle2' });
 
-  // Signed-out fresh sessions may show the landing first.
+  // Signed-out fresh sessions show the game-first landing before the menu/game.
   const continued = await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /(Start Solo|Continue as Guest)/i.test(b.textContent ?? ''));
+    const btn = [...document.querySelectorAll('button')].find((b) => /(Learn & Start|Start Solo|Continue as Guest)/i.test(b.textContent ?? ''));
     if (btn) { btn.click(); return true; }
     return false;
   });
@@ -32,31 +32,48 @@ try {
   // First launch auto-opens the tutorial; returning sessions may already be on the menu.
   const tutorialVisible = await page.waitForSelector('.tutorial__skip', { timeout: 2500 }).then(() => true).catch(() => false);
   if (tutorialVisible) {
-    await page.click('.tutorial__skip');
+    await page.evaluate(() => {
+      const btn = document.querySelector('.tutorial__skip');
+      if (btn instanceof HTMLButtonElement) btn.click();
+    });
     log('tutorial skipped');
   }
 
-  // Menu → Solo.
-  await page.waitForSelector('.home__modes, .setup__start', { timeout: 10000 });
-  const alreadyInSolo = await page.evaluate(() => /Solo Campaign/i.test(document.body.textContent ?? ''));
-  const clickedBot = alreadyInSolo || (await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /^Solo$/i.test((b.textContent ?? '').trim()));
-    if (btn) { btn.click(); return true; }
-    return false;
-  }));
-  if (!clickedBot) throw new Error('Solo button not found');
-  log('entered Solo setup');
+  // A fresh onboarding launch starts a practice game immediately after the
+  // tutorial. Returning sessions may land on Home, where "Play" opens Solo setup.
+  await page.waitForSelector('.home__modes, .setup__start, .phase-btn--primary', { timeout: 10000 });
+  const alreadyInGame = await page.$('.phase-btn--primary');
+  if (!alreadyInGame) {
+    const alreadyInSolo = await page.evaluate(() => /Solo Campaign/i.test(document.body.textContent ?? ''));
+    const clickedBot = alreadyInSolo || (await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find((b) => {
+        const text = (b.textContent ?? '').trim();
+        return /^Play$/i.test(text) || /^Solo$/i.test(text);
+      });
+      if (btn) { btn.click(); return true; }
+      return false;
+    }));
+    if (!clickedBot) throw new Error('Solo/Play button not found');
+    log('entered Solo setup');
 
-  // Start the game with defaults (1 medium computer opponent).
-  await page.waitForSelector('.setup__start');
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /Start (Campaign|Game)/i.test(b.textContent ?? ''));
-    btn.click();
-  });
+    // Start the game with defaults (1 medium computer opponent).
+    await page.waitForSelector('.setup__start');
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('button')].find((b) => /Start (Campaign|Game)/i.test(b.textContent ?? ''));
+      btn.click();
+    });
+  }
 
   // We should now be in the GameShell PLANNING phase.
   await page.waitForSelector('.phase-btn--primary', { timeout: 10000 });
   log('game started (PLANNING)');
+
+  // First-run gameplay tips can overlay the footer. Dismiss them before clicking
+  // the planning CTA.
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => /Got it/i.test(b.textContent ?? ''));
+    btn?.click();
+  });
 
   // Human submits its (empty) turn → it becomes the computer opponent's turn.
   await page.evaluate(() => {

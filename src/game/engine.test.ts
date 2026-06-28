@@ -713,16 +713,12 @@ describe('payTurnIncome — profit modifiers', () => {
     expect(p1.nationalCash).toBe(NATIONAL_INCOME + g.turnBonus);
   });
 
-  it('candidate roundIncome (Tooley +$300k) stacks on the flat national income', () => {
-    const tooley = makePlayer('tooley', { nationalCash: 0 }); // candidateId defaults to 'tooley'
-    payTurnIncome([tooley], {}, {}, {});
-    expect(tooley.nationalCash).toBe(NATIONAL_INCOME + 300);
-  });
-
-  it('candidates without roundIncome get only the flat national income', () => {
+  it('candidates get only the flat national income without group or network leads', () => {
     const trump = makePlayer('trump', { nationalCash: 0 });
-    payTurnIncome([trump], {}, {}, {});
+    const tooley = makePlayer('tooley', { nationalCash: 0 });
+    payTurnIncome([trump, tooley], {}, {}, {});
     expect(trump.nationalCash).toBe(NATIONAL_INCOME);
+    expect(tooley.nationalCash).toBe(NATIONAL_INCOME);
   });
 });
 

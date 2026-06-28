@@ -68,7 +68,7 @@ mind-game, §7).
 
 | Currency | Symbol in code | Flexibility | How earned |
 |---|---|---|---|
-| **National War Chest** | `nationalCash` | Spends **anywhere** (any state, any network track) | Flat **+240/turn** to every active player, plus national network backing |
+| **National War Chest** | `nationalCash` | Spends **anywhere** (any state, any network track) | Flat **+250/turn** to every active player, plus national network backing |
 | **Coalition Reserves** | `groupWallets[group]` | **Earmarked** — only spends on states **inside that one Coalition** | Earned only by **leading** that Coalition (paid each turn you hold it) |
 
 Wallet drain order on a state purchase: **matching group wallets first (alphabetical by group id),
@@ -142,26 +142,26 @@ states. You **LEAD** a Coalition when you control **strictly more than 50%** of 
 (counting only states where you hold at least the minimum Influence Levels). The coalition leader
 collects that Coalition's **Reserve payout every turn** they hold it.
 
-- **Per-turn payout** = `round(totalEV / 2)`, scaled by the candidate's payout modifier for that group.
+- **Per-turn payout** = the source-defined `bonusPayout`, scaled by the candidate's payout modifier for that group.
 - **Minimum Influence Levels to count a state toward coalition control:** megastates **5**, small (EV≤6) **3**, mid **4**.
   *(Note: this 3/4/5 gate applies to coalition control only — the raw EV tally at election time uses
   whoever simply has the most Influence Levels, any count.)*
 
 | Coalition | Member states | Total EV | Reserve / turn |
 |---|---|---:|---:|
-| **Latino** | AZ, CA, CO, FL, IL, NV, NJ, NM, NY, TX | 217 | **109** |
-| **African American** | AL, AZ, DE, DC, FL, GA, IL, LA, MD, MI, MS, NY, NC, SC, TN, VA | 207 | **104** |
-| **Agriculture** | CA, FL, HI, ID, IL, IA, KS, MN, NE, NC, TX, WI | 204 | **102** |
-| **High Tech** | CA, CT, DE, MD, MA, MI, NH, NY, PA, UT, VA, WA | 182 | **91** |
-| **Export Driven** | LA, CA, TX, FL, NY, WA | 172 | **86** |
-| **Manufacturing Base** | IL, IN, KY, MI, NC, OH, PA, TX, WI | 155 | **78** |
-| **Swing States** | AZ, CO, FL, IA, NH, NM, NC, OH, PA, VA, WI | 141 | **71** |
-| **Oil and Gas** | AK, CA, CO, LA, NM, ND, OK, SD, TX, WV, WY | 140 | **70** |
-| **Town and Gown** | AZ, DC, IA, ME, MA, MN, MO, NE, NH, NY, ND, RI, UT, VT | 108 | **54** |
-| **Old South** | AL, AR, GA, LA, MD, MS, NC, SC, VA | 93 | **47** |
+| **Latino** | AZ, CA, CO, FL, IL, NV, NJ, NM, NY, TX | 217 | **80** |
+| **African American** | AL, AZ, DE, DC, FL, GA, IL, LA, MD, MI, MS, NY, NC, SC, TN, VA | 207 | **100** |
+| **Agriculture** | CA, FL, HI, ID, IL, IA, KS, MN, NE, NC, TX, WI | 204 | **50** |
+| **High Tech** | CA, CT, DE, MD, MA, MI, NH, NY, PA, UT, VA, WA | 182 | **110** |
+| **Export Driven** | LA, CA, TX, FL, NY, WA | 172 | **80** |
+| **Manufacturing Base** | IL, IN, KY, MI, NC, OH, PA, TX, WI | 155 | **75** |
+| **Swing States** | AZ, CO, FL, IA, NH, NM, NC, OH, PA, VA, WI | 141 | **80** |
+| **Oil and Gas** | AK, CA, CO, LA, NM, ND, OK, SD, TX, WV, WY | 140 | **75** |
+| **Town and Gown** | AZ, DC, IA, ME, MA, MN, MO, NE, NH, NY, ND, RI, UT, VT | 108 | **100** |
+| **Old South** | AL, AR, GA, LA, MD, MS, NC, SC, VA | 93 | **40** |
 
-For reference, the flat War Chest income is **240/turn**, so leading the **Latino Coalition alone** adds ~45%
-on top of base income, and stacking coalitions snowballs hard.
+For reference, the flat War Chest income is **250/turn**, so coalition leads add meaningful lane-specific
+money without automatically doubling a player's flexible budget.
 
 ### "Hub" states (belong to the most groups)
 - **5-group hubs:** **CA, FL, NY, TX, NC** — winning one feeds up to five income engines at once.
@@ -176,18 +176,18 @@ on top of base income, and stacking coalitions snowballs hard.
 
 Five **National Networks**, each a **10-level** track. They award **no EV**. The **leader with ≥4 Influence Levels**
 (highest count; ties to who reached first) earns the network's **turnBonus into War Chest every turn**,
-scaled by payout modifier. **Per-level cost is flat** = `turnBonus × 0.5`, drawn from War Chest only.
+scaled by payout modifier. **Per-level cost is the source-defined `rungCost`**, drawn from War Chest only.
 
 | National Network | Backing / turn | Cost / level | Cost to reach leader (4 levels) | Payback |
 |---|---:|---:|---:|---:|
-| **Women's Vote** | 60 | 30 | 120 | ~2 turns |
-| **Gun Lobby** | 50 | 25 | 100 | ~2 turns |
-| **Big Conservative** | 50 | 25 | 100 | ~2 turns |
-| **Youth Vote** | 40 | 20 | 80 | ~2 turns |
-| **Environmental** | 40 | 20 | 80 | ~2 turns |
+| **Gun Lobby** | 30 | 55 | 220 | ~7.3 turns |
+| **Youth Vote** | 30 | 55 | 220 | ~7.3 turns |
+| **Big Conservative** | 50 | 90 | 360 | ~7.2 turns |
+| **Environmental** | 50 | 90 | 360 | ~7.2 turns |
+| **Women's Vote** | 40 | 80 | 320 | ~8 turns |
 
-All networks pay back the investment to reach the leader level in ~2 turns, then are pure flexible
-profit — provided you defend the lead and avoid Campaign Collisions.
+Networks are slower, flexible-income investments; they pay off only if you can defend the lead and avoid
+Campaign Collisions.
 
 ---
 
@@ -252,18 +252,19 @@ National Network ids. The best (max) affinity across a state's Coalitions is the
 | **Kamala Harris** | Democrat | 250 | "Metro Coalition" | Environmental .20, High Tech .15 | Big Conservative −.25, Old South −.15, Oil&Gas −.15 | Women's Vote .25, Environmental .15, Town&Gown .10 | Oil&Gas −.15, Gun Lobby −.20 |
 | **Abraham Lincoln** | Republican | 250 | "Centrist Unifier" | African American .15, Manufacturing .10, Agriculture .10 | Youth Vote −.20, Big Conservative −.10, Environmental −.10 | Swing .20, Export Driven .15, Agriculture .10 | High Tech −.15 |
 
-### Premium roster — unlock for **1,500 Credits** each (or via real-money Campaign Credits packs)
-| Candidate | Party | Identity | Cost discounts | Cost penalties | Profit boosts | Profit penalties |
-|---|---|---|---|---|---|---|
-| **Joe Biden** | Democrat | "Union Hall Veteran" | Manufacturing .15, African American .15, Town&Gown .10, Agriculture .10 | Gun Lobby −.20, Old South −.10 | Women's Vote .15, Environmental .10, Youth Vote .10 | Big Conservative −.20 |
-| **Ronald Reagan** | Republican | "Sun Belt Optimist" | Swing .15, Old South .15, Big Conservative .10, Oil&Gas .10 | High Tech −.10, Town&Gown −.15 | Big Conservative .25, Old South .15, Swing .10, Oil&Gas .10 | Environmental −.20 |
-| **George Washington** | Independent | "Nonpartisan Founder" — **net-neutral sidegrade** (perks sum to zero) | Agriculture .05, Swing .05 | High Tech −.05, Big Conservative −.05 | Swing .10, Export Driven .05 | Old South −.05, Environmental −.10 |
-| **Keir Starmer** | Democrat | "Technocratic Centre" | High Tech .15, Town&Gown .15, Manufacturing .10 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Women's Vote .15, High Tech .15, Export Driven .10 | Gun Lobby −.20 |
-| **Nigel Farage** | Republican | "Insurgent Populist" | Gun Lobby .15, Old South .15, Big Conservative .10, Oil&Gas .10 | High Tech −.20, Town&Gown −.15 | Big Conservative .25, Gun Lobby .15, Old South .10 | Environmental −.20 |
-| **John F. Kennedy** | Democrat | "New Frontier" | High Tech .15, Youth Vote .15, African American .10 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Youth Vote .20, High Tech .15, Women's Vote .10 | Gun Lobby −.20 |
+| **Joe Biden** | Democrat | 250 | "Union Hall Veteran" | Manufacturing .15, African American .15, Town&Gown .10, Agriculture .10 | Gun Lobby −.20, Old South −.10 | Women's Vote .15, Environmental .10, Youth Vote .10 | Big Conservative −.20 |
+
+### Premium roster — unlock with Campaign Funds
+| Candidate | Price | Party | Identity | Cost discounts | Cost penalties | Profit boosts | Profit penalties |
+|---|---:|---|---|---|---|---|---|
+| **Ronald Reagan** | 4,500 | Republican | "Sun Belt Optimist" | Swing .20, Old South .20, Big Conservative .15, Oil&Gas .15 | High Tech −.10, Town&Gown −.15 | Big Conservative .30, Old South .20, Swing .15, Oil&Gas .15 | Environmental −.20 |
+| **George Washington** | 4,500 | Independent | "Nonpartisan Founder" — **net-neutral sidegrade** (perks sum to zero) | Agriculture .05, Swing .05 | High Tech −.05, Big Conservative −.05 | Swing .10, Export Driven .05 | Old South −.05, Environmental −.10 |
+| **Keir Starmer** | 4,500 | Democrat | "Technocratic Centre" | High Tech .20, Town&Gown .20, Manufacturing .15 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Women's Vote .20, High Tech .20, Export Driven .15 | Gun Lobby −.20 |
+| **John F. Kennedy** | 4,500 | Democrat | "New Frontier" | High Tech .20, Youth Vote .20, African American .15 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Youth Vote .25, High Tech .20, Women's Vote .15 | Gun Lobby −.20 |
+| **Nigel Farage** | 10,000 | Republican | "Insurgent Populist" | Gun Lobby .20, Old South .20, Big Conservative .15, Oil&Gas .15 | High Tech −.20, Town&Gown −.15 | Big Conservative .45, Gun Lobby .20, Old South .15 | Environmental −.20 |
 
 Party is **cosmetic only** (sets color/badge; never affects gameplay). **George Washington** was a
-limited-time **free grant for July-2026 signups**; everyone else buys him for 1,500 Funds, and his
+limited-time **free grant for July signups**; everyone else buys him for 4,500 Funds, and his
 stats are deliberately net-neutral so a free campaign style grants no economic edge.
 
 ---
@@ -294,16 +295,16 @@ outcomes.
 
 **A) Per-game reward** (server formula, mirrors client):
 ```
-base finish        = 100
-win bonus          = 400 (if you won the presidency)
-per secured state  = 10
-per coalition held = 50
-win-streak bonus   = 50 × min(consecutiveWins, 5)   (only if you won)
-per-game cap       = 5,000
+base finish        = 5
+win bonus          = 20 (if you won the presidency)
+per secured state  = 1
+per coalition held = 3
+win-streak bonus   = 5 × min(consecutiveWins, 5)   (only if you won)
+per-game cap       = 60, reduced by 10 for each prior rewarded game in the last 24h
 rolling 24h cap    = 20,000
 ```
-*Typical win pays ~600–1,000 Funds; a blowout maxes around ~1,300–1,800. The 5,000 per-game cap is
-generous headroom that almost never binds — the real ceiling is the 20,000/day cap (≈ 11–15 games/day).*
+*Typical wins are deliberately modest and combine with daily streaks, achievements, ads, referrals, and
+optional IAP rather than acting as the only progression source.*
 
 **B) Daily finish streak** (finish ≥1 game on consecutive **UTC** days — winning not required):
 ```
@@ -320,13 +321,13 @@ Requires an account. Ads are never auto-shown.
 (one payout per invited account, ever). See §15.
 
 ### Ways to SPEND Funds
-- **Unlock premium candidates** — **1,500 Funds** each (6 of them = 9,000 Funds total). This is currently
-  the **only Funds sink**.
-- **Victory messages** are cosmetic and currently **free** (4 messages; the system supports priced ones later).
+- **Unlock premium candidates** — 4 candidates at **4,500 Funds** and Farage at **10,000 Funds**
+  (28,000 Funds total).
+- **Result card frames** — 2 priced share frames at **3,000 Funds** each.
+- **Victory messages** — 3 priced messages at **3,000 Funds** each.
 
-**Implication for analysis:** the entire Funds sink today is roster unlocks (max 9,000). At ~600–1,000
-Funds per win, plus daily streaks, achievements, ads, and referrals, a regular player unlocks the whole
-roster in a couple of weeks without paying — i.e. the soft economy is generous and the catalog is shallow.
+**Implication for analysis:** candidates affect gameplay and are earnable, while cosmetics are the clean
+repeat-spend lane. Keep future monetization weighted toward cosmetics rather than dominant gameplay power.
 
 ---
 
@@ -362,17 +363,17 @@ only in the iOS app. The server (`fulfill_purchase`) owns grant amounts and is *
 transaction id** (replayed receipts never double-credit). App Store Connect sets the **per-territory**
 price; the listed USD is a fallback shown until StoreKit's localized price loads.
 
-| SKU | Credits granted | USD (fallback) | Badge | Credits per $ | Premium styles it buys (@1,500) |
+| SKU | Funds granted | USD (fallback) | Badge | Funds per $ | Progress equivalent |
 |---|---:|---:|---|---:|---:|
+| `funds_600` | 600 | $0.99 | **Starter** | ~606 | starter progress |
 | `funds_1500` | 1,500 | $2.99 | — | ~502 | 1 |
 | `funds_4000` | 4,000 | $4.99 | — | ~802 | 2.6 |
-| `funds_9000` | 9,000 | $8.99 | **Most popular** | ~1,001 | 6 (the entire roster) |
+| `funds_9000` | 9,000 | $8.99 | **Most popular** | ~1,001 | 6 |
 | `funds_20000` | 20,000 | $14.99 | **Best value** | ~1,334 | 13.3 |
+| `funds_45000` | 45,000 | $19.99 | **Most Funds** | ~2,251 | 30 |
 
-**Price architecture worth noting:** the $8.99 "Most popular" pack grants **exactly** enough Funds to
-unlock **all six** premium candidates (9,000). The $14.99 pack is positioned as bulk value (~33% more
-Funds/$). Given roster unlocks are the only sink, the practical real-money ceiling for content today is
-~$8.99. Everything is consumable Funds — there are no direct-purchase characters or subscriptions.
+Everything is consumable Funds — there are no direct-purchase characters or subscriptions. Paid candidates
+are earnable sidegrades; cosmetic items are the preferred long-term sink.
 
 ---
 

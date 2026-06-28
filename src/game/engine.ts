@@ -28,7 +28,6 @@ import {
   rungCostFor,
 } from './config';
 import { ALL_STATES } from './statesData';
-import { CANDIDATE_MAP } from './candidates';
 import type {
   ElectoralResult,
   GameState,
@@ -369,8 +368,6 @@ export function payTurnIncome(
 
   for (const p of activePlayers) {
     p.nationalCash += NATIONAL_INCOME;
-    // Candidate-specific round income (e.g. Bobby Tooley's +$300k/turn).
-    p.nationalCash += CANDIDATE_MAP[p.candidateId]?.roundIncome ?? 0;
   }
 
   // State group wallet bonuses (scaled by the player's profit modifier)

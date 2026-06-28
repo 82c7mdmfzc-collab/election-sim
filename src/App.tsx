@@ -98,13 +98,6 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
       </button>
 
       <div className="home__crest">
-        <img
-          src="/assets/brand/star_wings.png"
-          alt=""
-          className="home__crest-img"
-          draggable={false}
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
         <BrandMark />
       </div>
 

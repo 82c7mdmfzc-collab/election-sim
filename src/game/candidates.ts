@@ -59,12 +59,6 @@ export interface CandidateDef {
    * supabase/profiles.sql for any premium (>0) character.
    */
   readonly unlockCost: number;
-  /**
-   * Extra national cash paid to this candidate at the start of every turn, on
-   * top of the flat NATIONAL_INCOME everyone gets. $1k units (300 = +$300k/turn).
-   * Applied in engine.ts `payTurnIncome`. Omit/0 = no bonus.
-   */
-  readonly roundIncome?: number;
 }
 
 // ── Group asset utilities ──────────────────────────────────────────────────────
@@ -121,10 +115,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     party: 'independent',
     color: 'green',
     tagline: 'The Baseline — completely neutral across every track.',
-    // Premium: the highest starting cash ($300k) PLUS a $300k/turn round income
-    // makes the neutral baseline a paid economic pick.
-    unlockCost: CANDIDATE_PRICE.TIER1,
-    roundIncome: 300,
+    unlockCost: CANDIDATE_PRICE.FREE,
     affinities: {},
     payoutModifiers: {},
   },

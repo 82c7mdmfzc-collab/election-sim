@@ -107,14 +107,13 @@ Verified already present: `tutorial_started/completed/skipped`, `share_started/c
 
 ## Recommended IAP / catalog restructure (proposal — not implemented)
 
-The economy sink is shallow: 6 premium candidates at 1,500 Funds = 9,000 max, and the **$8.99 pack grants
-exactly 9,000** (buys the whole roster), capping monetization. Suggestions, in priority order:
+The economy now has a deeper candidate ladder (4,500/10,000 Funds) plus priced cosmetics, but paid
+candidates still affect gameplay. Suggestions, in priority order:
 
 1. **Add a cosmetic spend lane (started here).** Ship priced share-frame unlocks, then map themes and
    profile banners — recurring, non-pay-to-win sinks that don't bloat the roster or unbalance play.
-2. **Re-tier the IAP ladder** so the top pack has a purpose beyond the roster: e.g. a cheap **starter
-   bundle** (one-time, ~$1.99 → Funds + a cosmetic) and a **higher-value top tier** ($19.99+) aimed at
-   cosmetic collectors / supporters, rather than $14.99 = "more Funds than anything to spend on."
+2. **Keep the IAP ladder aligned with sinks** so the top pack feels like collector/supporter value rather
+   than the only efficient way to access gameplay-affecting candidates.
 3. **Widen premium roster cadence** — periodic new candidates/seasonal characters keep the Funds sink
    alive for engaged players; keep every one earnable to stay fair.
 4. **Keep candidates earnable** and resist raising their prices to "force" purchases — the generous earn

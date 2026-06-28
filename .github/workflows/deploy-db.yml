@@ -33,13 +33,13 @@ jobs:
           if [ -z "${SUPABASE_DB_URL:-}" ]; then
             echo "::error::SUPABASE_DB_URL secret is not set"; exit 1
           fi
-          # profiles first (rewards' RPCs update profiles.campaign_funds); lobbies is independent.
-          # iap (purchases table + fulfill_purchase RPC) and ads (ad_rewards) both credit
-          # profiles.campaign_funds, so they apply after profiles; moderation is additive.
-          # referrals MUST come after rewards (it adds an AFTER INSERT trigger on
-          # rewards' game_rewards table and alters profiles); notifications (device_tokens)
-          # is independent. All are idempotent (create … if not exists / create or replace).
-          for f in profiles iap ads moderation lobbies rewards referrals notifications; do
+          # profiles first: the economy/auth RPCs hang off profiles.
+          # lobbies uses the profile unlock catalog; rewards creates game_rewards;
+          # cosmetics/iap/ads/daily credit or extend profiles; referrals MUST come
+          # after rewards because it adds a trigger on game_rewards. The
+          # security-hardening-patch.sql file is a local/manual include runner, so
+          # this workflow applies the canonical SQL files directly.
+          for f in profiles lobbies rewards cosmetics iap ads daily referrals moderation notifications; do
             echo "── applying supabase/$f.sql ──"
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f "supabase/$f.sql"
           done

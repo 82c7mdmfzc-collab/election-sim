@@ -177,9 +177,6 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
                   <div>
                     <span className="shop-card__name">{c.name}</span>
                     <span className="shop-card__tag">{c.tagline}</span>
-                    {c.roundIncome ? (
-                      <span className="shop-card__income">+${c.roundIncome}k / round</span>
-                    ) : null}
                   </div>
                 </div>
                 <div className="shop-card__foot">

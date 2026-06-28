@@ -129,8 +129,8 @@ Accounts are **required for online play** and the economy is account-only. Dashb
       closed test (~12 testers) before Production — plan that lead time.
 
 ## 9. Deep links / magic-link return
-- [ ] Register URL scheme `com.playelector.app://` (or a universal/app link on playelector.com) in the
-      Tauri iOS/Android configs, and confirm it's in the Supabase redirect allowlist (step 3).
+- [x] Register URL scheme `com.playelector.app://` in the Tauri config / iOS Info.plist.
+- [ ] Confirm `com.playelector.app://auth-callback` is in the Supabase redirect allowlist (step 3).
 
 ## 10. Final pre-launch verification
 - [ ] iOS: `npm run tauri:ios:dev` on simulator + a real device — icons/splash/name = "Elector",
@@ -138,16 +138,16 @@ Accounts are **required for online play** and the economy is account-only. Dashb
 - [ ] Android: `npm run tauri:android:dev` on emulator + a real device — same checks.
 - [ ] Replay the old exploits and confirm they now fail: double reward claim (rejected), forced
       early resolve before server deadline (rejected), any raw `push_game_state` call (errors).
-- [ ] Ship a TestFlight + Play Internal build; have 2–3 people complete a full game on each.
+- [ ] Ship a TestFlight build; have 2–3 people complete a full game on web + iOS.
+- [ ] When Android moves from fast-follow to active launch, ship a Play Internal build and repeat the same checks.
 
 ---
 
 ## Deferred (non-blocking, post-launch)
 - WebP image conversion (needs `cwebp`; `loading="lazy"` already added).
-- Bundle code-splitting (client JS is ~977 KB / 294 KB gzip after the current release build,
-  dominated by map/game data and native/progression UI).
-- Pre-existing lint error at `src/components/MultiplayerMenu.tsx:325` (`react-hooks/set-state-in-effect`,
-  exists on `main`; build doesn't run lint).
+- Bundle code-splitting (client JS is ~1.27 MB / 389 KB gzip after the current release build,
+  dominated by map/game data and native/progression UI). Prioritize shop/native/progression-heavy
+  surfaces after v1 unless real-device startup performance is poor.
 - Turn-1 deadline is still host-set (turns 2+ are server-owned) — minor residual.
 
 ## Handy commands

@@ -307,7 +307,7 @@ begin
 
   select count(*)::integer into v_premium_unlocks
     from unnest(prof.unlocked_characters) as u(id)
-    where u.id in ('joe_biden', 'ronald_reagan', 'washington');
+    where u.id in ('ronald_reagan', 'washington', 'starmer', 'farage', 'jfk');
 
   if to_regclass('public.referral_rewards') is not null then
     select count(*)::integer into v_referrals
@@ -427,7 +427,7 @@ begin
 
   select count(*)::integer into v_premium_unlocks
     from unnest(prof.unlocked_characters) as u(id)
-    where u.id in ('joe_biden', 'ronald_reagan', 'washington');
+    where u.id in ('ronald_reagan', 'washington', 'starmer', 'farage', 'jfk');
   if to_regclass('public.referral_rewards') is not null then
     select count(*)::integer into v_referrals
       from public.referral_rewards
