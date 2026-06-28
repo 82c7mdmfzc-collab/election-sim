@@ -415,7 +415,7 @@ This is the main built-in growth loop: K-factor depends on invites-sent × signu
 - **Legal/positioning spine:** satire/parody disclaimer enabling use of real political figures; "not
   affiliated/endorsed." This is both a legal shield and part of the comedic brand.
 - **Domain/brand:** playelector.com; privacy at playelector.com/privacy; support at playelector.com/support.
-- **Current iOS release state:** build 25 has been uploaded to App Store Connect/TestFlight.
+- **Current iOS release state:** build 48 has been uploaded to App Store Connect/TestFlight and selected for iOS version 1.0.
 
 ---
 
