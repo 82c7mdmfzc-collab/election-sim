@@ -15,7 +15,7 @@ import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
-import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
+import { FUNDS_BUNDLES, getFundsPrices, iapPlatform, localFallbackPrice, nativeIapAvailable, purchase } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
 import { cosmeticsByCategory, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
 import {
@@ -582,9 +582,11 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
             <div className="funds-grid shop-rail">
               {FUNDS_BUNDLES.map((b) => {
                 const nativePrice = nativePrices[b.sku];
-                const productUnavailable = hasNativeBilling && !pricesLoading && !nativePrice;
+                // StoreKit's localized price when it resolves, else a locale-aware
+                // fallback (£ for UK) so the price is always visible and never USD-only.
+                const displayPrice = nativePrice ?? (pricesLoading ? '…' : localFallbackPrice(b));
                 return (
-                  <div key={b.sku} className={`funds-card${productUnavailable ? ' is-unavailable' : ''}`}>
+                  <div key={b.sku} className="funds-card">
                     {b.badge && <span className="funds-card__badge">{b.badge}</span>}
                     <CoinArt src={b.imageUrl} />
                     <div className="funds-card__amount">
@@ -592,17 +594,14 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                       {b.funds.toLocaleString()}
                     </div>
                     <div className="funds-card__label">Campaign Funds</div>
+                    <div className="funds-card__price">{displayPrice}</div>
                     <button
                       type="button"
                       className="funds-card__buy"
-                      disabled={buyingSku === b.sku || productUnavailable}
+                      disabled={buyingSku === b.sku}
                       onClick={() => buyFunds(b.sku)}
                     >
-                      {buyingSku === b.sku
-                        ? 'Processing…'
-                        : productUnavailable
-                          ? 'Unavailable'
-                          : (nativePrice ?? (pricesLoading ? '…' : b.priceLabel))}
+                      {buyingSku === b.sku ? 'Processing…' : 'Buy'}
                     </button>
                   </div>
                 );
