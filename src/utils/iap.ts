@@ -17,6 +17,9 @@ export interface FundsBundle {
   /** USD fallback price, shown only until StoreKit's localized price loads. The
    *  authoritative per-territory price lives in App Store Connect. */
   priceLabel: string;
+  /** GBP fallback price, used for UK locales until StoreKit's localized price loads
+   *  (mirrors the App Store Connect tiers documented in APPLE_SETUP.md). */
+  priceGBP: string;
   badge?: string;
   /** Per-bundle coin artwork served from /assets/coins/. */
   imageUrl: string;
@@ -25,15 +28,30 @@ export interface FundsBundle {
 /** Consumable Campaign Funds bundles shown in the Shop (grants owned by SQL).
  *  SKUs/amounts MUST match supabase/iap.sql (fulfill_purchase) and the App Store
  *  Connect product IDs. Prices are set per-territory in App Store Connect; the Shop
- *  shows StoreKit's localized formattedPrice and falls back to priceLabel (USD). */
+ *  shows StoreKit's localized formattedPrice and falls back to a locale price (see
+ *  localFallbackPrice). The GBP values mirror the tiers in APPLE_SETUP.md. */
 export const FUNDS_BUNDLES: readonly FundsBundle[] = [
-  { sku: 'funds_600', funds: 600, priceLabel: '$0.99', badge: 'Starter', imageUrl: '/assets/coins/funds_600.png' },
-  { sku: 'funds_1500', funds: 1500, priceLabel: '$2.99', imageUrl: '/assets/coins/funds_1500.png' },
-  { sku: 'funds_4000', funds: 4000, priceLabel: '$4.99', imageUrl: '/assets/coins/funds_4000.png' },
-  { sku: 'funds_9000', funds: 9000, priceLabel: '$8.99', badge: 'Most popular', imageUrl: '/assets/coins/funds_9000.png' },
-  { sku: 'funds_20000', funds: 20000, priceLabel: '$14.99', badge: 'Best value', imageUrl: '/assets/coins/funds_20000.png' },
-  { sku: 'funds_45000', funds: 45000, priceLabel: '$19.99', badge: 'Most Funds', imageUrl: '/assets/coins/funds_45000.png' },
+  { sku: 'funds_600', funds: 600, priceLabel: '$0.99', priceGBP: '£0.99', badge: 'Starter', imageUrl: '/assets/coins/funds_600.png' },
+  { sku: 'funds_1500', funds: 1500, priceLabel: '$2.99', priceGBP: '£1.99', imageUrl: '/assets/coins/funds_1500.png' },
+  { sku: 'funds_4000', funds: 4000, priceLabel: '$4.99', priceGBP: '£3.99', imageUrl: '/assets/coins/funds_4000.png' },
+  { sku: 'funds_9000', funds: 9000, priceLabel: '$8.99', priceGBP: '£7.99', badge: 'Most popular', imageUrl: '/assets/coins/funds_9000.png' },
+  { sku: 'funds_20000', funds: 20000, priceLabel: '$14.99', priceGBP: '£14.99', badge: 'Best value', imageUrl: '/assets/coins/funds_20000.png' },
+  { sku: 'funds_45000', funds: 45000, priceLabel: '$19.99', priceGBP: '£19.99', badge: 'Most Funds', imageUrl: '/assets/coins/funds_45000.png' },
 ];
+
+/** True when the runtime locale is a UK English region (en-GB, cy-GB, gd-GB…). */
+function isUKLocale(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const langs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return langs.some((l) => /-GB$/i.test(l || ''));
+}
+
+/** Display price to show before/without StoreKit's authoritative localized price.
+ *  Picks the user's local currency by region so a UK player never flashes USD.
+ *  StoreKit's formattedPrice always overrides this when it resolves. */
+export function localFallbackPrice(bundle: FundsBundle): string {
+  return isUKLocale() ? bundle.priceGBP : bundle.priceLabel;
+}
 
 export type IapPlatform = PlatformKind;
 

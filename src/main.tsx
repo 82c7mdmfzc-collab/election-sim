@@ -8,6 +8,12 @@ import { OrientationGate } from './components/OrientationGate'
 import { AudioManager } from './utils/audioManager'
 import { isMuted } from './utils/localPrefs'
 import { initAnalytics } from './utils/analytics'
+import { isNativeRuntime } from './utils/platform'
+
+// Backstop for the pre-paint shim in index.html: ensure `html.native` is set in
+// every native runtime (dev `tauri ios dev` serves over http://localhost, where the
+// shim's scheme check can miss). Idempotent — collapses with the inline add above.
+if (isNativeRuntime()) document.documentElement.classList.add('native');
 
 AudioManager.init();
 AudioManager.setMuted(isMuted());

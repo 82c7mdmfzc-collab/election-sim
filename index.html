@@ -17,7 +17,15 @@
     <script>
       (function () {
         try {
-          if (String(window.location.protocol).indexOf('tauri') !== 0) return;
+          // Mirror isNativeRuntime() (src/utils/platform.ts): production iOS serves
+          // over tauri://, but `tauri ios dev` serves over http://localhost — so the
+          // scheme check alone misses dev and the native CSS never applies. Tauri
+          // injects these globals in every webview (dev + prod), so check them too.
+          var w = window;
+          var native = String(w.location.protocol).indexOf('tauri') === 0
+            || typeof w.__TAURI_INTERNALS__ !== 'undefined'
+            || w.isTauri === true;
+          if (!native) return;
           document.documentElement.classList.add('native');
           var vp = document.querySelector('meta[name="viewport"]');
           if (vp) {
