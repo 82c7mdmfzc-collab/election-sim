@@ -34,3 +34,6 @@ supabase/functions/resolve-turn/_engine/
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Balance-sim harness output (src/game/sim) — generated report + raw results
+sim-output/
