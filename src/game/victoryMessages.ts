@@ -9,6 +9,8 @@ export interface VictoryMessage {
   readonly id: string;
   /** Short label for the picker. */
   readonly label: string;
+  /** Picker grouping. */
+  readonly tone?: 'statesman' | 'hype' | 'meme';
   /** The speech shown in the victory text box. */
   readonly text: string;
   /** Campaign Funds price; 0 = always available. */
@@ -19,25 +21,71 @@ export const VICTORY_MESSAGES: readonly VictoryMessage[] = [
   {
     id: 'classic',
     label: 'Gracious Victor',
+    tone: 'statesman',
     text: 'My fellow Americans — tonight the people have spoken, and together we march toward a brighter future. Thank you, and God bless.',
     unlockCost: 0,
   },
   {
     id: 'landslide',
     label: 'Landslide',
+    tone: 'hype',
     text: 'From sea to shining sea, the map turned our way. This, my friends, is what a mandate looks like!',
     unlockCost: 3000,
   },
   {
     id: 'humble',
     label: 'Humbled',
+    tone: 'statesman',
     text: 'I am humbled by your trust, and I will work every single day to earn it. The real work starts now.',
     unlockCost: 3000,
   },
   {
     id: 'fired_up',
     label: 'Fired Up',
+    tone: 'hype',
     text: 'They counted us out. They were wrong. 270 and beyond — now let’s get to work!',
+    unlockCost: 3000,
+  },
+  {
+    id: 'map_math',
+    label: 'Map Math',
+    tone: 'meme',
+    text: 'The map did the math. I simply provided the vibes.',
+    unlockCost: 3000,
+  },
+  {
+    id: 'recount_denied',
+    label: 'Recount Denied',
+    tone: 'meme',
+    text: 'We checked the map twice. Still my name in very large letters.',
+    unlockCost: 3000,
+  },
+  {
+    id: 'coalition_chef',
+    label: 'Coalition Chef',
+    tone: 'meme',
+    text: 'A little ground game, a little coalition seasoning — and suddenly it’s dinner at 270.',
+    unlockCost: 3000,
+  },
+  {
+    id: 'swing_state_slayer',
+    label: 'Swing State Slayer',
+    tone: 'meme',
+    text: 'The swing states swung. I was standing exactly where they landed.',
+    unlockCost: 3000,
+  },
+  {
+    id: 'mandate_mode',
+    label: 'Mandate Mode',
+    tone: 'meme',
+    text: 'Not saying it was a mandate, but the scoreboard is using its outside voice.',
+    unlockCost: 3000,
+  },
+  {
+    id: 'campaign_receipts',
+    label: 'Campaign Receipts',
+    tone: 'meme',
+    text: 'I brought receipts, coalitions, and just enough cash to make the map behave.',
     unlockCost: 3000,
   },
 ];

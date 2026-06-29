@@ -3,23 +3,15 @@ import { useGameStore, usePlayerColors } from '../game/store';
 import { ALL_STATES } from '../game/statesData';
 import { ElectionMap } from './ElectionMap';
 import type { StateId } from '../game/types';
+import { buildFinalTallySnapshot, buildTallyHighlights, tallyHighlightLabel, type TallyHighlight } from '../game/endgameHighlights';
 
-// States sorted EV-ascending: small states first, megastates last (max dramatic tension)
-const TALLY_ORDER = [...ALL_STATES].sort((a, b) => a.electoralVotes - b.electoralVotes);
-
-// Election-night pacing: the long tail of small states zips by, while the last
-// few megastates (TALLY_ORDER is EV-ascending) get a dramatic beat. The whole
-// sequence lands in ~8s — comfortably under the 10s cap — and the Skip button can
-// end it instantly. Inner offsets are derived as fractions of each slot.
-const SLOT_FAST_MS = 90;     // small / mid states
-const SLOT_DRAMA_MS = 560;   // the closing megastates
-const DRAMA_TAIL = 6;        // how many trailing (highest-EV) states get the slow beat
+const SLOT_HIGHLIGHT_MS = 520;
+const SLOT_DECISIVE_MS = 900;
 const T_DONE_DELAY = 300;
 const T_COMPLETE_DELAY = 750;
 
-/** Per-slot duration: fast for the tail of small states, slow for the finish. */
-function slotDurationFor(idx: number): number {
-  return TALLY_ORDER.length - idx <= DRAMA_TAIL ? SLOT_DRAMA_MS : SLOT_FAST_MS;
+function slotDurationFor(idx: number, total: number): number {
+  return idx === total - 1 ? SLOT_DECISIVE_MS : SLOT_HIGHLIGHT_MS;
 }
 
 // ── useElectionTallySequence ──────────────────────────────────────────────────
@@ -28,6 +20,11 @@ function useElectionTallySequence() {
   const completeTally = useGameStore((s) => s.completeTally);
   const electionResult = useGameStore((s) => s.electionResult);
   const players = useGameStore((s) => s.players);
+  const rungs = useGameStore((s) => s.rungs);
+  const highlights = useMemo(
+    () => buildTallyHighlights(ALL_STATES, electionResult, rungs),
+    [electionResult, rungs],
+  );
 
   const [currentIdx, setCurrentIdx] = useState(0);
   const [prevIdx, setPrevIdx] = useState(0);
@@ -64,18 +61,26 @@ function useElectionTallySequence() {
     completeTally();
   }
 
+  function revealFinalTotals() {
+    const snapshot = buildFinalTallySnapshot(ALL_STATES, electionResult);
+    setRevealedIds(snapshot.revealedIds);
+    setAccumEVs(Object.fromEntries(players.map((p) => [p.id, snapshot.evTotals[p.id] ?? 0])));
+    setIsDone(true);
+  }
+
+  function finalize(immediate: boolean) {
+    clearTimers();
+    revealFinalTotals();
+    if (immediate) {
+      finish();
+    } else {
+      addTimer(finish, T_COMPLETE_DELAY);
+    }
+  }
+
   // Skip straight to the result: reveal every state, bank all EVs, end now.
   function skip() {
-    clearTimers();
-    setRevealedIds(new Set(TALLY_ORDER.map((s) => s.id)));
-    const totals: Record<string, number> = Object.fromEntries(players.map((p) => [p.id, 0]));
-    for (const st of TALLY_ORDER) {
-      const w = electionResult?.stateLeaders?.[st.id];
-      if (w) totals[w] = (totals[w] ?? 0) + st.electoralVotes;
-    }
-    setAccumEVs(totals);
-    setIsDone(true);
-    finish();
+    finalize(true);
   }
 
   // Reset per-card UI state when the active card changes (render-time
@@ -91,11 +96,15 @@ function useElectionTallySequence() {
   useEffect(() => {
     if (isDone) return;
 
-    const state = TALLY_ORDER[currentIdx];
-    if (!state) return;
+    const highlight = highlights[currentIdx];
+    if (!highlight) {
+      addTimer(() => finalize(false), 0);
+      return;
+    }
+    const state = highlight.state;
 
     clearTimers();
-    const dur = slotDurationFor(currentIdx);
+    const dur = slotDurationFor(currentIdx, highlights.length);
     const popMs = Math.min(350, Math.max(120, dur * 0.9));
 
     // Winner flash
@@ -127,11 +136,13 @@ function useElectionTallySequence() {
       setCardExiting(true);
       addTimer(() => {
         setCardVisible(false);
-        if (currentIdx < TALLY_ORDER.length - 1) {
+        if (currentIdx < highlights.length - 1) {
           setCurrentIdx((i) => i + 1);
         } else {
-          // Final state done
+          // Final highlighted state done. Snap the full map and exact final EVs
+          // into place before the victory screen takes over.
           addTimer(() => setIsDone(true), T_DONE_DELAY);
+          addTimer(() => revealFinalTotals(), T_DONE_DELAY);
           addTimer(finish, T_COMPLETE_DELAY);
         }
       }, Math.min(40, dur * 0.15));
@@ -139,9 +150,9 @@ function useElectionTallySequence() {
 
     return clearTimers;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIdx]);
+  }, [currentIdx, highlights]);
 
-  return { currentIdx, cardVisible, cardExiting, showFlash, showFly, accumEVs, poppingPlayer, revealedIds, isDone, skip };
+  return { currentIdx, highlights, cardVisible, cardExiting, showFlash, showFly, accumEVs, poppingPlayer, revealedIds, isDone, skip };
 }
 
 // ── TallyHud ──────────────────────────────────────────────────────────────────
@@ -190,15 +201,15 @@ function TallyHud({
 // ── StateTallyCard ────────────────────────────────────────────────────────────
 
 function StateTallyCard({
-  stateIdx,
+  highlight,
   showFlash,
   exiting,
 }: {
-  stateIdx: number;
+  highlight: TallyHighlight | undefined;
   showFlash: boolean;
   exiting: boolean;
 }) {
-  const state = TALLY_ORDER[stateIdx];
+  const state = highlight?.state;
   const rungs = useGameStore((s) => (state ? s.rungs[state.id] ?? {} : {}));
   const electionResult = useGameStore((s) => s.electionResult);
   const players = useGameStore((s) => s.players);
@@ -214,7 +225,10 @@ function StateTallyCard({
   return (
     <div className={`tally-card${exiting ? ' tally-card--exiting' : ''}`}>
       <div className="tally-card__header">
-        <span className="tally-card__state-name">{state.name}</span>
+        <span>
+          <span className="tally-card__kicker">{highlight ? tallyHighlightLabel(highlight.reason) : 'Election Night'}</span>
+          <span className="tally-card__state-name">{state.name}</span>
+        </span>
         <span className="tally-card__ev-badge">{state.electoralVotes} EV</span>
       </div>
 
@@ -244,6 +258,7 @@ function StateTallyCard({
           style={{ ['--p-color' as string]: winnerColor ?? 'var(--yellow)' }}
         >
           {winnerPlayer.name.toUpperCase()} WINS +{state.electoralVotes} EV
+          {highlight && highlight.margin <= 1 ? ' ON A KNIFE-EDGE' : ''}
         </div>
       ) : (
         <div className="tally-card__no-contest">No majority — no EVs awarded</div>
@@ -261,8 +276,8 @@ function StateTallyCard({
 
 // ── EvFlyChip ─────────────────────────────────────────────────────────────────
 
-function EvFlyChip({ stateIdx }: { stateIdx: number }) {
-  const state = TALLY_ORDER[stateIdx];
+function EvFlyChip({ highlight }: { highlight: TallyHighlight | undefined }) {
+  const state = highlight?.state;
   const electionResult = useGameStore((s) => s.electionResult);
   const colors = usePlayerColors();
 
@@ -287,6 +302,7 @@ function EvFlyChip({ stateIdx }: { stateIdx: number }) {
 export function ElectionTallyView() {
   const {
     currentIdx,
+    highlights,
     cardVisible,
     cardExiting,
     showFlash,
@@ -303,7 +319,8 @@ export function ElectionTallyView() {
   const flyKey = `fly-${currentIdx}`;
 
   // Build active state id for map highlight
-  const activeStateId = TALLY_ORDER[currentIdx]?.id ?? null;
+  const activeHighlight = highlights[currentIdx];
+  const activeStateId = activeHighlight?.state.id ?? null;
 
   // Memoize the revealed set to avoid unnecessary re-renders on ElectionMap
   const revealedSet = useMemo(() => revealedIds, [revealedIds]);
@@ -328,14 +345,14 @@ export function ElectionTallyView() {
         {cardVisible && (
           <StateTallyCard
             key={cardKey}
-            stateIdx={currentIdx}
+            highlight={activeHighlight}
             showFlash={showFlash}
             exiting={cardExiting}
           />
         )}
 
         {showFly && (
-          <EvFlyChip key={flyKey} stateIdx={currentIdx} />
+          <EvFlyChip key={flyKey} highlight={activeHighlight} />
         )}
       </div>
     </div>

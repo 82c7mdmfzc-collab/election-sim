@@ -69,6 +69,13 @@ export function VictoryPodium() {
   const winnerEVs = winner ? (electionResult?.evByPlayer[winner.id] ?? 0) : 0;
   const winnerColor = winner ? (colors[winner.id]?.hex ?? '#facc15') : '#facc15';
 
+  // The equipped victory-message cosmetic shown in the speech box and share card.
+  const selectedVictoryMessage = getSelectedVictoryMessage();
+  const visibleVictoryMessage = isVictoryMessageAvailable(selectedVictoryMessage, unlockedCosmetics)
+    ? selectedVictoryMessage
+    : DEFAULT_VICTORY_MESSAGE_ID;
+  const victorySpeech = victoryMessageText(visibleVictoryMessage);
+
   async function handleShare(variant: ShareCardVariant) {
     if (sharing) return;
     setSharing(variant);
@@ -82,7 +89,7 @@ export function VictoryPodium() {
       });
       const stateColors: Record<string, string> = {};
       for (const st of ALL_STATES) {
-        const pid = securedBy[st.id];
+        const pid = electionResult?.stateLeaders?.[st.id] ?? securedBy[st.id];
         if (pid && colors[pid]) stateColors[st.id] = colors[pid].hex;
       }
       const frameId = getSelectedShareFrame();
@@ -93,6 +100,9 @@ export function VictoryPodium() {
       // still preserve those memoizations — this closure is declared above them.
       const secured = winner ? Object.values(securedBy).filter((pid) => pid === winner.id).length : 0;
       const coalitions = winner ? Object.values(stateGroupDominance).filter((pid) => pid === winner.id).length : 0;
+      const runnerUpEV = winner
+        ? Math.max(0, ...players.filter((p) => p.id !== winner.id).map((p) => electionResult?.evByPlayer[p.id] ?? 0))
+        : undefined;
       const highlight = dramaticEvent({ winnerName: winner?.name ?? null, secured, coalitions });
       const svg = renderShareCardSvg({
         winnerName: winner ? winner.name : null,
@@ -103,6 +113,11 @@ export function VictoryPodium() {
         theme: shareFramePalette(frameId),
         subtitle,
         highlight,
+        message: winner ? victorySpeech : undefined,
+        marginOver270: winner ? Math.max(0, winnerEVs - 270) : undefined,
+        securedStates: winner ? secured : undefined,
+        coalitions: winner ? coalitions : undefined,
+        runnerUpEV,
       });
       const { width, height } = shareCardDims(variant);
       const blob = await svgToPngBlob(svg, width, height);
@@ -111,7 +126,7 @@ export function VictoryPodium() {
         filename: `elector-result-${variant}.png`,
         title: 'Elector',
         text: winner
-          ? `${winner.name} just won my Elector game with ${winnerEVs} EV!`
+          ? `${winner.name} just won my Elector game with ${winnerEVs} EV. "${victorySpeech.slice(0, 130)}${victorySpeech.length > 130 ? '...' : ''}"`
           : 'My Elector game ended in a hung Electoral College!',
         url: 'https://playelector.com',
       });
@@ -172,15 +187,6 @@ export function VictoryPodium() {
     reset();
   }
 
-  // The equipped victory-message cosmetic shown in the speech box. (The victory
-  // screen no longer paints a per-winner full-bleed preset photo — the themed
-  // gradient + portrait + confetti carry the moment on every candidate.)
-  const selectedVictoryMessage = getSelectedVictoryMessage();
-  const visibleVictoryMessage = isVictoryMessageAvailable(selectedVictoryMessage, unlockedCosmetics)
-    ? selectedVictoryMessage
-    : DEFAULT_VICTORY_MESSAGE_ID;
-  const victorySpeech = victoryMessageText(visibleVictoryMessage);
-
   // Rank players by EVs descending
   const ranked = useMemo(() => {
     return [...players].sort(
@@ -216,6 +222,13 @@ export function VictoryPodium() {
     }
     return totals;
   }, [securedBy]);
+
+  const winnerSecuredStates = winner ? securedCountByPlayer[winner.id] ?? 0 : 0;
+  const winnerSecuredEV = winner ? securedEVByPlayer[winner.id] ?? 0 : 0;
+  const winnerCoalitions = winner ? dominanceCountByPlayer[winner.id] ?? 0 : 0;
+  const runnerUp = winner ? ranked.find((p) => p.id !== winner.id) ?? null : null;
+  const runnerUpEV = runnerUp ? electionResult?.evByPlayer[runnerUp.id] ?? 0 : 0;
+  const marginOver270 = winner ? Math.max(0, winnerEVs - 270) : 0;
 
   const native = isNativeRuntime();
 
@@ -265,6 +278,15 @@ export function VictoryPodium() {
             ? `${winnerEVs} Electoral Votes — Victory`
             : 'No majority reached'}
         </div>
+        {winner && (
+          <div className="victory-mandate" aria-label="Final result summary">
+            <span><strong>+{marginOver270}</strong> over 270</span>
+            <span><strong>{winnerSecuredStates}</strong> called states</span>
+            <span><strong>{winnerCoalitions}</strong> coalitions</span>
+            {runnerUp && <span><strong>{runnerUpEV}</strong> runner-up EV</span>}
+            {winnerSecuredEV > 0 && <span><strong>{winnerSecuredEV}</strong> secured EV</span>}
+          </div>
+        )}
         {winner && (
           <p className="victory-speech">“{victorySpeech}”</p>
         )}

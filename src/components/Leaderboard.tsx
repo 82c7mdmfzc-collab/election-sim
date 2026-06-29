@@ -27,8 +27,11 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     let live = true;
-    setLoading(true);
-    setError(false);
+    const loadingTimer = window.setTimeout(() => {
+      if (!live) return;
+      setLoading(true);
+      setError(false);
+    }, 0);
     void fetchLeaderboardRemote(board).then((res) => {
       if (!live) return;
       if (!res) {
@@ -39,7 +42,10 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
       }
       setLoading(false);
     });
-    return () => { live = false; };
+    return () => {
+      live = false;
+      window.clearTimeout(loadingTimer);
+    };
   }, [board]);
 
   const meta = BOARD_META[board];

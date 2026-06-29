@@ -8,11 +8,18 @@ describe('share-card SVG', () => {
       winnerEV: 312,
       line: shareLine('Kamala Harris', 312),
       stateColors: { CA: '#2563eb', TX: '#d8233c', FL: '#d8233c' },
+      message: 'The map did the math. I simply provided the vibes.',
+      marginOver270: 42,
+      securedStates: 12,
+      coalitions: 3,
+      runnerUpEV: 226,
     });
 
     expect(svg.startsWith('<svg')).toBe(true);
     expect(svg).toContain('Kamala Harris');
     expect(svg).toContain('312 ELECTORAL VOTES');
+    expect(svg).toContain('42 over 270');
+    expect(svg).toContain('The map did the math');
     expect(svg).toContain('playelector.com');
 
     // 50 states + DC project to real <path>s under geoAlbersUsa.
@@ -44,14 +51,30 @@ describe('share-card SVG', () => {
       variant: 'portrait',
       subtitle: 'as Donald Trump',
       highlight: '🔒 12 states secured · 🏛 4 coalitions',
+      message: 'We checked the map twice. Still my name in very large letters.',
     });
 
     expect(svg).toContain('viewBox="0 0 1080 1920"');
     expect(svg).toContain('Donald Trump');
     expect(svg).toContain('301 ELECTORAL VOTES');
     expect(svg).toContain('as Donald Trump');
+    expect(svg).toContain('We checked the map twice');
     expect(svg).toContain('playelector.com');
     expect((svg.match(/<path /g) ?? []).length).toBeGreaterThan(40);
+  });
+
+  it('wraps long victory messages into SVG tspans', () => {
+    const svg = renderShareCardSvg({
+      winnerName: 'Bobby Tooley',
+      winnerEV: 350,
+      line: shareLine('Bobby Tooley', 350),
+      stateColors: { CA: '#22c55e' },
+      message: 'I brought receipts, coalitions, and just enough cash to make the map behave while every battleground tried to make the evening difficult, every coalition demanded a second meeting, and the scoreboard kept asking for one more dramatic pause.',
+    });
+
+    expect(svg).toContain('<tspan');
+    expect(svg).toContain('I brought receipts');
+    expect(svg).toContain('...');
   });
 });
 

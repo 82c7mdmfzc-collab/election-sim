@@ -57,6 +57,16 @@ export interface ShareCardProps {
   subtitle?: string;
   /** One-line dramatic highlight, e.g. "🔒 14 states secured · 🏛 3 coalitions". */
   highlight?: string;
+  /** Equipped victory speech rendered as a short quote. */
+  message?: string;
+  /** Winner EV above 270. */
+  marginOver270?: number;
+  /** Winner's permanently called states. */
+  securedStates?: number;
+  /** Winner's dominated coalitions. */
+  coalitions?: number;
+  /** Runner-up final EV total. */
+  runnerUpEV?: number;
 }
 
 interface Layout {
@@ -67,6 +77,8 @@ interface Layout {
   subtitleY: number; subtitleSize: number;
   subheadY: number; subheadSize: number;
   mapX: number; mapY: number; mapW: number; mapH: number;
+  statsY: number; statsSize: number;
+  messageY: number; messageSize: number; messageWidth: number; messageLines: number;
   highlightY: number; highlightSize: number;
   footerY: number; footerSize: number;
   /** Portrait centers the footer; landscape splits line (left) / brand (right). */
@@ -80,8 +92,10 @@ const LAYOUTS: Record<ShareCardVariant, Layout> = {
     headingY: 100, headingSize: 46,
     subtitleY: 134, subtitleSize: 22,
     subheadY: 170, subheadSize: 26,
-    mapX: 80, mapY: 192, mapW: 1040, mapH: 348,
-    highlightY: 578, highlightSize: 22,
+    mapX: 80, mapY: 212, mapW: 1040, mapH: 288,
+    statsY: 194, statsSize: 20,
+    messageY: 532, messageSize: 22, messageWidth: 92, messageLines: 2,
+    highlightY: 584, highlightSize: 20,
     footerY: 606, footerSize: 20,
     centerFooter: false,
   },
@@ -91,12 +105,38 @@ const LAYOUTS: Record<ShareCardVariant, Layout> = {
     headingY: 280, headingSize: 88,
     subtitleY: 360, subtitleSize: 46,
     subheadY: 458, subheadSize: 56,
-    mapX: 40, mapY: 600, mapW: 1000, mapH: 900,
-    highlightY: 1640, highlightSize: 46,
+    mapX: 40, mapY: 612, mapW: 1000, mapH: 820,
+    statsY: 528, statsSize: 38,
+    messageY: 1538, messageSize: 48, messageWidth: 28, messageLines: 3,
+    highlightY: 1692, highlightSize: 40,
     footerY: 1812, footerSize: 40,
     centerFooter: true,
   },
 };
+
+function wrapSvgText(text: string, maxChars: number, maxLines: number): string[] {
+  const words = text.trim().replace(/\s+/g, ' ').split(' ').filter(Boolean);
+  const lines: string[] = [];
+  let line = '';
+
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (next.length <= maxChars) {
+      line = next;
+      continue;
+    }
+
+    if (line) lines.push(line);
+    line = word.length > maxChars ? `${word.slice(0, Math.max(0, maxChars - 3))}...` : word;
+    if (lines.length >= maxLines) break;
+  }
+
+  if (line && lines.length < maxLines) lines.push(line);
+  if (lines.length > 0 && words.join(' ').length > lines.join(' ').length) {
+    lines[lines.length - 1] = `${lines[lines.length - 1].replace(/\.*$/, '')}...`;
+  }
+  return lines.slice(0, maxLines);
+}
 
 export function ShareCard({
   winnerName,
@@ -107,10 +147,24 @@ export function ShareCard({
   theme = DEFAULT_PALETTE,
   subtitle,
   highlight,
+  message,
+  marginOver270,
+  securedStates,
+  coalitions,
+  runnerUpEV,
 }: ShareCardProps) {
   const L = LAYOUTS[variant];
   const paths = geoStatePaths(L.mapW, L.mapH);
   const cx = L.w / 2;
+  const messageLines = message ? wrapSvgText(`"${message}"`, L.messageWidth, L.messageLines) : [];
+  const stats = winnerName
+    ? [
+        `${Math.max(0, marginOver270 ?? winnerEV - 270)} over 270`,
+        securedStates != null ? `${securedStates} states called` : null,
+        coalitions != null ? `${coalitions} coalitions` : null,
+        runnerUpEV != null ? `Runner-up ${runnerUpEV} EV` : null,
+      ].filter(Boolean).join(' · ')
+    : 'Nobody reached the 270 EV threshold';
 
   return (
     <svg
@@ -149,6 +203,12 @@ export function ShareCard({
       >
         {winnerName ? `${winnerEV} ELECTORAL VOTES` : 'NO MAJORITY — 270 NEEDED'}
       </text>
+      <text
+        x={cx} y={L.statsY} textAnchor="middle"
+        fill="#cbd5e1" fontFamily={FONT} fontSize={L.statsSize} fontWeight={700}
+      >
+        {stats}
+      </text>
 
       {/* Map */}
       <g transform={`translate(${L.mapX}, ${L.mapY})`}>
@@ -170,6 +230,17 @@ export function ShareCard({
           fill={theme.accent} fontFamily={FONT} fontSize={L.highlightSize} fontWeight={700}
         >
           {highlight}
+        </text>
+      )}
+
+      {messageLines.length > 0 && (
+        <text
+          x={cx} y={L.messageY} textAnchor="middle"
+          fill={theme.heading} fontFamily={FONT} fontSize={L.messageSize} fontWeight={650}
+        >
+          {messageLines.map((m, i) => (
+            <tspan key={i} x={cx} dy={i === 0 ? 0 : L.messageSize * 1.25}>{m}</tspan>
+          ))}
         </text>
       )}
 

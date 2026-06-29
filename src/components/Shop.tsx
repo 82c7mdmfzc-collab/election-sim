@@ -43,6 +43,14 @@ interface ShopProps {
 }
 
 type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages' | 'cosmetics';
+type MessageToneFilter = 'all' | NonNullable<VictoryMessage['tone']>;
+
+const MESSAGE_FILTERS: Array<{ id: MessageToneFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'statesman', label: 'Statesman' },
+  { id: 'hype', label: 'Hype' },
+  { id: 'meme', label: 'Meme' },
+];
 
 function priceValue(priceLabel: string): number {
   const n = Number(priceLabel.replace(/[^0-9.]/g, ''));
@@ -298,6 +306,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const [cosmeticMsg, setCosmeticMsg] = useState<string | null>(null);
   const [equippedVM, setEquippedVM] = useState(getSelectedVictoryMessage);
   const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
+  const [messageFilter, setMessageFilter] = useState<MessageToneFilter>('all');
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
   const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
   const billingPlatform = iapPlatform();
@@ -312,6 +321,13 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   const statsCandidate = statsModalId
     ? PREMIUM_CANDIDATES.find((c) => c.id === statsModalId) ?? null
     : null;
+  const selectedMessagePreview = VICTORY_MESSAGES.find((m) => m.id === equippedVM) ?? VICTORY_MESSAGES[0];
+  const visibleVictoryMessages = useMemo(
+    () => messageFilter === 'all'
+      ? VICTORY_MESSAGES
+      : VICTORY_MESSAGES.filter((m) => m.tone === messageFilter),
+    [messageFilter],
+  );
 
   useEffect(() => {
     track('shop_opened', {
@@ -680,10 +696,29 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
 
         <section className={`shop__pane shop__pane--messages${tab === 'messages' ? ' is-active' : ''}`}>
           <h2 className="shop__section">Victory Messages</h2>
-          <p className="shop__sub">Choose the speech your winner delivers on the victory screen.</p>
+          <p className="shop__sub">Choose the speech your winner delivers on the victory screen and share card.</p>
           {cosmeticMsg && <div className="shop__purchase-msg">{cosmeticMsg}</div>}
+          <div className="shop__vm-preview">
+            <span className="shop__vm-preview-label">Equipped</span>
+            <strong>{selectedMessagePreview.label}</strong>
+            <p>“{selectedMessagePreview.text}”</p>
+          </div>
+          <div className="shop__vm-filters" role="tablist" aria-label="Victory message tones">
+            {MESSAGE_FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                className={`shop__vm-filter${messageFilter === filter.id ? ' is-active' : ''}`}
+                role="tab"
+                aria-selected={messageFilter === filter.id}
+                onClick={() => setMessageFilter(filter.id)}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
           <div className="shop__vm-list shop-rail">
-            {VICTORY_MESSAGES.map((m) => {
+            {visibleVictoryMessages.map((m) => {
               const owned = isVictoryMessageAvailable(m.id, unlocked);
               const equipped = owned && equippedVM === m.id;
               const affordable = funds >= m.unlockCost;
@@ -705,8 +740,14 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                   <span className="vm-card__label">
                     {m.label}
                     {equipped && <span className="vm-card__badge">Equipped</span>}
+                    {m.tone && <span className={`vm-card__tone vm-card__tone--${m.tone}`}>{m.tone}</span>}
                   </span>
                   <span className="vm-card__text">“{m.text}”</span>
+                  {!owned && (
+                    <span className="vm-card__lock">
+                      {affordable && !guest ? 'Ready to unlock' : `${m.unlockCost.toLocaleString()} Campaign Funds`}
+                    </span>
+                  )}
                   <span className={`vm-card__foot${!owned && !affordable && !guest ? ' is-dim' : ''}`}>{foot}</span>
                 </button>
               );

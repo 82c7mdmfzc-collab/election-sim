@@ -22,6 +22,12 @@ begin
     when 'landslide' then 3000
     when 'humble'    then 3000
     when 'fired_up'  then 3000
+    when 'map_math' then 3000
+    when 'recount_denied' then 3000
+    when 'coalition_chef' then 3000
+    when 'swing_state_slayer' then 3000
+    when 'mandate_mode' then 3000
+    when 'campaign_receipts' then 3000
     else null end;
   if v_cost is null then raise exception 'unlock_cosmetic: unknown cosmetic %', p_cosmetic; end if;
 
