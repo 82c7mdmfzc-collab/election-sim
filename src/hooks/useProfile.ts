@@ -30,6 +30,7 @@ import {
   claimFreeCharacterRemote,
   unlockCosmeticRemote,
   deleteAccountRemote,
+  claimLoginBonusRemote,
   type AdRewardClaimRemote,
   type UnlockRemoteErrorReason,
 } from '../game/profile';
@@ -46,6 +47,8 @@ import {
   getPendingReferralCode,
   setPendingReferralCode,
   clearPendingReferralCode,
+  getPendingCompletion,
+  setPendingCompletion,
 } from '../utils/localPrefs';
 import { clearSession } from '../utils/sessionStore';
 import { onGameFinishedNotifications } from '../utils/notifications';
@@ -108,6 +111,8 @@ interface ProfileStore {
 
   init(): Promise<void>;
   applyGameResult(result: GameResult): Promise<{ breakdown: ProgressRewardBreakdown; claimed: boolean }>;
+  /** Claim the once-per-UTC-day login bonus (account-only). Returns funds granted (0 if none/already claimed). */
+  claimDailyLoginBonus(): Promise<number>;
   /** Re-fetch the account from the server (e.g. after an IAP fulfillment). */
   refresh(): Promise<void>;
   clearLastReward(): void;
@@ -330,6 +335,8 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       opponentCount: result.opponentCount,
     });
     if (completion) {
+      // Any queued offline replay for this game is now satisfied.
+      if (getPendingCompletion()?.gameId === result.gameId) setPendingCompletion(null);
       const serverBreakdown: ProgressRewardBreakdown = {
         ...breakdown,
         gameTotal: completion.gameReward,
@@ -351,7 +358,34 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       });
       return { breakdown: serverBreakdown, claimed: true };
     }
+    // Server unreachable after retries: queue this finish so the next launch replays
+    // it against the idempotent RPC, rather than silently losing the funds + stats.
+    setPendingCompletion({
+      userId,
+      gameId: result.gameId,
+      won: result.won,
+      securedStates: result.securedStates,
+      coalitionsDominated: result.coalitionsDominated,
+      winStreak: newStreak,
+      mode: result.mode,
+      botDifficulty: result.botDifficulty,
+      botCount: result.botCount,
+      turns: result.turns,
+      electoralVotes: result.electoralVotes,
+      candidateId: result.candidateId,
+      opponentCount: result.opponentCount,
+    });
     return { breakdown: optimisticBreakdown, claimed: false };
+  },
+
+  async claimDailyLoginBonus() {
+    if (!get().userId) return 0;
+    const res = await claimLoginBonusRemote();
+    if (!res) return 0;
+    if (res.amount > 0) {
+      set({ profile: { ...get().profile, campaignFunds: res.balance } });
+    }
+    return res.amount;
   },
 
   async refresh() {
@@ -605,6 +639,10 @@ async function hydrateForUser(
     accountChecked: true,
   });
 
+  // Replay a reward that failed to sync at a previous game's end (offline). Safe
+  // and idempotent server-side; a no-op when nothing is queued for this account.
+  void replayPendingCompletion(user.id);
+
   // If this account arrived via an invite link, record the referrer once. The
   // server guards make this safe & idempotent (returns already_set/not_eligible
   // for existing players); the actual payout lands on the invitee's first game.
@@ -613,6 +651,45 @@ async function hydrateForUser(
     const result = await setReferrer(pendingRef);
     if (result !== 'error') clearPendingReferralCode();
   }
+}
+
+/**
+ * Replay a finished game whose server sync failed (offline at game end). The
+ * complete_game_result RPC is idempotent on (user, game_id), so re-sending is
+ * safe even if the original actually landed — it returns the current balance with
+ * gameReward 0. Bound to the owning account so a different user never inherits it.
+ */
+async function replayPendingCompletion(userId: string): Promise<void> {
+  const pending = getPendingCompletion();
+  if (!pending || pending.userId !== userId) return;
+  const completion = await completeGameResultRemote({
+    gameId: pending.gameId,
+    won: pending.won,
+    securedStates: pending.securedStates,
+    coalitionsDominated: pending.coalitionsDominated,
+    winStreak: pending.winStreak,
+    mode: pending.mode,
+    botDifficulty: pending.botDifficulty as GameResult['botDifficulty'],
+    botCount: pending.botCount,
+    turns: pending.turns,
+    electoralVotes: pending.electoralVotes,
+    candidateId: pending.candidateId,
+    opponentCount: pending.opponentCount,
+  });
+  if (!completion) return; // still unreachable — keep it queued for next launch
+  setPendingCompletion(null);
+  const cur = useProfile.getState();
+  if (cur.userId !== userId) return; // account switched mid-flight — don't cross funds
+  useProfile.setState({
+    profile: {
+      ...cur.profile,
+      campaignFunds: completion.balance,
+      stats: completion.stats,
+      achievementCounters: completion.achievementCounters,
+      claimedAchievements: completion.claimedAchievements,
+      dailyStreak: completion.dailyStreak,
+    },
+  });
 }
 
 /** Read a ?ref= invite code from the URL into localPrefs, then strip it. */

@@ -216,7 +216,7 @@ function parseCompleteGameResult(data: unknown, fallbackClaimed: string[]): Comp
  */
 export async function completeGameResultRemote(args: CompleteGameResultArgs): Promise<CompleteGameResultRemote | null> {
   if (!isSupabaseConfigured) return null;
-  const { data, error } = await supabase.rpc('complete_game_result', {
+  const params = {
     p_game_id: args.gameId,
     p_won: args.won,
     p_secured: args.securedStates,
@@ -229,12 +229,41 @@ export async function completeGameResultRemote(args: CompleteGameResultArgs): Pr
     p_electoral_votes: args.electoralVotes,
     p_candidate_id: args.candidateId,
     p_opponent_count: args.opponentCount,
-  });
+  };
+  // Retry with backoff: the RPC is idempotent on (user, game_id), so a replayed
+  // call is safe — it returns the current balance with gameReward 0 rather than
+  // double-crediting. This rescues a finish over a flaky connection at game end.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase.rpc('complete_game_result', params);
+    if (!error) return parseCompleteGameResult(data, await fetchClaimedAchievements());
+    console.warn(`completeGameResultRemote failed (attempt ${attempt + 1}/3):`, error.message);
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+  }
+  return null;
+}
+
+export interface LoginBonusResult {
+  /** Funds granted now (0 if already claimed today). */
+  amount: number;
+  /** New campaign-funds balance. */
+  balance: number;
+}
+
+/**
+ * Claim the once-per-UTC-day login bonus. Safe to call on every launch — the
+ * server gates on the stored date and returns amount 0 when already claimed.
+ * See claim_login_bonus in supabase/daily.sql. Null when unconfigured / errored.
+ */
+export async function claimLoginBonusRemote(): Promise<LoginBonusResult | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('claim_login_bonus');
   if (error) {
-    console.warn('completeGameResultRemote failed:', error.message);
+    console.warn('claimLoginBonusRemote failed:', error.message);
     return null;
   }
-  return parseCompleteGameResult(data, await fetchClaimedAchievements());
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  return { amount: jsonNumber(row, 'amount'), balance: jsonNumber(row, 'balance') };
 }
 
 export interface ClaimAchievementResult {

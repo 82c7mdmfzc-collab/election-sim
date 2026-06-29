@@ -9,19 +9,22 @@
  * a sign-out button.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { UsernameClaim } from './UsernameClaim';
 import { SignInButtons } from './SignInButtons';
 import { ProgressPanel } from './ProgressPanel';
+import { fetchLeaderboardRemote } from '../game/leaderboard';
 import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 
 interface AuthGateProps {
   onClose: () => void;
+  /** Open the full Leaderboard screen (closes this panel first). */
+  onViewLeaderboard?: () => void;
 }
 
-export function AuthGate({ onClose }: AuthGateProps) {
+export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
   const profile = useProfile((s) => s.profile);
   const guest = useProfile((s) => s.guest);
   const displayName = useProfile((s) => s.displayName);
@@ -31,6 +34,18 @@ export function AuthGate({ onClose }: AuthGateProps) {
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState('');
   const [tab, setTab] = useState<'profile' | 'progress' | 'danger'>('profile');
+  const [rank, setRank] = useState<number | null>(null);
+
+  // Pull the player's all-time wins rank for the profile tab (small top-N fetch;
+  // we only use the `me` field). Silent on failure — the rank line just hides.
+  useEffect(() => {
+    if (!displayName) return;
+    let live = true;
+    void fetchLeaderboardRemote('wins_all', 3).then((res) => {
+      if (live && res?.me) setRank(res.me.rank);
+    });
+    return () => { live = false; };
+  }, [displayName]);
 
   function close() {
     AudioManager.play('quit');
@@ -51,6 +66,7 @@ export function AuthGate({ onClose }: AuthGateProps) {
   }
 
   const { stats } = profile;
+  const counters = profile.achievementCounters;
 
   return (
     <div className="help-overlay" role="dialog" aria-modal="true" onClick={close}>
@@ -110,9 +126,28 @@ export function AuthGate({ onClose }: AuthGateProps) {
               <div className="auth-gate__stats">
                 <Stat label="Games" value={stats.gamesPlayed} />
                 <Stat label="Wins" value={stats.gamesWon} />
+                <Stat
+                  label="Win rate"
+                  value={stats.gamesPlayed > 0 ? `${Math.round((stats.gamesWon / stats.gamesPlayed) * 100)}%` : '—'}
+                />
                 <Stat label="Streak" value={stats.winStreak} />
                 <Stat label="Best streak" value={stats.bestWinStreak} />
+                <Stat label="Coalitions" value={stats.coalitionsDominated} />
+                <Stat label="Best EV" value={counters.maxWinEv || '—'} />
+                <Stat label="Online wins" value={counters.onlineWon} />
+                <Stat label="Fastest win" value={counters.fastestWinTurn != null ? `T${counters.fastestWinTurn}` : '—'} />
               </div>
+
+              <button
+                type="button"
+                className="auth-gate__leaderboard"
+                onClick={() => { AudioManager.play('click'); onViewLeaderboard?.(); }}
+              >
+                <span className="auth-gate__rank">
+                  {rank != null ? `Ranked #${rank.toLocaleString()} in wins` : 'View the leaderboard'}
+                </span>
+                <span className="auth-gate__leaderboard-arrow" aria-hidden>→</span>
+              </button>
             </div>
 
             <div className={`auth-pane auth-pane--progress${tab === 'progress' ? ' is-active' : ''}`}>
@@ -179,7 +214,7 @@ export function AuthGate({ onClose }: AuthGateProps) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="auth-gate__stat">
       <span className="auth-gate__stat-value">{value}</span>

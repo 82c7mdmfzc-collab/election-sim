@@ -20,6 +20,28 @@ export interface DailyChallengeLocal {
   lastEv: number;
 }
 
+/**
+ * A finished-game result that failed to sync to the server (network down at game
+ * end). Persisted so the next launch can replay it against the idempotent
+ * complete_game_result RPC — see useProfile.replayPendingCompletion. Bound to the
+ * account it belongs to so a different signed-in user never inherits the credit.
+ */
+export interface PendingGameCompletion {
+  userId: string;
+  gameId: string;
+  won: boolean;
+  securedStates: number;
+  coalitionsDominated: number;
+  winStreak: number;
+  mode: 'single' | 'bot' | 'online';
+  botDifficulty: string | null;
+  botCount: number;
+  turns: number;
+  electoralVotes: number;
+  candidateId: string | null;
+  opponentCount: number;
+}
+
 export interface LocalPrefs {
   tutorialSeen: boolean;
   muted: boolean;
@@ -47,6 +69,14 @@ export interface LocalPrefs {
   notifPermissionAsked: boolean;
   /** Device-local Daily Challenge progress. */
   dailyChallenge: DailyChallengeLocal;
+  /** Native haptic feedback on/off (no-op on web; see utils/haptics.ts). */
+  hapticsEnabled: boolean;
+  /** Suppress screen-transition + non-essential animation (accessibility). */
+  reducedMotion: boolean;
+  /** Colorblind-safe player palette (remaps seat/map colors; see game/playerColors.ts). */
+  colorblindMode: boolean;
+  /** A finished game whose reward failed to sync, queued for replay on next launch. */
+  pendingCompletion: PendingGameCompletion | null;
 }
 
 const DEFAULT_DAILY_CHALLENGE: DailyChallengeLocal = {
@@ -72,6 +102,10 @@ const DEFAULTS: LocalPrefs = {
   blockedPlayers: [],
   notifPermissionAsked: false,
   dailyChallenge: { ...DEFAULT_DAILY_CHALLENGE },
+  hapticsEnabled: true,
+  reducedMotion: false,
+  colorblindMode: false,
+  pendingCompletion: null,
 };
 
 export function getPrefs(): LocalPrefs {
@@ -119,6 +153,19 @@ export const isFirstRunCoachDismissed = () => getPrefs().firstRunCoachDismissed;
 export const markFirstRunCoachDismissed = () => setPrefs({ firstRunCoachDismissed: true });
 export const isFirstGameplayTipsSeen = () => getPrefs().firstGameplayTipsSeen;
 export const markFirstGameplayTipsSeen = () => setPrefs({ firstGameplayTipsSeen: true });
+
+// ── Accessibility & feel toggles (Settings screen) ────────────────────────────
+export const isHapticsEnabled = () => getPrefs().hapticsEnabled;
+export const setHapticsEnabled = (hapticsEnabled: boolean) => setPrefs({ hapticsEnabled });
+export const isReducedMotion = () => getPrefs().reducedMotion;
+export const setReducedMotion = (reducedMotion: boolean) => setPrefs({ reducedMotion });
+export const isColorblindMode = () => getPrefs().colorblindMode;
+export const setColorblindMode = (colorblindMode: boolean) => setPrefs({ colorblindMode });
+
+// ── Pending game-completion replay (offline resilience) ───────────────────────
+export const getPendingCompletion = (): PendingGameCompletion | null => getPrefs().pendingCompletion;
+export const setPendingCompletion = (pendingCompletion: PendingGameCompletion | null) =>
+  setPrefs({ pendingCompletion });
 
 // ── Daily Challenge (device-local progress) ───────────────────────────────────
 export const getDailyChallengeLocal = (): DailyChallengeLocal => ({

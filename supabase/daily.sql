@@ -82,3 +82,49 @@ revoke execute on function public.record_daily_result(text, boolean, integer) fr
 grant  execute on function public.record_daily_result(text, boolean, integer) to authenticated;
 revoke execute on function public.get_daily_status() from public, anon;
 grant  execute on function public.get_daily_status() to authenticated;
+
+-- ── claim_login_bonus: a small Campaign Funds chest, once per UTC day ─────────────
+-- Distinct from the Daily Challenge AND from the finish-streak (rewards.sql): this
+-- rewards simply OPENING the app each day. Idempotent — the second call on the same
+-- UTC day grants 0. The client calls it on every launch; the date check is the gate.
+-- Shape stored on profiles.login_bonus: { lastDate:'YYYY-MM-DD' }.
+alter table public.profiles add column if not exists login_bonus jsonb not null default '{}'::jsonb;
+
+create or replace function public.claim_login_bonus()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_uid     uuid := auth.uid();
+  prof      public.profiles;
+  c_amount  constant integer := 10;
+  v_today   date := (now() at time zone 'utc')::date;
+  v_last    date;
+  v_amount  integer := 0;
+  v_balance integer;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+  select * into prof from public.profiles where id = v_uid for update;
+  if prof.id is null then raise exception 'claim_login_bonus: no profile'; end if;
+
+  begin
+    v_last := nullif(prof.login_bonus->>'lastDate', '')::date;
+  exception when others then
+    v_last := null;
+  end;
+
+  if v_last is distinct from v_today then
+    v_amount := c_amount;
+    update public.profiles
+      set campaign_funds = campaign_funds + v_amount,
+          login_bonus = jsonb_build_object('lastDate', v_today::text),
+          updated_at = now()
+      where id = v_uid
+      returning campaign_funds into v_balance;
+  else
+    v_balance := prof.campaign_funds;
+  end if;
+
+  return jsonb_build_object('amount', v_amount, 'balance', v_balance, 'lastDate', v_today::text);
+end; $$;
+
+revoke execute on function public.claim_login_bonus() from public, anon;
+grant  execute on function public.claim_login_bonus() to authenticated;

@@ -21,6 +21,7 @@ import {
   usePlayerColors,
 } from '../game/store';
 import { CampaignCoach } from './CampaignCoach';
+import { ConfirmDialog } from './ConfirmDialog';
 
 // ── Host-only resolution continue button ─────────────────────────────────────
 // In online mode, only the host drives the phase transition out of RESOLUTION.
@@ -225,6 +226,7 @@ function PlanningControls() {
   const activePlayer     = useActivePlayer();
   const pending          = useActivePending();
   const cash             = useActiveNationalCash();
+  const [confirming, setConfirming] = useState(false);
 
   const active = players.filter((p) => !p.eliminated);
   const isLast = activeIndex >= active.length - 1;
@@ -285,12 +287,27 @@ function PlanningControls() {
         type="button"
         className="phase-btn phase-btn--primary"
         disabled={alreadySubmitted}
-        onClick={() => { if (!alreadySubmitted) { AudioManager.play('confirm'); submitTurn(); } }}
+        onClick={() => {
+          if (alreadySubmitted) return;
+          if (pending.length === 0) { setConfirming(true); return; }
+          AudioManager.play('confirm');
+          submitTurn();
+        }}
       >
         {multiplayerMode === 'online'
           ? (alreadySubmitted ? 'Waiting for others…' : 'Submit Plan →')
           : (nextPlayer ? `Hand to ${nextPlayer.name} →` : 'Resolve Turn →')}
       </button>
+
+      {confirming && (
+        <ConfirmDialog
+          message="End your turn without campaigning? You still have funds to spend."
+          confirmLabel="End turn"
+          cancelLabel="Keep planning"
+          onConfirm={() => { setConfirming(false); AudioManager.play('confirm'); submitTurn(); }}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
     </div>
   );
 }

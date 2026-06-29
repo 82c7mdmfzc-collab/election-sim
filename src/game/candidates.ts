@@ -395,3 +395,17 @@ export const PLAYER_COLORS: Record<PlayerColorId, string> = {
   green: '#1fa85b',
   purple: '#7c3aed',
 };
+
+/**
+ * Colorblind-safe seat palette (Okabe–Ito), active when the player enables
+ * "Colorblind-safe colors" in Settings. The four hues stay mutually
+ * distinguishable under deuteranopia/protanopia — critically, no red↔green
+ * collision. Routed through game/playerColors.playerColorHex; the matching
+ * `html.cb-safe` CSS-var overrides live in App.css.
+ */
+export const PLAYER_COLORS_CB: Record<PlayerColorId, string> = {
+  red: '#d55e00',    // vermillion
+  blue: '#0072b2',   // blue
+  green: '#009e73',  // bluish green
+  purple: '#cc79a7', // reddish purple
+};

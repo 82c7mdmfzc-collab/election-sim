@@ -13,6 +13,7 @@
  * which already returns early when muted.
  */
 import { isNativeRuntime } from './platform';
+import { isHapticsEnabled } from './localPrefs';
 
 export type HapticKind =
   // impact feedback (UIImpactFeedbackGenerator)
@@ -36,9 +37,11 @@ function loadModule(): Promise<HapticsModule | null> {
   return modulePromise;
 }
 
-/** Fire a single haptic. No-op unless running in the native app. */
+/** Fire a single haptic. No-op unless running in the native app and the user
+ *  hasn't disabled haptics in Settings. */
 export function haptic(kind: HapticKind): void {
   if (!isNativeRuntime()) return;
+  if (!isHapticsEnabled()) return;
   void loadModule().then((m) => {
     if (!m) return;
     try {
