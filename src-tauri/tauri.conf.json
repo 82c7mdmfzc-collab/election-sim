@@ -82,7 +82,7 @@
 
     "iOS": {
       "minimumSystemVersion": "15.0",
-      "bundleVersion": "48",
+      "bundleVersion": "49",
       "infoPlist": "Info.ios.plist"
     },
 
