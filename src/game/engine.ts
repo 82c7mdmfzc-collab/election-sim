@@ -21,6 +21,7 @@ import {
   NATIONAL_GROUPS,
   NATIONAL_GROUP_MAP,
   NATIONAL_INCOME,
+  NATIONAL_BONUS_MIN_RUNGS,
   WIN_THRESHOLD,
   electionProbability,
   maxRungsFor,
@@ -381,15 +382,15 @@ export function payTurnIncome(
     }
   }
 
-  // National group bonuses (leader with ≥4 rungs)
+  // National group bonuses (leader with ≥ NATIONAL_BONUS_MIN_RUNGS rungs)
   for (const g of NATIONAL_GROUPS) {
     let leader: string | null = null;
-    let leaderRungs = 3; // must exceed 3 (≥4)
+    let leaderRungs = NATIONAL_BONUS_MIN_RUNGS - 1; // must reach the threshold
     let leaderSeq = Infinity;
 
     for (const p of activePlayers) {
       const r = natRungs[g.id]?.[p.id] ?? 0;
-      if (r < 4) continue;
+      if (r < NATIONAL_BONUS_MIN_RUNGS) continue;
       const seq = natReachSeq[g.id]?.[p.id] ?? 0;
       if (r > leaderRungs || (r === leaderRungs && seq < leaderSeq)) {
         leader = p.id;

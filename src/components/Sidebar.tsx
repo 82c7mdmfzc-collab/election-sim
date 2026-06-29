@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { NATIONAL_GROUPS, STATE_GROUPS } from '../game/config';
+import { NATIONAL_GROUPS, STATE_GROUPS, NATIONAL_BONUS_MIN_RUNGS } from '../game/config';
 import { CANDIDATE_MAP, groupImageUrl } from '../game/candidates';
 import {
   useActivePlayer,
@@ -51,10 +51,17 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
   }
 
   const leader = leaderId ? players.find((p) => p.id === leaderId) : null;
-  const earns = leaderRungs >= 4; // ≥4 rungs to draw the turn bonus
+  const earns = leaderRungs >= NATIONAL_BONUS_MIN_RUNGS; // lead with ≥ threshold rungs to draw the turn bonus
   const payoutMod = leader ? (leader.payoutModifiers[group.id] ?? 0) : 0;
   const payout = Math.round(group.turnBonus * (1 + payoutMod));
   const canBuy = phase === 'PLANNING' && !!activePlayer && !securedBy;
+
+  // Active player's standing in this group — drives the always-visible unlock target.
+  const myRungs = activePlayer ? (natRungs[activePlayer.id] ?? 0) + pending : 0;
+  const iEarn = earns && !!activePlayer && leaderId === activePlayer.id;
+  const myPayout = activePlayer
+    ? Math.round(group.turnBonus * (1 + (activePlayer.payoutModifiers[group.id] ?? 0)))
+    : group.turnBonus;
 
   function tryBuy(): boolean {
     const r = allocate('national', group.id, 1);
@@ -87,6 +94,8 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         securedBy={securedBy}
         onBuyNext={canBuy ? tryBuy : undefined}
         onRetractLast={canBuy && pending > 0 ? () => retractLastAllocation('national', group.id) : undefined}
+        unlockAt={securedBy ? undefined : NATIONAL_BONUS_MIN_RUNGS}
+        unlockLabel={`earn $${myPayout}k/turn`}
       />
 
       <div className="nat-ladder__foot">
@@ -108,6 +117,16 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         )}
         {securedBy && <span className="nat-ladder__locked">🔒</span>}
       </div>
+
+      {!iEarn && !securedBy && activePlayer && (
+        <div className="nat-ladder__target">
+          {myRungs >= NATIONAL_BONUS_MIN_RUNGS ? (
+            <>Lead this group to earn <strong>+${myPayout}k/turn</strong></>
+          ) : (
+            <>Reach <strong>{NATIONAL_BONUS_MIN_RUNGS}</strong> <span className="nat-ladder__target-prog">{myRungs}/{NATIONAL_BONUS_MIN_RUNGS}</span> to earn <strong>+${myPayout}k/turn</strong></>
+          )}
+        </div>
+      )}
     </div>
   );
 }
