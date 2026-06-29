@@ -11,7 +11,7 @@
  * and RAW_NATIONAL tables below (look for the ⚖️ markers):
  *   nationalCash income:  250/turn flat
  *   group wallet income:  bonusPayout/turn while dominant
- *   national-group bonus: turnBonus/turn while rung≥5 and leading
+ *   national-group bonus: turnBonus/turn while rung≥4 and leading
  *   national rung price:  rungCost per rung
  */
 
@@ -21,6 +21,10 @@ import type { NationalGroup, StateGroup } from './types';
 
 export const NATIONAL_INCOME = 250;     // per turn, all active players
 export const WIN_THRESHOLD = 270;
+// Minimum rungs a player must hold (while leading) to draw a national group's
+// turnBonus. Single source of truth — used by the income engine and the ladder
+// unlock indicators so the displayed target can never drift from the rule.
+export const NATIONAL_BONUS_MIN_RUNGS = 4;
 export const ELECTION_START_TURN = 11;
 export const MEGASTATE_IDS = new Set(['CA', 'FL', 'TX', 'NY']);
 export const BOSS_RUNG_IDS = new Set(['CA', 'TX']); // only these have 4× boss rung
@@ -115,7 +119,7 @@ for (const sid of Object.keys(STATE_GROUPS_BY_STATE)) {
 
 // ── National Groups ───────────────────────────────────────────────────────────
 
-// ⚖️  ECONOMY KNOB — `turnBonus` is the per-turn cash the rung≥5 leader banks;
+// ⚖️  ECONOMY KNOB — `turnBonus` is the per-turn cash the rung≥4 leader banks;
 //     `rungCost` is the price of each rung on this ladder (both $1k units). Edit
 //     them here. `label`, when set, is the polished player-facing name while the
 //     `id` stays stable (it keys candidate affinities and icon assets).

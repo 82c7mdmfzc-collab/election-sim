@@ -28,6 +28,15 @@ interface RungTrackProps {
   onRetractLast?: () => void;
   clashing?: boolean;
   size?: 'sm' | 'md';
+  /**
+   * Rung index (1-based) that "unlocks" this track's reward — banking EV for a
+   * state's coalitions, or earning a national group's turn bonus. When set, a
+   * gold flag marks that pip and flips to a check once the active player reaches
+   * it (settled + pending ≥ unlockAt).
+   */
+  unlockAt?: number;
+  /** Short phrase naming the reward, e.g. "bank this state's EV" — used in the marker tooltip. */
+  unlockLabel?: string;
 }
 
 export function RungTrack({
@@ -41,6 +50,8 @@ export function RungTrack({
   onRetractLast,
   clashing = false,
   size = 'md',
+  unlockAt,
+  unlockLabel,
 }: RungTrackProps) {
   const activeSettled = activePlayerId ? (settledByPlayer[activePlayerId] ?? 0) : 0;
   const activeColor = activePlayerId ? colors[activePlayerId]?.hex : undefined;
@@ -48,6 +59,10 @@ export function RungTrack({
   const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs;
   // The topmost pending pip is click-to-retract (rung-by-rung undo).
   const topPendingIndex = pendingRungs > 0 ? activeSettled + pendingRungs : -1;
+
+  // Unlock-threshold flag: marks the pip that earns this track's reward.
+  const showUnlock = unlockAt != null && unlockAt >= 1 && unlockAt <= maxRungs;
+  const reachedUnlock = unlockAt != null && activeSettled + pendingRungs >= unlockAt;
 
   const opponents = Object.entries(settledByPlayer)
     .filter(([id, r]) => id !== activePlayerId && r > 0)
@@ -60,6 +75,7 @@ export function RungTrack({
         `rung-track--${size}`,
         clashing ? 'rung-track--clash' : '',
         securedBy ? 'rung-track--secured' : '',
+        showUnlock ? 'rung-track--flagged' : '',
       ].filter(Boolean).join(' ')}
       style={{ ['--rt-color' as string]: activeColor ?? '#64748b' }}
     >
@@ -89,6 +105,8 @@ export function RungTrack({
                 `rung-pip--${state}`,
                 isSecuredPip ? 'rung-pip--secured' : '',
                 isRetractable ? 'rung-pip--retract' : '',
+                showUnlock && idx === unlockAt ? 'rung-pip--threshold' : '',
+                showUnlock && idx === unlockAt && reachedUnlock ? 'rung-pip--threshold-met' : '',
               ].filter(Boolean).join(' ')}
               disabled={!handleClick}
               onClick={handleClick}
@@ -98,6 +116,20 @@ export function RungTrack({
           );
         })}
       </div>
+
+      {unlockAt != null && unlockAt >= 1 && unlockAt <= maxRungs && (
+        <div
+          className={['rung-track__flag', reachedUnlock ? 'rung-track__flag--met' : ''].filter(Boolean).join(' ')}
+          style={{ left: `${((unlockAt - 0.5) / maxRungs) * 100}%` }}
+          title={
+            reachedUnlock
+              ? `Reached${unlockLabel ? ` — ${unlockLabel}` : ''}`
+              : `Reach Campaign Influence ${unlockAt}${unlockLabel ? ` to ${unlockLabel}` : ''}`
+          }
+        >
+          <span className="rung-track__flag-glyph" aria-hidden="true">{reachedUnlock ? '✓' : '⚑'}</span>
+        </div>
+      )}
 
       {opponents.length > 0 && (
         <div className="rung-track__markers">

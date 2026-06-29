@@ -331,6 +331,9 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
 
   const discount = activePlayer ? bestAffinityForState(activePlayer, stateId) : 0;
   const settled = activePlayer ? (rungs[activePlayer.id] ?? 0) : 0;
+  const minRungs = minRungsForDominance(stateId, usState.electoralVotes);
+  const myRungs = settled + (activePlayer ? pendingRungs : 0);
+  const unlockMet = myRungs >= minRungs;
   const nextRungCost = activePlayer
     ? calcStateCost(stateId, usState.baseCampaignCost, settled + pendingRungs, 1, discount)
     : usState.baseCampaignCost;
@@ -373,7 +376,19 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
           securedBy={securedById}
           onBuyNext={canBuy ? tryBuy : undefined}
           onRetractLast={canBuy && pendingRungs > 0 ? () => retractLastAllocation('state', stateId) : undefined}
+          unlockAt={securedById ? undefined : minRungs}
+          unlockLabel="bank this state's EV"
         />
+
+        {!securedById && (
+          <div className={`state-card__unlock-note${unlockMet ? ' state-card__unlock-note--met' : ''}`}>
+            {unlockMet ? (
+              <>✓ Banking <strong>{usState.electoralVotes} EV</strong> toward this state's coalitions</>
+            ) : (
+              <>Reach <strong>{minRungs}</strong> influence <span className="state-card__unlock-prog">{myRungs}/{minRungs}</span> to bank <strong>{usState.electoralVotes} EV</strong> toward its coalitions</>
+            )}
+          </div>
+        )}
 
         <div className="state-card__standings">
           {players.filter((p) => !p.eliminated).map((p) => {

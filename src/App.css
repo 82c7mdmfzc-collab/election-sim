@@ -1252,6 +1252,75 @@ html.native .shop-rail::-webkit-scrollbar {
   border: 1px solid var(--panel-3);
 }
 
+/* ── Unlock-threshold flag (shared by state & national ladders) ─────────────── */
+/* Reserve room above the pips for the flag that points down at the unlock pip. */
+.rung-track--flagged { margin-top: 1rem; }
+
+/* The pip that crosses the threshold gets a gold ring (green once reached). */
+.rung-pip--threshold { box-shadow: inset 0 0 0 1.5px var(--gold); }
+.rung-pip--threshold-met { box-shadow: inset 0 0 0 1.5px var(--green); }
+
+.rung-track__flag {
+  position: absolute;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 1px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+.rung-track__flag-glyph {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #0b1120;
+  background: var(--gold);
+  border: 1px solid var(--gold-deep);
+  border-radius: 3px;
+  padding: 0 3px;
+  min-width: 11px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+/* downward caret connecting the tab to the pip it marks */
+.rung-track__flag::after {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 3px solid var(--gold);
+}
+.rung-track__flag--met .rung-track__flag-glyph {
+  background: var(--green);
+  color: #06281a;
+  border-color: #2f9e52;
+}
+.rung-track__flag--met::after { border-top-color: var(--green); }
+
+/* State hover-card unlock caption. */
+.state-card__unlock-note {
+  margin: 0.3rem 0 0.15rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--muted);
+}
+.state-card__unlock-note strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.state-card__unlock-note--met,
+.state-card__unlock-note--met strong { color: var(--green); }
+.state-card__unlock-prog { font-variant-numeric: tabular-nums; opacity: 0.8; margin-left: 1px; }
+
+/* National-group always-visible unlock target. */
+.nat-ladder__target {
+  margin-top: 3px;
+  font-size: 0.64rem;
+  line-height: 1.25;
+  color: var(--muted);
+}
+.nat-ladder__target strong { color: var(--gold); font-variant-numeric: tabular-nums; }
+.nat-ladder__target-prog { font-variant-numeric: tabular-nums; opacity: 0.85; }
+
 /* ══ Sidebar ═══════════════════════════════════════════════════════════════ */
 
 .sidebar {
