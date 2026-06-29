@@ -7552,3 +7552,163 @@ html.native .brand-panel {
 html.native .gold-pill {
   box-shadow: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Accessibility prefs (Settings) — colorblind palette + reduced motion
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Colorblind-safe seat + party palette (Okabe–Ito), toggled via Settings. Mirrors
+   PLAYER_COLORS_CB and covers every var(--p-*)/var(--rep|--dem|--ind) consumer;
+   the inline --p-color seat accents come from playerColorHex() in JS. */
+html.cb-safe {
+  --p-red: #d55e00;  --p-blue: #0072b2;  --p-green: #009e73;  --p-purple: #cc79a7;
+  --rep: #d55e00;    --dem: #0072b2;     --ind: #009e73;
+}
+
+/* Reduce motion: neutralize transitions + looping animations app-wide. */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ── Home settings gear (top-left, mirrors the audio dial slot) ────────────── */
+.home > .home-settings,
+.landing > .home-settings {
+  position: absolute;
+  top: calc(1rem + env(safe-area-inset-top));
+  left: calc(1rem + env(safe-area-inset-left));
+  z-index: 5;
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.home > .home-settings:hover { color: var(--brand); border-color: var(--gold); transform: translateY(-1px); }
+.home > .home-settings:active { transform: scale(0.95); }
+html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left: calc(1rem + env(safe-area-inset-left)); }
+
+/* ── Leaderboard ──────────────────────────────────────────────────────────── */
+.leaderboard { display: flex; flex-direction: column; }
+.lb-tabs {
+  display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;
+  margin: 0 auto 0.5rem;
+}
+.lb-tab {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 0.85rem; letter-spacing: 0.03em; text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.lb-tab.is-active { color: var(--text); border-color: var(--gold); background: var(--brand-soft); }
+.lb-sub { text-align: center; color: var(--faint); font-size: 0.78rem; margin-bottom: 0.6rem; }
+.lb-list {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.35rem;
+  max-width: 560px; width: 100%; margin: 0 auto;
+}
+.lb-state { text-align: center; color: var(--muted); padding: 2rem 1rem; font-size: 0.9rem; }
+.lb-row {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr auto;
+  align-items: center; gap: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(27,50,88,0.55), rgba(18,36,64,0.7));
+}
+.lb-row__rank { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; color: var(--muted); text-align: center; }
+.lb-row__name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-row__you { color: var(--brand); font-style: normal; font-weight: 700; }
+.lb-row__value { font-family: var(--font-display); font-weight: 800; color: var(--text); white-space: nowrap; }
+.lb-row__value small { color: var(--faint); font-weight: 600; }
+.lb-row--me { border-color: var(--gold); background: var(--brand-soft); }
+.lb-row--pinned { max-width: 560px; width: 100%; margin: 0.5rem auto 0; }
+
+/* ── Settings panel ───────────────────────────────────────────────────────── */
+.settings-panel { max-width: 460px; }
+.settings-section { margin-bottom: 1rem; }
+.settings-section__title {
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--brand); margin: 0 0 0.5rem;
+}
+.settings-toggle {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.55rem 0;
+  cursor: pointer;
+}
+.settings-toggle__text { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.settings-toggle__label { font-weight: 600; color: var(--text); }
+.settings-toggle__hint { font-size: 0.76rem; color: var(--muted); }
+.settings-toggle__input { position: absolute; opacity: 0; width: 0; height: 0; }
+.settings-toggle__switch {
+  flex: 0 0 auto;
+  width: 44px; height: 26px; border-radius: 999px;
+  background: var(--panel-3); border: 1px solid var(--border);
+  position: relative; transition: background 0.15s ease, border-color 0.15s ease;
+}
+.settings-toggle__thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.settings-toggle__input:checked + .settings-toggle__switch {
+  background: var(--brand-soft); border-color: var(--gold);
+}
+.settings-toggle__input:checked + .settings-toggle__switch .settings-toggle__thumb {
+  transform: translateX(18px); background: var(--brand);
+}
+.settings-toggle__input:focus-visible + .settings-toggle__switch { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* ── Confirm dialog (end-turn guard) ──────────────────────────────────────── */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+}
+.confirm-dialog {
+  width: min(380px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 1.25rem;
+}
+.confirm-dialog__msg { color: var(--text); font-size: 0.95rem; line-height: 1.4; margin: 0 0 1rem; text-align: center; }
+.confirm-dialog__actions { display: flex; gap: 0.6rem; }
+.confirm-dialog__btn { flex: 1 1 0; min-height: 44px; }
+
+/* ── Account: career rank / leaderboard link + wider stats grid ───────────── */
+.auth-gate__stats { flex-wrap: wrap; }
+.auth-gate__stat { flex: 1 1 28%; min-width: 0; }
+.auth-gate__leaderboard {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  width: 100%; margin-top: 0.5rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--brand-soft);
+  color: var(--text);
+  font-family: var(--font-display); font-weight: 700; letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color 0.12s ease, transform 0.12s ease;
+}
+.auth-gate__leaderboard:hover { border-color: var(--gold); transform: translateY(-1px); }
+.auth-gate__leaderboard-arrow { color: var(--brand); }
+
+/* ── Native: queued-allocation chip clear affordance ──────────────────────── */
+.native-alloc-chip__x { color: var(--brand); font-weight: 800; margin-right: 0.15rem; }

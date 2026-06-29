@@ -6,7 +6,8 @@
  * SEAT_ORDER, so every player is always visually distinct.
  */
 
-import { CANDIDATE_MAP, PLAYER_COLORS, type PlayerColorId } from './candidates';
+import { CANDIDATE_MAP, type PlayerColorId } from './candidates';
+import { playerColorHex } from './playerColors';
 
 const SEAT_ORDER: PlayerColorId[] = ['red', 'blue', 'green', 'purple'];
 
@@ -26,7 +27,7 @@ export function hexToRgb(hex: string): [number, number, number] {
 }
 
 function make(id: PlayerColorId): ResolvedColor {
-  const hex = PLAYER_COLORS[id];
+  const hex = playerColorHex(id);
   return { id, hex, rgb: hexToRgb(hex) };
 }
 

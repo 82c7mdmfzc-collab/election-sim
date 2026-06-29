@@ -15,6 +15,8 @@ import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
 import { HomeAudioControls } from './components/MuteButton';
+import { Leaderboard } from './components/Leaderboard';
+import { Settings } from './components/Settings';
 import { ScreenTransition } from './components/ScreenTransition';
 import { isNativeRuntime } from './utils/platform';
 import { useGameStore } from './game/store';
@@ -22,9 +24,11 @@ import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
-import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon } from './components/icons';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon } from './components/icons';
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
 import { AudioManager } from './utils/audioManager';
+import { applyAppearancePrefs } from './utils/appearance';
+import { notifyInfo } from './utils/toast';
 import { NextChallengeHint, ProgressPanel } from './components/ProgressPanel';
 import {
   identifyAccount,
@@ -35,7 +39,7 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import type { BotDifficulty } from './game/types';
 
-type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily';
+type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard';
 type TutorialSource = 'menu' | 'onboarding';
 type ShopSource = 'menu' | 'locked_candidate' | 'account';
 
@@ -57,21 +61,23 @@ function dailyBadge(): string | undefined {
 }
 
 const MODES: ModeDef[] = [
-  { mode: 'bot',    label: 'Play',        Icon: PlayIcon,    chip: 'orange', primary: true },
-  { mode: 'daily',  label: 'Daily Race',  Icon: TrophyIcon,  chip: 'orange' },
-  { mode: 'single', label: 'Local',       Icon: MonitorIcon, chip: 'blue' },
-  { mode: 'online', label: 'Online',      Icon: GlobeIcon,   chip: 'orange' },
-  { mode: 'shop',   label: 'Store',       Icon: CartIcon,    chip: 'blue' },
+  { mode: 'bot',         label: 'Play',       Icon: PlayIcon,     chip: 'orange', primary: true },
+  { mode: 'daily',       label: 'Daily Race', Icon: TrophyIcon,   chip: 'orange' },
+  { mode: 'single',      label: 'Local',      Icon: MonitorIcon,  chip: 'blue' },
+  { mode: 'online',      label: 'Online',     Icon: GlobeIcon,    chip: 'orange' },
+  { mode: 'leaderboard', label: 'Ranks',      Icon: RankingsIcon, chip: 'blue' },
+  { mode: 'shop',        label: 'Store',      Icon: CartIcon,     chip: 'blue' },
 ];
 
 function appModeToShopSource(mode: AppMode): ShopSource {
   return mode === 'single' ? 'locked_candidate' : 'menu';
 }
 
-function ModeSelect({ onSelect, onTutorial, onAccount }: {
+function ModeSelect({ onSelect, onTutorial, onAccount, onSettings }: {
   onSelect: (mode: AppMode) => void;
   onTutorial: () => void;
   onAccount: () => void;
+  onSettings: () => void;
 }) {
   const funds = useProfile(selectFunds);
   const signedIn = useProfile(selectIsSignedIn);
@@ -84,7 +90,15 @@ function ModeSelect({ onSelect, onTutorial, onAccount }: {
   const hasResumableGame = phase === 'PLANNING' || phase === 'RESOLUTION' || phase === 'ELECTION';
   return (
     <div className="home">
-      <HomeAudioControls />
+      <button
+        type="button"
+        className="home-settings"
+        onClick={() => { AudioManager.play('click'); onSettings(); }}
+        aria-label="Settings"
+        title="Settings"
+      >
+        <SettingsIcon size={20} />
+      </button>
       <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
         {signedIn ? (
           <>
@@ -195,6 +209,8 @@ function App() {
   const accountChecked = useProfile((s) => s.accountChecked);
   const startGame = useGameStore((s) => s.startGame);
   const [showAccount, setShowAccount] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const loginBonusClaimed = useRef(false);
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
   // can choose to continue as a guest for the rest of this session.
   const [guestContinued, setGuestContinued] = useState(false);
@@ -204,6 +220,27 @@ function App() {
   const appOpenTracked = useRef(false);
 
   useEffect(() => { void initProfile(); }, [initProfile]);
+
+  // Apply saved accessibility prefs (reduce-motion / colorblind palette) to the
+  // document as early as possible so the very first render already reflects them.
+  useEffect(() => { applyAppearancePrefs(); }, []);
+
+  // Once-per-day login bonus: a small Campaign Funds chest the first time a signed-in
+  // player opens the app each UTC day. Server-gated + idempotent, so calling on every
+  // sign-in is safe; the ref keeps it to one attempt per session. Distinct from the
+  // Daily Race and the finish streak.
+  useEffect(() => {
+    if (!signedIn) { loginBonusClaimed.current = false; return; }
+    if (!userId || loginBonusClaimed.current) return;
+    loginBonusClaimed.current = true;
+    void useProfile.getState().claimDailyLoginBonus().then((amount) => {
+      if (amount > 0) {
+        AudioManager.play('income');
+        notifyInfo(`Daily bonus: +${amount} Campaign Funds`);
+        track('funds_earned', { amount, source: 'login_bonus', claimed: true, game_mode: 'menu' });
+      }
+    });
+  }, [signedIn, userId]);
 
   // Background music plays from app launch (subject to the per-track mute/volume
   // prefs). If the browser blocks autoplay before the first gesture, AudioManager
@@ -289,7 +326,13 @@ function App() {
   // Each branch sets `screen` + `screenKey`; the single <ScreenTransition> below
   // animates whenever screenKey changes so navigation feels native, not web-y.
   // The account modal (AuthGate) overlays independently, outside the transition.
-  const account = showAccount ? <AuthGate onClose={() => setShowAccount(false)} /> : null;
+  const account = showAccount ? (
+    <AuthGate
+      onClose={() => setShowAccount(false)}
+      onViewLeaderboard={() => { setShowAccount(false); setAppMode('leaderboard'); }}
+    />
+  ) : null;
+  const settings = showSettings ? <Settings onClose={() => setShowSettings(false)} /> : null;
 
   let screen: ReactNode;
   let screenKey: string;
@@ -398,12 +441,25 @@ function App() {
       />
     );
     screenKey = 'single';
+  } else if (appMode === 'leaderboard') {
+    screen = signedIn ? (
+      <Leaderboard onBack={() => setAppMode('mode-select')} />
+    ) : (
+      <GuestGate
+        title="Leaderboard"
+        message="Sign in to see where you rank against players worldwide."
+        onBack={() => setAppMode('mode-select')}
+        onSignIn={() => openAccount('other')}
+      />
+    );
+    screenKey = 'leaderboard';
   } else {
     screen = (
       <ModeSelect
         onSelect={selectMode}
         onTutorial={openTutorial}
         onAccount={() => openAccount('account_button')}
+        onSettings={() => setShowSettings(true)}
       />
     );
     screenKey = 'menu';
@@ -413,6 +469,7 @@ function App() {
     <>
       <ScreenTransition screenKey={screenKey}>{screen}</ScreenTransition>
       {account}
+      {settings}
     </>
   );
 }

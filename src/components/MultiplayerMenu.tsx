@@ -17,10 +17,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CANDIDATE_MAP,
   CANDIDATES,
-  PLAYER_COLORS,
   isCandidateAvailable,
   type CandidateDef,
 } from '../game/candidates';
+import { playerColorHex } from '../game/playerColors';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
@@ -576,7 +576,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
                   key={c.id}
                   type="button"
                   className={`shop-card${chosen ? ' is-owned' : ''}`}
-                  style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                  style={{ ['--p-color' as string]: playerColorHex(c.color) }}
                   onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
                 >
                   <div className="shop-card__top">
@@ -838,7 +838,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
                 key={c.id}
                 type="button"
                 className={`shop-card${chosen ? ' is-owned' : ''}${taken ? ' is-locked' : ''}`}
-                style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                style={{ ['--p-color' as string]: playerColorHex(c.color) }}
                 onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
               >
                 <div className="shop-card__top">

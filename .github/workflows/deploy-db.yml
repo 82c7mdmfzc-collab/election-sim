@@ -35,11 +35,12 @@ jobs:
           fi
           # profiles first: the economy/auth RPCs hang off profiles.
           # lobbies uses the profile unlock catalog; rewards creates game_rewards;
+          # leaderboard reads profiles + game_rewards so it MUST come after rewards;
           # cosmetics/iap/ads/daily credit or extend profiles; referrals MUST come
           # after rewards because it adds a trigger on game_rewards. The
           # security-hardening-patch.sql file is a local/manual include runner, so
           # this workflow applies the canonical SQL files directly.
-          for f in profiles lobbies rewards cosmetics iap ads daily referrals moderation notifications; do
+          for f in profiles lobbies rewards leaderboard cosmetics iap ads daily referrals moderation notifications; do
             echo "── applying supabase/$f.sql ──"
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f "supabase/$f.sql"
           done

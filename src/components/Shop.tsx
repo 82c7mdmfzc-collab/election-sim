@@ -10,7 +10,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PREMIUM_CANDIDATES, PLAYER_COLORS } from '../game/candidates';
+import { PREMIUM_CANDIDATES } from '../game/candidates';
+import { playerColorHex } from '../game/playerColors';
 import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
@@ -645,7 +646,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                   key={c.id}
                   type="button"
                   className={`shop-card${owned ? ' is-owned' : ''}`}
-                  style={{ ['--p-color' as string]: PLAYER_COLORS[c.color] }}
+                  style={{ ['--p-color' as string]: playerColorHex(c.color) }}
                   onClick={() => { AudioManager.play('click'); setStatsModalId(c.id); }}
                 >
                   <div className="shop-card__top">

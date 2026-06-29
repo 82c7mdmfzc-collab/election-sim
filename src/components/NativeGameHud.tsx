@@ -13,6 +13,7 @@ import {
 import type { TurnTimerState } from '../game/useTurnTimer';
 import { AudioManager } from '../utils/audioManager';
 import { CampaignCoach } from './CampaignCoach';
+import { ConfirmDialog } from './ConfirmDialog';
 import { HelpButton } from './HelpButton';
 import { SfxVolumeBar, MusicVolumeBar } from './MuteButton';
 import { PlayerProfileModal } from './PlayerProfileModal';
@@ -45,6 +46,8 @@ function NativeTurnButton() {
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const submittedPlayers = useGameStore((s) => s.submittedPlayers);
   const submitTurn = useGameStore((s) => s.submitTurn);
+  const pending = useActivePending();
+  const [confirming, setConfirming] = useState(false);
 
   const active = players.filter((p) => !p.eliminated);
   const isLast = activeIndex >= active.length - 1;
@@ -53,23 +56,43 @@ function NativeTurnButton() {
     !!localPlayerId &&
     submittedPlayers.includes(localPlayerId);
 
+  function doSubmit() {
+    setConfirming(false);
+    AudioManager.play('confirm');
+    submitTurn();
+  }
+
+  // Guard a fat-finger: confirm only when ending a turn with no moves queued.
+  function attempt() {
+    if (alreadySubmitted) return;
+    if (pending.length === 0) { setConfirming(true); return; }
+    doSubmit();
+  }
+
   if (phase === 'RESOLUTION') return null;
 
   return (
-    <button
-      type="button"
-      className="native-turn-button"
-      disabled={alreadySubmitted}
-      onClick={() => {
-        if (alreadySubmitted) return;
-        AudioManager.play('confirm');
-        submitTurn();
-      }}
-    >
-      {multiplayerMode === 'online'
-        ? (alreadySubmitted ? 'Wait' : 'End')
-        : (isLast ? 'Resolve' : 'End')}
-    </button>
+    <>
+      <button
+        type="button"
+        className="native-turn-button"
+        disabled={alreadySubmitted}
+        onClick={attempt}
+      >
+        {multiplayerMode === 'online'
+          ? (alreadySubmitted ? 'Wait' : 'End')
+          : (isLast ? 'Resolve' : 'End')}
+      </button>
+      {confirming && (
+        <ConfirmDialog
+          message="End your turn without campaigning? You still have funds to spend."
+          confirmLabel="End turn"
+          cancelLabel="Keep planning"
+          onConfirm={doSubmit}
+          onCancel={() => setConfirming(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -265,8 +288,9 @@ function NativePlayerTray({
               type="button"
               className="native-alloc-chip"
               onClick={() => { AudioManager.play('quit'); cancelAllocation(item.kind, tid); }}
-              title={`Cancel ${tid}`}
+              title={`Tap to clear ${tid}`}
             >
+              <span className="native-alloc-chip__x" aria-hidden>×</span>
               {tid} +{item.rungs} · ${item.cost.toFixed(0)}k
             </button>
           ))

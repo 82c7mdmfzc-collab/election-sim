@@ -9,7 +9,8 @@
  * Reuses the .profile-overlay / .profile-modal shell from PlayerProfileModal.
  */
 
-import { PLAYER_COLORS, type CandidateDef } from '../game/candidates';
+import { type CandidateDef } from '../game/candidates';
+import { playerColorHex } from '../game/playerColors';
 import { ModifierSheet } from './ModifierSheet';
 import { PartyBadge } from './PartyBadge';
 import { Portrait } from './Portrait';
@@ -43,7 +44,7 @@ export function CandidateStatsModal({
     >
       <div
         className="profile-modal cand-stats-modal"
-        style={{ ['--p-color' as string]: PLAYER_COLORS[candidate.color] }}
+        style={{ ['--p-color' as string]: playerColorHex(candidate.color) }}
       >
         <div className="profile-modal__head">
           <div className="profile-modal__portrait">

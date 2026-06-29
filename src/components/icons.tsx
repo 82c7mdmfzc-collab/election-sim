@@ -119,3 +119,21 @@ export const TrophyIcon = (p: IconProps) => (
     <path d="M12 14v3M9 21h6M9.5 17h5" />
   </svg>
 );
+
+/** Winner's-podium bars (2nd · 1st · 3rd) — the Leaderboard glyph. */
+export const RankingsIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="12" width="5" height="8" rx="1" />
+    <rect x="9.5" y="7" width="5" height="13" rx="1" />
+    <rect x="15.5" y="14" width="5" height="6" rx="1" />
+  </svg>
+);
+
+/** Sliders glyph — the Settings affordance (audio + accessibility toggles). */
+export const SettingsIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 7h11M19 7h1M4 17h1M9 17h11" />
+    <circle cx="17" cy="7" r="2.4" />
+    <circle cx="7" cy="17" r="2.4" />
+  </svg>
+);
