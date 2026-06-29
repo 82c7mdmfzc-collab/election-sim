@@ -21,5 +21,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "//": "src/game/sim is a dev-only headless balance harness that uses Node APIs (fs/process); it has its own tsconfig with node types and is excluded from the browser app build.",
+  "exclude": ["src/game/sim"]
 }

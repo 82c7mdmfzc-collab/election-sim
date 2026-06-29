@@ -1,0 +1,10 @@
+{
+  "//": "Dev-only balance-sim harness. Extends the app config but adds Node types (fs/process) since this code runs under vitest/Node, never in the browser bundle. Not part of `tsc -b` (the app project excludes src/game/sim); editor + vitest type-check it here.",
+  "extends": "../../../tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"],
+    "tsBuildInfoFile": "../../../node_modules/.tmp/tsconfig.sim.tsbuildinfo"
+  },
+  "include": ["./**/*.ts"],
+  "exclude": []
+}
