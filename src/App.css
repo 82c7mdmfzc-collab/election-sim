@@ -4487,8 +4487,10 @@ html.native .cand-select-body { min-height: 0; height: 100%; overflow: hidden; }
 }
 
 .sg-chip__main {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: 20px minmax(4.75rem, 1fr) auto auto;
   align-items: center;
+  min-width: 9.5rem;
   gap: 0.3rem;
   padding: 0.2rem 0.4rem;
   background: none;
@@ -4517,9 +4519,30 @@ html.native .cand-select-body { min-height: 0; height: 100%; overflow: hidden; }
 @media (hover: hover) and (pointer: fine) { .sg-chip__info:hover { color: var(--text); background: rgba(255,255,255,0.06); } }
 
 .sg-chip__icon { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
-.sg-chip__name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.7rem; color: var(--text); }
+.sg-chip__name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.7rem; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sg-chip__bal { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--green); font-size: 0.78rem; }
 .sg-chip__dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.sg-chip__progress {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  height: 5px;
+  margin-top: 1px;
+}
+.sg-chip__progress-cell {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.11);
+}
+.sg-chip__progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
 
 /* ══ State Group Detail Panel ══════════════════════════════════════════════ */
 
@@ -6567,13 +6590,34 @@ html.native .native-sg-row.is-active {
   box-shadow: 0 0 0 1px rgba(240,184,80,0.22), var(--shadow-sm);
 }
 
-html.native .native-sg-row__icon {
+html.native .native-sg-row__icon-wrap {
   grid-column: 1;
   grid-row: 1 / 4;
   width: 28px;
   height: 28px;
+  display: grid;
+  place-items: center;
+}
+
+html.native .native-sg-row__icon {
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
+
+html.native .native-sg-row__icon-fallback {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(240,184,80,0.16);
+  color: var(--gold);
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+html.native .native-sg-row__icon-fallback[hidden] { display: none; }
 
 html.native .native-sg-row__name {
   grid-column: 2;
@@ -6609,28 +6653,24 @@ html.native .native-sg-row__track {
   grid-column: 2 / 4;
   grid-row: 3;
   position: relative;
-  height: 9px;
+  height: 11px;
+  display: flex;
+  gap: 4px;
+}
+
+html.native .native-sg-row__player-bar {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255,255,255,0.08);
 }
 
-html.native .native-sg-row__fill {
+html.native .native-sg-row__player-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  width: var(--progress, 0%);
   border-radius: inherit;
-  background: var(--leader-color, var(--muted));
-}
-
-html.native .native-sg-row__threshold {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  left: var(--threshold, 50%);
-  width: 2px;
-  background: var(--gold);
-  box-shadow: 0 0 0 1px rgba(8,18,36,0.65);
 }
 
 html.native .native-sg-row__ev {
@@ -6703,7 +6743,9 @@ html.native .setup__roster .mod-sheet__list li {
     grid-template-columns: 26px minmax(0, 1fr) auto;
   }
 
-  html.native .native-sg-row__icon {
+  html.native .native-sg-row__icon-wrap,
+  html.native .native-sg-row__icon,
+  html.native .native-sg-row__icon-fallback {
     width: 24px;
     height: 24px;
   }

@@ -9,11 +9,13 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { STATE_GROUPS, groupDisplayName } from '../game/config';
 import { groupImageUrl } from '../game/candidates';
+import { groupDominanceProgress } from '../game/engine';
 import { InfoIcon } from './icons';
 import {
   useActivePlayer,
   useActiveGroupWallet,
   useDominance,
+  useGameStore,
   usePlayerColors,
 } from '../game/store';
 import type { StateGroup } from '../game/types';
@@ -30,9 +32,15 @@ interface ChipProps {
 function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps) {
   const balance = useActiveGroupWallet(group.id);
   const dominantId = useDominance(group.id);
+  const allPlayers = useGameStore((s) => s.players);
+  const rungs = useGameStore((s) => s.rungs);
+  const reachSeq = useGameStore((s) => s.reachSeq);
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
 
+  const players = allPlayers.filter((p) => !p.eliminated);
+  const { evByPlayer, totalEV } = groupDominanceProgress(group, rungs, reachSeq, players);
+  const neededEV = Math.floor(totalEV / 2) + 1;
   const activeIsDominant = !!activePlayer && dominantId === activePlayer.id;
   const dominantColor = dominantId ? (colors[dominantId]?.hex ?? null) : null;
   const name = groupDisplayName(group);
@@ -69,6 +77,25 @@ function StateGroupChip({ group, isHighlighted, onHighlight, onInfo }: ChipProps
             style={{ background: dominantColor ?? 'var(--muted)' }}
           />
         )}
+        <span className="sg-chip__progress" aria-label={`${name} coalition progress`}>
+          {players.map((p) => {
+            const ev = evByPlayer[p.id] ?? 0;
+            const pct = neededEV > 0 ? Math.min(100, (ev / neededEV) * 100) : 0;
+            const hex = colors[p.id]?.hex ?? 'var(--muted)';
+            return (
+              <span
+                key={p.id}
+                className="sg-chip__progress-cell"
+                title={`${p.name}: ${ev}/${neededEV} EV`}
+              >
+                <span
+                  className="sg-chip__progress-fill"
+                  style={{ width: `${pct}%`, background: hex }}
+                />
+              </span>
+            );
+          })}
+        </span>
       </button>
       <button
         type="button"

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { CANDIDATE_MAP } from '../game/candidates';
-import { STATE_GROUPS } from '../game/config';
+import { CANDIDATE_MAP, groupImageUrl } from '../game/candidates';
+import { STATE_GROUPS, groupDisplayName } from '../game/config';
 import { groupDominanceProgress } from '../game/engine';
 import {
   useActiveNationalCash,
@@ -329,40 +329,58 @@ function NativeStateGroupProgressList({
       {STATE_GROUPS.map((group) => {
         const { evByPlayer, totalEV } = groupDominanceProgress(group, rungs, reachSeq, activePlayers);
         const neededEV = Math.floor(totalEV / 2) + 1;
-        const leader = activePlayers.reduce<{ id: string | null; ev: number }>(
-          (best, player) => {
-            const ev = evByPlayer[player.id] ?? 0;
-            return ev > best.ev ? { id: player.id, ev } : best;
-          },
-          { id: null, ev: 0 },
-        );
         const dominantId = dominance[group.id] ?? null;
-        const leaderId = dominantId ?? leader.id;
-        const leaderColor = leaderId ? (colors[leaderId]?.hex ?? 'var(--muted)') : 'var(--muted)';
-        const progressPct = totalEV > 0 ? Math.min(100, (leader.ev / totalEV) * 100) : 0;
-        const thresholdPct = totalEV > 0 ? Math.min(100, (neededEV / totalEV) * 100) : 50;
+        const topEV = Math.max(0, ...activePlayers.map((player) => evByPlayer[player.id] ?? 0));
         const active = highlightedGroupId === group.id;
+        const displayName = groupDisplayName(group);
 
         return (
           <button
             key={group.id}
             type="button"
             className={`native-sg-row${active ? ' is-active' : ''}`}
-            style={{
-              ['--leader-color' as string]: leaderColor,
-              ['--progress' as string]: `${progressPct}%`,
-              ['--threshold' as string]: `${thresholdPct}%`,
-            }}
             onClick={() => onHighlightGroup(active ? null : group.id)}
           >
-            <span className="native-sg-row__name">{group.id}</span>
+            <span className="native-sg-row__icon-wrap" aria-hidden>
+              <img
+                className="native-sg-row__icon"
+                src={groupImageUrl('state', group.id)}
+                alt=""
+                draggable={false}
+                loading="lazy"
+                decoding="async"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.nextElementSibling?.removeAttribute('hidden');
+                }}
+              />
+              <span className="native-sg-row__icon-fallback" hidden>{group.id.slice(0, 2).toUpperCase()}</span>
+            </span>
+            <span className="native-sg-row__name">{displayName}</span>
             <span className="native-sg-row__cash">+${group.bonusPayout}k/turn</span>
             <strong className="native-sg-row__wallet">${(groupWallets?.[group.id] ?? 0).toFixed(0)}k</strong>
             <span className="native-sg-row__track" aria-hidden>
-              <span className="native-sg-row__fill" />
-              <span className="native-sg-row__threshold" />
+              {activePlayers.map((player) => {
+                const ev = evByPlayer[player.id] ?? 0;
+                const pct = neededEV > 0 ? Math.min(100, (ev / neededEV) * 100) : 0;
+                const hex = colors[player.id]?.hex ?? 'var(--muted)';
+                return (
+                  <span
+                    key={player.id}
+                    className="native-sg-row__player-bar"
+                    title={`${player.name}: ${ev}/${neededEV} EV`}
+                  >
+                    <span
+                      className="native-sg-row__player-fill"
+                      style={{ width: `${pct}%`, background: hex }}
+                    />
+                  </span>
+                );
+              })}
             </span>
-            <span className="native-sg-row__ev">{leader.ev}/{neededEV} EV</span>
+            <span className="native-sg-row__ev">
+              {dominantId ? 'Dominant' : `${topEV}/${neededEV} EV`}
+            </span>
           </button>
         );
       })}

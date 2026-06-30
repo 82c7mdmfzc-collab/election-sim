@@ -391,7 +391,11 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
         )}
 
         <div className="state-card__standings">
-          {players.filter((p) => !p.eliminated).map((p) => {
+          {players.filter((p) => {
+            if (p.eliminated) return false;
+            if (p.id === activePlayer?.id) return true;
+            return (rungs[p.id] ?? 0) > 0;
+          }).map((p) => {
             const isActive = p.id === activePlayer?.id;
             const r = rungs[p.id] ?? 0;
             const pen = isActive ? pendingRungs : 0;

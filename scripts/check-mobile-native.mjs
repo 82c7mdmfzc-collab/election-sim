@@ -147,12 +147,24 @@ async function assertNativeGameBoard(page, label) {
   const stateProgress = await page.evaluate(() => ({
     rows: document.querySelectorAll('.native-sg-row').length,
     tracks: document.querySelectorAll('.native-sg-row__track').length,
-    thresholds: document.querySelectorAll('.native-sg-row__threshold').length,
+    icons: [...document.querySelectorAll('.native-sg-row__icon,.native-sg-row__icon-fallback')]
+      .filter((el) => {
+        const r = el.getBoundingClientRect();
+        const hidden = el.hasAttribute('hidden') || getComputedStyle(el).display === 'none';
+        return !hidden && r.width > 0 && r.height > 0;
+      }).length,
+    playerBars: document.querySelectorAll('.native-sg-row__player-bar').length,
     memberRows: document.querySelectorAll('.sg-member,.sg-members').length,
     text: document.querySelector('.native-game-sheet--state')?.textContent ?? '',
   }));
-  if (stateProgress.rows < 8 || stateProgress.tracks !== stateProgress.rows || stateProgress.thresholds !== stateProgress.rows) {
+  if (stateProgress.rows < 8 || stateProgress.tracks !== stateProgress.rows) {
     throw new Error(`${label}: state group progress rows missing ${JSON.stringify(stateProgress)}`);
+  }
+  if (stateProgress.icons !== stateProgress.rows) {
+    throw new Error(`${label}: state group icons missing ${JSON.stringify(stateProgress)}`);
+  }
+  if (stateProgress.playerBars < stateProgress.rows * 2 || stateProgress.playerBars % stateProgress.rows !== 0) {
+    throw new Error(`${label}: state group per-player bars missing ${JSON.stringify(stateProgress)}`);
   }
   if (stateProgress.memberRows > 0 || /states\s+·|total EV|Lead a state/i.test(stateProgress.text)) {
     throw new Error(`${label}: state drawer still contains verbose state detail ${JSON.stringify(stateProgress)}`);

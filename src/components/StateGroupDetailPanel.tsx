@@ -35,11 +35,6 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
   const { evByPlayer, totalEV, threshold } = groupDominanceProgress(group, rungs, reachSeq, players);
   const needToDominate = Math.floor(totalEV / 2) + 1; // strictly > half
 
-  // Highest current EV in this group → sort bars leader-first.
-  const ranked = [...players].sort(
-    (a, b) => (evByPlayer[b.id] ?? 0) - (evByPlayer[a.id] ?? 0),
-  );
-
   const memberStates = group.members
     .map((id) => ALL_STATES.find((s) => s.id === id))
     .filter((s): s is (typeof ALL_STATES)[number] => Boolean(s))
@@ -95,7 +90,7 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
           <div className="sg-progress__caption">
             Lead a state (≥ min Campaign Influence) to bank its EV. Pass the line — <strong>{needToDominate} EV</strong> — to dominate.
           </div>
-          {ranked.map((p) => {
+          {players.map((p) => {
             const ev = evByPlayer[p.id] ?? 0;
             const pct = totalEV > 0 ? Math.min(100, (ev / totalEV) * 100) : 0;
             const hex = colors[p.id]?.hex ?? 'var(--muted)';
