@@ -33,7 +33,7 @@ export interface PendingGameCompletion {
   securedStates: number;
   coalitionsDominated: number;
   winStreak: number;
-  mode: 'single' | 'bot' | 'online';
+  mode: 'single' | 'bot' | 'daily' | 'online';
   botDifficulty: string | null;
   botCount: number;
   turns: number;

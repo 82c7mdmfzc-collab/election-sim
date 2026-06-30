@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CANDIDATE_MAP } from '../game/candidates';
-import { ELECTION_START_TURN, electionProbability } from '../game/config';
+import { electionProbability } from '../game/config';
 import {
   useElectoralResult,
   useGameStore,
@@ -132,6 +132,7 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
   const phase = useGameStore((s) => s.phase);
   const activeIndex = useGameStore((s) => s.activePlayerIndex);
   const hungColleges = useGameStore((s) => s.hungColleges);
+  const electionScheduled = useGameStore((s) => s.electionScheduled);
   const lastIncome = useGameStore((s) => s.lastIncome);
   const workingCash = useGameStore((s) => s.workingCash);
   const abortGame = useGameStore((s) => s.abortGame);
@@ -141,7 +142,6 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
   const colors = usePlayerColors();
   const [openWallet, setOpenWallet] = useState<string | null>(null);
   const [profilePlayer, setProfilePlayer] = useState<string | null>(null);
-  const [showElectionBanner, setShowElectionBanner] = useState(false);
 
   const active = players.filter((p) => !p.eliminated);
   const activePlayerId = active[activeIndex]?.id ?? null;
@@ -165,37 +165,6 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
     return Object.values(wallets ?? {}).reduce((a, b) => a + b, 0);
   };
   const electionPct = Math.round(electionProbability(turn, hungColleges) * 100);
-  const electionNextTurn = turn === ELECTION_START_TURN - 1;
-
-  const prevElectionPct = useRef(0);
-  useEffect(() => {
-    if (electionPct >= 50 && prevElectionPct.current < 50) {
-      AudioManager.play('election_warning');
-      setShowElectionBanner(true);
-      setTimeout(() => setShowElectionBanner(false), 4000);
-    }
-    prevElectionPct.current = electionPct;
-  }, [electionPct]);
-
-  // Surface the wallet drawer when the active player's group wallets drain
-  // (a state purchase drew from them), so the spend is visible — not just the
-  // National headline. Keyed on player id so a hot-seat handoff doesn't fire it.
-  const activeGroupSum = activePlayerId
-    ? Object.values(workingCash[activePlayerId]?.groupWallets ?? {}).reduce((a, b) => a + b, 0)
-    : 0;
-  const prevGroupSum = useRef<{ id: string | null; sum: number }>({ id: activePlayerId, sum: activeGroupSum });
-  useEffect(() => {
-    const prev = prevGroupSum.current;
-    if (
-      phase === 'PLANNING' &&
-      activePlayerId &&
-      prev.id === activePlayerId &&
-      activeGroupSum < prev.sum
-    ) {
-      setOpenWallet(activePlayerId);
-    }
-    prevGroupSum.current = { id: activePlayerId, sum: activeGroupSum };
-  }, [activeGroupSum, phase, activePlayerId]);
 
   return (
     <header className="header-hud">
@@ -210,9 +179,9 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
         <span className="header-hud__target" title="First to 270 electoral votes wins the election">
           Victory Target <strong>270 EV</strong>
         </span>
-        {(electionNextTurn || electionPct > 0) && (
-          <span className={`hud__elect-pill${electionPct >= 50 ? ' is-high' : ''}`}>
-            ⚡ {electionNextTurn ? 'Election next turn' : `Election ${electionPct}%`}
+        {(electionScheduled || electionPct > 0) && (
+          <span className={`hud__elect-pill${electionScheduled || electionPct >= 50 ? ' is-high' : ''}`}>
+            ⚡ {electionScheduled ? 'Election after this round' : `Election roll ${electionPct}%`}
           </span>
         )}
         {timer.isActive && timer.display && (
@@ -256,12 +225,6 @@ export function HeaderHud({ timer }: { timer: TurnTimerState }) {
           <CloseIcon size={14} /> Abort
         </button>
       </div>
-
-      {showElectionBanner && (
-        <div className="election-imminent-banner">
-          ⚡ ELECTION NEXT TURN — Shift to EVs before the vote can be called.
-        </div>
-      )}
 
       {openWallet && (
         <WalletDrawer

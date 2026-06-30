@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
-import { ELECTION_START_TURN, STATE_GROUPS, electionProbability } from '../game/config';
+import { STATE_GROUPS, electionProbability } from '../game/config';
 import { WIN_THRESHOLD } from '../game/engine';
 import {
   useActiveNationalCash,
@@ -83,6 +83,7 @@ function useResolutionStage(hasClash: boolean): Stage {
 export function ResolutionRecap({ className }: { className?: string }) {
   const turn = useGameStore((s) => s.turn);
   const hungColleges = useGameStore((s) => s.hungColleges);
+  const electionScheduled = useGameStore((s) => s.electionScheduled);
   const players = useGameStore((s) => s.players);
   const lastIncome = useGameStore((s) => s.lastIncome);
   const report = useGameStore((s) => s.lastTurnReport);
@@ -148,7 +149,6 @@ export function ResolutionRecap({ className }: { className?: string }) {
   }, []);
 
   const electionChance = electionProbability(turn, hungColleges);
-  const electionNextTurn = turn === ELECTION_START_TURN - 1;
   const active = players.filter((p) => !p.eliminated);
 
   return (
@@ -189,11 +189,11 @@ export function ResolutionRecap({ className }: { className?: string }) {
 
       <div className="resolution__foot">
         <span className="resolution__chance">
-          {electionNextTurn
-            ? 'Election next turn'
+          {electionScheduled
+            ? 'Election after this round'
             : electionChance > 0
-            ? `Election chance: ${Math.round(electionChance * 100)}%`
-            : `Election Night from Turn ${ELECTION_START_TURN}`}
+            ? `Next election warning roll: ${Math.round(electionChance * 100)}%`
+            : 'Election rolls begin Round 10'}
         </span>
         {showFallback ? (
           <HostOnlyResolutionButton ready={ready} turn={turn} onConfirm={confirmResolution} />

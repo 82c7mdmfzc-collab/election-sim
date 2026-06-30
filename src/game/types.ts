@@ -53,6 +53,8 @@ export interface PlayerState {
    * Positive = extra profit, negative = profit reduction.
    */
   readonly payoutModifiers: Record<string, number>;
+  /** Flat War Chest income this player receives each turn ($1k units). */
+  readonly baseIncome?: number;
   nationalCash: number;
   groupWallets: Record<StateGroupId, number>;
   eliminated: boolean;
@@ -93,6 +95,8 @@ export interface GameState {
   stateGroupDominance: Record<StateGroupId, PlayerId | null>;
   /** Number of elections that ended without a 270+ winner (escalator). */
   hungColleges: number;
+  /** True when the current planning round has warned players an election fires after resolution. */
+  electionScheduled: boolean;
 }
 
 // ── Pending allocation (per player, hidden until resolution) ──────────────────

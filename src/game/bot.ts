@@ -107,7 +107,7 @@ const KNOBS: Record<'medium' | 'hard' | 'impossible', Knobs> = {
   },
 };
 
-const ELECTION_START_TURN = 11;
+const ELECTION_START_TURN = 10;
 
 /** Running wallet/pending simulation so the plan stays affordable and legal. */
 interface Sim {

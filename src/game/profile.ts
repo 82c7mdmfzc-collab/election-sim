@@ -153,7 +153,7 @@ export async function claimGameRewardRemote(args: {
   return data as number;
 }
 
-export type GameCompletionMode = 'single' | 'bot' | 'online';
+export type GameCompletionMode = 'single' | 'bot' | 'daily' | 'online';
 
 export interface CompleteGameResultArgs {
   gameId: string;

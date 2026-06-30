@@ -12,7 +12,7 @@
  * Candidate affinities are keyed to StateGroupId / NationalGroupId.
  */
 
-import { maxRungsFor, MEGASTATE_IDS, STATE_GROUPS, NATIONAL_GROUPS } from './config';
+import { maxRungsFor, MEGASTATE_IDS, STATE_GROUPS, NATIONAL_GROUPS, NATIONAL_INCOME } from './config';
 import { CANDIDATES, type CandidateDef } from './candidates';
 import type { GameState, NatRungMap, NatReachSeq, PlayerState, RungMap, ReachSeq, US_State } from './types';
 
@@ -103,6 +103,7 @@ export function playerFromCandidate(
     name: overrides?.name ?? c.name,
     affinities: { ...c.affinities },
     payoutModifiers: { ...c.payoutModifiers },
+    baseIncome: c.baseIncome ?? NATIONAL_INCOME,
     nationalCash: c.startingCash,
     groupWallets: Object.fromEntries(STATE_GROUPS.map((g) => [g.id, 0])),
     eliminated: false,
@@ -157,6 +158,7 @@ export function createInitialGameState(
     natSecuredBy,
     stateGroupDominance,
     hungColleges: 0,
+    electionScheduled: false,
   };
 }
 
@@ -203,5 +205,6 @@ export function createInitialGameStateFromPlayers(players: PlayerState[]): GameS
     natSecuredBy,
     stateGroupDominance,
     hungColleges: 0,
+    electionScheduled: false,
   };
 }

@@ -25,7 +25,7 @@ export const WIN_THRESHOLD = 270;
 // turnBonus. Single source of truth — used by the income engine and the ladder
 // unlock indicators so the displayed target can never drift from the rule.
 export const NATIONAL_BONUS_MIN_RUNGS = 4;
-export const ELECTION_START_TURN = 11;
+export const ELECTION_START_TURN = 10;
 export const MEGASTATE_IDS = new Set(['CA', 'FL', 'TX', 'NY']);
 export const BOSS_RUNG_IDS = new Set(['CA', 'TX']); // only these have 4× boss rung
 export const BOSS_RUNG_MULTIPLIER = 4.0;
@@ -182,12 +182,10 @@ export function rungCostFor(
 
 // ── Election probability ──────────────────────────────────────────────────────
 
-export function electionProbability(turn: number, hungColleges: number): number {
-  if (turn < ELECTION_START_TURN) return 0;
-  if (hungColleges >= 3) return 1;
-  if (hungColleges === 2) return 0.5;
-  if (hungColleges === 1) return 0.25;
-  // 0 prior hung colleges
-  if (turn >= 16) return 1; // round-16 exception
-  return 0.125;
+export function electionProbability(turn: number, hungColleges = 0): number {
+  void hungColleges;
+  if (turn < 10) return 0;
+  if (turn <= 13) return 0.20;
+  if (turn <= 18) return 0.33;
+  return 0.66;
 }

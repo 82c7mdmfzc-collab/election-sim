@@ -195,7 +195,7 @@ declare
   v_ev           integer := greatest(0, least(coalesce(p_electoral_votes, 0), 538));
   v_bot_count    integer := greatest(0, least(coalesce(p_bot_count, 0), 3));
   v_opponents    integer := greatest(0, least(coalesce(p_opponent_count, 0), 3));
-  v_mode         text := case when p_mode in ('single', 'bot', 'online') then p_mode else 'single' end;
+  v_mode         text := case when p_mode in ('single', 'bot', 'daily', 'online') then p_mode else 'single' end;
   v_bot_diff     text := case when p_bot_difficulty in ('easy', 'medium', 'hard', 'impossible') then p_bot_difficulty else null end;
   v_reward       integer;
   v_games_today  integer;

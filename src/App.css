@@ -3329,6 +3329,20 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .home__progress .streak-strip__day {
   font-size: 0.52rem;
 }
+.play-mode {
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+.play-mode__header {
+  text-align: center;
+}
+.play-mode__modes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
+  width: min(460px, 92vw);
+}
 .menu-btn {
   display: flex; align-items: center; gap: 0.9rem; text-align: left; width: 100%;
   padding: 0.9rem 1.1rem; cursor: pointer;
@@ -4929,6 +4943,15 @@ html.native .home__progress { grid-column: 1; grid-row: 3; width: min(360px, 42v
 html.native .home__progress .progress-panel--compact,
 html.native .home__progress .next-challenge { max-height: 22dvh; overflow: hidden; }
 html.native .home__link { grid-column: 2; grid-row: 3; margin: 0; }
+html.native .play-mode {
+  min-height: 100dvh;
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+html.native .play-mode__modes {
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  width: min(560px, 86vw);
+}
 
 html.native .landing {
   display: grid;

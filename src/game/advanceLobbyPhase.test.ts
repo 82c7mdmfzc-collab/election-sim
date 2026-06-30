@@ -34,6 +34,7 @@ function makeLobbyState(overrides: Partial<LobbyGameState> = {}): LobbyGameState
     natSecuredBy: Object.fromEntries(natIds.map((id) => [id, null])),
     stateGroupDominance: Object.fromEntries(STATE_GROUPS.map((g) => [g.id, null])),
     hungColleges: 0,
+    electionScheduled: false,
     phase: 'RESOLUTION',
     activePlayerIndex: 0,
     electionResult: null,
@@ -57,8 +58,8 @@ describe('advanceLobbyPhase', () => {
   });
 
   it('confirmResolution without an election advances to the next PLANNING turn', () => {
-    // hungColleges high + early turn keeps election probability at 0 so no election rolls.
-    const next = advanceLobbyPhase(makeLobbyState({ turn: 1 }), 'confirmResolution', 1_000_000);
+    // Early turn keeps election probability at 0, so no warning roll is scheduled.
+    const next = advanceLobbyPhase(makeLobbyState({ turn: 1 }), 'confirmResolution', 1_000_000, () => 0);
     expect(next).not.toBeNull();
     if (next && next.phase === 'PLANNING') {
       expect(next.turn).toBe(2);
@@ -67,7 +68,26 @@ describe('advanceLobbyPhase', () => {
       // deadline derives from the SERVER clock + the per-turn limit, not a client value
       expect(next.turnDeadlineUtc).toBe(1_000_000 + 60 * 1000);
     }
-    // (If an election did roll, phase would be ELECTION — also valid, just assert non-null above.)
+  });
+
+  it('confirmResolution never fires an election without a scheduled warning', () => {
+    const next = advanceLobbyPhase(makeLobbyState({ turn: 10, electionScheduled: false }), 'confirmResolution', 1_000_000, () => 0);
+    expect(next?.phase).toBe('PLANNING');
+    expect(next?.turn).toBe(11);
+  });
+
+  it('a successful next-turn roll marks the next planning round', () => {
+    const next = advanceLobbyPhase(makeLobbyState({ turn: 9, electionScheduled: false }), 'confirmResolution', 1_000_000, () => 0.19);
+    expect(next?.phase).toBe('PLANNING');
+    expect(next?.turn).toBe(10);
+    expect(next?.electionScheduled).toBe(true);
+  });
+
+  it('a scheduled warning round advances into ELECTION after resolution', () => {
+    const next = advanceLobbyPhase(makeLobbyState({ turn: 10, electionScheduled: true }), 'confirmResolution', 1_000_000, () => 0.99);
+    expect(next?.phase).toBe('ELECTION');
+    expect(next?.electionScheduled).toBe(false);
+    expect(next?.electionResult).not.toBeNull();
   });
 
   it('completeTally moves ELECTION_TALLY → GAME_OVER', () => {
@@ -87,7 +107,7 @@ describe('advanceLobbyPhase', () => {
       hungColleges: 1,
       electionResult: { evByPlayer: { p1: 0, p2: 0 }, stateLeaders: {}, winner: null },
     });
-    const next = advanceLobbyPhase(prior, 'resolveElection', 2_000_000);
+    const next = advanceLobbyPhase(prior, 'resolveElection', 2_000_000, () => 0.99);
     expect(next?.phase).toBe('PLANNING');
     expect(next?.turn).toBe(5);
     expect(next?.hungColleges).toBe(2);

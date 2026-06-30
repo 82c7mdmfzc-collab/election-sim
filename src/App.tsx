@@ -39,7 +39,7 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import type { BotDifficulty } from './game/types';
 
-type AppMode = 'mode-select' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard';
+type AppMode = 'mode-select' | 'play' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard';
 type TutorialSource = 'menu' | 'onboarding';
 type ShopSource = 'menu' | 'locked_candidate' | 'account';
 
@@ -61,12 +61,16 @@ function dailyBadge(): string | undefined {
 }
 
 const MODES: ModeDef[] = [
-  { mode: 'bot',         label: 'Play',       Icon: PlayIcon,     chip: 'orange', primary: true },
-  { mode: 'daily',       label: 'Daily Race', Icon: TrophyIcon,   chip: 'orange' },
-  { mode: 'single',      label: 'Local',      Icon: MonitorIcon,  chip: 'blue' },
-  { mode: 'online',      label: 'Online',     Icon: GlobeIcon,    chip: 'orange' },
+  { mode: 'play',        label: 'Play',       Icon: PlayIcon,     chip: 'orange', primary: true },
   { mode: 'leaderboard', label: 'Ranks',      Icon: RankingsIcon, chip: 'blue' },
   { mode: 'shop',        label: 'Store',      Icon: CartIcon,     chip: 'blue' },
+];
+
+const PLAY_MODES: ModeDef[] = [
+  { mode: 'bot',    label: 'Solo Campaign',   Icon: PlayIcon,    chip: 'orange', primary: true },
+  { mode: 'daily',  label: 'Daily Race',      Icon: TrophyIcon,  chip: 'orange' },
+  { mode: 'single', label: 'Local Pass & Play', Icon: MonitorIcon, chip: 'blue' },
+  { mode: 'online', label: 'Online',          Icon: GlobeIcon,   chip: 'orange' },
 ];
 
 function appModeToShopSource(mode: AppMode): ShopSource {
@@ -127,7 +131,7 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings }: {
 
       <div className="home__modes">
         {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
-          const b = native && signedIn && mode === 'daily' ? undefined : (mode === 'daily' ? dailyBadge() : badge);
+          const b = native && signedIn && mode === 'play' ? undefined : (mode === 'play' ? dailyBadge() : badge);
           return (
             <button
               key={mode}
@@ -173,6 +177,43 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings }: {
       <button type="button" className="home__link" onClick={onTutorial}>
         Campaign Guide
       </button>
+    </div>
+  );
+}
+
+function PlayModeSelect({ onSelect, onBack }: {
+  onSelect: (mode: AppMode) => void;
+  onBack: () => void;
+}) {
+  const signedIn = useProfile(selectIsSignedIn);
+  const native = isNativeRuntime();
+
+  return (
+    <div className="setup native-screen play-mode">
+      <div className="setup__header play-mode__header">
+        <h1 className="setup__title">Play</h1>
+        <p className="setup__sub">Choose your campaign mode.</p>
+      </div>
+
+      <div className="play-mode__modes">
+        {PLAY_MODES.map(({ mode, label, Icon, chip, primary }) => {
+          const b = native && signedIn && mode === 'daily' ? undefined : (mode === 'daily' ? dailyBadge() : undefined);
+          return (
+            <button
+              key={mode}
+              type="button"
+              className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
+              onClick={() => { AudioManager.play('click'); onSelect(mode); }}
+            >
+              <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
+              <span className="menu-btn__label">{label}</span>
+              {b && <span className="menu-btn__badge">{b}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <button type="button" className="mp-back" onClick={onBack}>← Back</button>
     </div>
   );
 }
@@ -416,6 +457,14 @@ function App() {
       />
     );
     screenKey = 'shop';
+  } else if (appMode === 'play') {
+    screen = (
+      <PlayModeSelect
+        onSelect={selectMode}
+        onBack={() => setAppMode('mode-select')}
+      />
+    );
+    screenKey = 'play';
   } else if (appMode === 'bot') {
     screen = <BotSetup onBack={() => setAppMode('mode-select')} />;
     screenKey = 'bot';

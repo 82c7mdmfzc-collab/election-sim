@@ -14,7 +14,7 @@ import {
   payTurnIncome,
   bestAffinityForState,
 } from './engine';
-import { ALL_STATES } from './statesData';
+import { ALL_STATES, playerFromCandidate } from './statesData';
 import { computeAffordability } from './affordability';
 import { CANDIDATE_MAP } from './candidates';
 import { NATIONAL_GROUPS, STATE_GROUPS, STATE_GROUP_MAP, NATIONAL_GROUP_MAP, NATIONAL_INCOME, electionProbability, maxRungsFor } from './config';
@@ -53,6 +53,7 @@ function makeState(overrides: Partial<GameState> = {}): GameState {
     natSecuredBy: Object.fromEntries(natIds.map((id) => [id, null])),
     stateGroupDominance: Object.fromEntries(STATE_GROUPS.map((g) => [g.id, null])),
     hungColleges: 0,
+    electionScheduled: false,
     ...overrides,
   };
 }
@@ -440,43 +441,39 @@ describe('tallyElectoralVotes', () => {
 // ── 9. Election probability ───────────────────────────────────────────────────
 
 describe('electionProbability', () => {
-  it('turns 1–10 → 0%', () => {
-    for (let t = 1; t <= 10; t++) {
+  it('turns 1-9 -> 0%', () => {
+    for (let t = 1; t <= 9; t++) {
       expect(electionProbability(t, 0)).toBe(0);
     }
   });
-  it('turn 11+, 0 hung → 12.5%', () => {
-    expect(electionProbability(11, 0)).toBe(0.125);
-    expect(electionProbability(15, 0)).toBe(0.125);
+  it('turns 10-13 -> 20%', () => {
+    expect(electionProbability(10, 0)).toBe(0.20);
+    expect(electionProbability(13, 5)).toBe(0.20);
   });
-  it('turn 16, 0 hung → 100%', () => {
-    expect(electionProbability(16, 0)).toBe(1);
+  it('turns 14-18 -> 33%', () => {
+    expect(electionProbability(14, 0)).toBe(0.33);
+    expect(electionProbability(18, 3)).toBe(0.33);
   });
-  it('1 hung college → 25%', () => {
-    expect(electionProbability(11, 1)).toBe(0.25);
-  });
-  it('2 hung colleges → 50%', () => {
-    expect(electionProbability(12, 2)).toBe(0.5);
-  });
-  it('3+ hung colleges → 100%', () => {
-    expect(electionProbability(11, 3)).toBe(1);
-    expect(electionProbability(12, 5)).toBe(1);
+  it('turn 19+ -> 66%', () => {
+    expect(electionProbability(19, 0)).toBe(0.66);
+    expect(electionProbability(30, 5)).toBe(0.66);
   });
 });
 
 describe('rollElection', () => {
-  it('never triggers before turn 11', () => {
-    const state = makeState({ turn: 10, hungColleges: 3 });
+  it('never schedules before turn 10', () => {
+    const state = makeState({ turn: 9, hungColleges: 3 });
     expect(rollElection(state, () => 0.0)).toBe(false);
   });
   it('triggers when rng < probability', () => {
-    const state = makeState({ turn: 11, hungColleges: 0 });
-    expect(rollElection(state, () => 0.1)).toBe(true);  // 0.1 < 0.125
-    expect(rollElection(state, () => 0.2)).toBe(false); // 0.2 > 0.125
+    const state = makeState({ turn: 10, hungColleges: 0 });
+    expect(rollElection(state, () => 0.19)).toBe(true);
+    expect(rollElection(state, () => 0.2)).toBe(false);
   });
-  it('always triggers at 100% probability', () => {
-    const state = makeState({ turn: 11, hungColleges: 3 });
-    expect(rollElection(state, () => 0.9999)).toBe(true);
+  it('uses the late-game 66% band', () => {
+    const state = makeState({ turn: 19, hungColleges: 3 });
+    expect(rollElection(state, () => 0.65)).toBe(true);
+    expect(rollElection(state, () => 0.66)).toBe(false);
   });
 });
 
@@ -494,6 +491,32 @@ describe('resolveElection', () => {
     const state = makeState({ securedBy });
     const outcome = resolveElection(state);
     expect(outcome.type).toBe('winner');
+  });
+
+  it('3+ players, 270+ wins before last-place elimination', () => {
+    const players = [
+      makePlayer('p1'),
+      makePlayer('p2'),
+      makePlayer('p3', { nationalCash: 0 }),
+    ];
+    const securedBy = Object.fromEntries(ALL_STATES.map((s) => [s.id, null as string | null]));
+    let evSum = 0;
+    for (const s of ALL_STATES) {
+      if (evSum >= 270) break;
+      securedBy[s.id] = 'p1';
+      evSum += s.electoralVotes;
+    }
+    const state = makeState({
+      players,
+      securedBy,
+      rungs: Object.fromEntries(ALL_STATES.map((s) => [s.id, { p1: 0, p2: 0, p3: 0 }])),
+      reachSeq: Object.fromEntries(ALL_STATES.map((s) => [s.id, { p1: 0, p2: 0, p3: 0 }])),
+      natRungs: Object.fromEntries(NATIONAL_GROUPS.map((g) => [g.id, { p1: 0, p2: 0, p3: 0 }])),
+      natReachSeq: Object.fromEntries(NATIONAL_GROUPS.map((g) => [g.id, { p1: 0, p2: 0, p3: 0 }])),
+    });
+    const outcome = resolveElection(state);
+    expect(outcome.type).toBe('winner');
+    expect(outcome.result.winner).toBe('p1');
   });
 
   it('2 players, no winner → hung college', () => {
@@ -713,12 +736,20 @@ describe('payTurnIncome — profit modifiers', () => {
     expect(p1.nationalCash).toBe(NATIONAL_INCOME + g.turnBonus);
   });
 
-  it('candidates get only the flat national income without group or network leads', () => {
+  it('candidates get their flat base income without group or network leads', () => {
     const trump = makePlayer('trump', { nationalCash: 0 });
     const tooley = makePlayer('tooley', { nationalCash: 0 });
     payTurnIncome([trump, tooley], {}, {}, {});
     expect(trump.nationalCash).toBe(NATIONAL_INCOME);
-    expect(tooley.nationalCash).toBe(NATIONAL_INCOME);
+    expect(tooley.nationalCash).toBe(300);
+  });
+
+  it('uses player baseIncome before candidate and global fallbacks', () => {
+    const custom = makePlayer('tooley', { baseIncome: 275, nationalCash: 0 });
+    const oldPayload = makePlayer('unknown-old-save', { nationalCash: 0 });
+    payTurnIncome([custom, oldPayload], {}, {}, {});
+    expect(custom.nationalCash).toBe(275);
+    expect(oldPayload.nationalCash).toBe(NATIONAL_INCOME);
   });
 });
 
@@ -770,6 +801,14 @@ describe('candidate roster — Trump override', () => {
     expect(CANDIDATE_MAP['trump'].startingCash).toBe(250);
     expect(CANDIDATE_MAP['harris'].startingCash).toBe(250);
     expect(CANDIDATE_MAP['lincoln'].startingCash).toBe(250);
+  });
+  it('Tooley has 300 flat income while others fall back to the global income', () => {
+    expect(CANDIDATE_MAP['tooley'].baseIncome).toBe(300);
+    expect(CANDIDATE_MAP['trump'].baseIncome ?? NATIONAL_INCOME).toBe(NATIONAL_INCOME);
+  });
+  it('new player state carries candidate base income', () => {
+    expect(playerFromCandidate(CANDIDATE_MAP['tooley']).baseIncome).toBe(300);
+    expect(playerFromCandidate(CANDIDATE_MAP['trump']).baseIncome).toBe(NATIONAL_INCOME);
   });
 });
 

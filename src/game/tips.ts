@@ -46,10 +46,10 @@ export const TIPS: readonly Tip[] = [
   { category: 'tempo', text: 'Watch what your opponent called last turn — it tells you where they\'ll spend next.' },
 
   // ── Endgame / the 270 push ────────────────────────────────────────────────
-  { category: 'endgame', text: 'Election Night pressure fires from Turn 11. With Deadlocked Elections stacking, Projection Pressure spikes — have 270 lined up before then.' },
+  { category: 'endgame', text: 'Election warnings can begin from Turn 10. If the warning appears, the vote fires after that round resolves.' },
   { category: 'endgame', text: '270 wins it. Count your projected EV every turn and know exactly which states close the gap.' },
   { category: 'endgame', text: 'Called states can\'t be flipped. Lock your path to 270 first, then expand for the tiebreakers.' },
-  { category: 'endgame', text: 'A Deadlocked Election raises the next Projection Pressure. If you can\'t win the count, deny everyone else 270.' },
+  { category: 'endgame', text: 'No one at 270 in a bigger field? Last place is eliminated and the campaign keeps going.' },
   { category: 'endgame', text: 'In a tie on EV, cash on hand breaks it. Don\'t bankrupt yourself the turn before Election Night fires.' },
 ];
 
@@ -103,6 +103,6 @@ export const HOW_TO_PLAY: readonly HelpSection[] = [
   },
   {
     title: 'Election',
-    body: 'From Turn 11 on, Election Night can fire each round with rising Projection Pressure. EV is tallied; first to 270 wins. No winner means a Deadlocked Election — Projection Pressure climbs for next time.',
+    body: 'From Turn 10 on, a round can be marked for Election Night. You always get the warning during that round, then the vote fires after resolution. First to 270 wins; otherwise last place is eliminated in bigger fields.',
   },
 ];

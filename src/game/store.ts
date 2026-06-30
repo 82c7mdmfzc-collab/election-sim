@@ -36,12 +36,15 @@ import {
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
-import { getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
+import { dailyDateKey, getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
+import { recordDailyResultRemote } from './profile';
 import { rpcForfeitAndFinish } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
 import { saveSession, clearSession } from '../utils/sessionStore';
 import { clearGameTiming, gameDurationSeconds, markGameStarted, track } from '../utils/analytics';
+import { recordDailyChallengeResult } from '../utils/localPrefs';
+import { useProfile } from '../hooks/useProfile';
 import type { CandidateDef } from './candidates';
 import type {
   BotDifficulty,
@@ -251,6 +254,52 @@ function trackAbandonedGame(s: GameStore, reason: 'abort' | 'return_to_menu') {
     reason,
   });
   clearGameTiming(s.gameId);
+}
+
+function recordableModeFor(s: GameStore): 'bot' | 'daily' | 'online' | null {
+  if (s.multiplayerMode === 'online') return 'online';
+  if (s.isDailyChallenge) return 'daily';
+  return s.players.some((p) => p.isBot) ? 'bot' : null;
+}
+
+function recordForfeitLoss(s: GameStore): void {
+  if (!s.gameId || s.phase === 'SETUP' || s.phase === 'MENU' || s.phase === 'GAME_OVER') return;
+  const mode = recordableModeFor(s);
+  if (!mode) return;
+
+  const ownerId = s.multiplayerMode === 'online' ? s.localPlayerId : s.players[0]?.id ?? null;
+  if (!ownerId) return;
+
+  const owner = s.players.find((p) => p.id === ownerId) ?? null;
+  const bots = s.players.filter((p) => p.isBot);
+  const securedStates = Object.values(s.securedBy).filter((pid) => pid === ownerId).length;
+  const coalitionsDominated = Object.values(s.stateGroupDominance).filter((pid) => pid === ownerId).length;
+  const electoralVotes = tallyElectoralVotes(s).evByPlayer[ownerId] ?? 0;
+  const botDifficulty = strongestBotDifficulty(bots);
+
+  if (s.isDailyChallenge) {
+    const dateKey = dailyDateKey();
+    recordDailyChallengeResult(dateKey, false, electoralVotes);
+    if (useProfile.getState().userId) void recordDailyResultRemote(dateKey, false, electoralVotes);
+  }
+
+  void useProfile.getState().applyGameResult({
+    gameId: s.gameId,
+    won: false,
+    securedStates,
+    coalitionsDominated,
+    mode,
+    botDifficulty,
+    botCount: bots.length,
+    turns: s.turn,
+    electoralVotes,
+    candidateId: owner?.candidateId ?? null,
+    opponentCount: Math.max(0, s.players.length - 1),
+  });
+}
+
+function rollScheduledElectionForTurn<T extends GameState>(state: T, turn = state.turn): boolean {
+  return rollElection({ ...state, turn });
 }
 
 /** Returns the player this device should operate as (local in online; activeIndex in hot-seat). */
@@ -619,14 +668,15 @@ export const useGameStore = create<GameStore>()(
           // Online: server-authoritative transition (host triggers, all sync via Realtime).
           if (delegatePhaseIfOnline(snap, 'confirmResolution', (resolved) => get().syncFromPayload(resolved))) return;
 
-          if (rollElection(snap)) {
+          if (snap.electionScheduled) {
             const result = tallyElectoralVotes(snap);
-            set({ electionResult: result, phase: 'ELECTION' });
+            set({ electionResult: result, phase: 'ELECTION', electionScheduled: false });
           } else {
             const newDeadline = snap.turnTimeLimit != null ? Date.now() + snap.turnTimeLimit * 1000 : null;
             set((s) => ({
               phase: 'PLANNING',
               turn: s.turn + 1,
+              electionScheduled: rollScheduledElectionForTurn(s, s.turn + 1),
               activePlayerIndex: 0,
               pendingByPlayer: emptyPending(s.players),
               workingCash: buildWorkingCash(s.players),
@@ -658,6 +708,7 @@ export const useGameStore = create<GameStore>()(
             const newDeadline = snap.turnTimeLimit != null ? Date.now() + snap.turnTimeLimit * 1000 : null;
             set((s) => ({
               hungColleges: s.hungColleges + 1,
+              electionScheduled: rollScheduledElectionForTurn(s, s.turn + 1),
               electionResult: null,
               phase: 'PLANNING',
               turn: s.turn + 1,
@@ -696,6 +747,7 @@ export const useGameStore = create<GameStore>()(
             electionResult: null,
             phase: 'PLANNING',
             turn: nextState.turn + 1,
+            electionScheduled: rollScheduledElectionForTurn(nextState, nextState.turn + 1),
             activePlayerIndex: 0,
             pendingByPlayer: emptyPending(nextState.players),
             workingCash: buildWorkingCash(nextState.players),
@@ -755,6 +807,7 @@ export const useGameStore = create<GameStore>()(
           clearSession();
           const snap = get();
           trackAbandonedGame(snap, 'abort');
+          recordForfeitLoss(snap);
           // Forfeit the online lobby (awards wins to remaining players) before leaving
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
             void rpcForfeitAndFinish(snap.lobbyId);
@@ -794,6 +847,7 @@ export const useGameStore = create<GameStore>()(
           AudioManager.stop('tick');
           const snap = get();
           trackAbandonedGame(snap, 'return_to_menu');
+          recordForfeitLoss(snap);
           if (snap.multiplayerMode === 'online' && snap.lobbyId) {
             void rpcForfeitAndFinish(snap.lobbyId);
           }
@@ -859,6 +913,7 @@ export const useGameStore = create<GameStore>()(
             natSecuredBy: payload.natSecuredBy,
             stateGroupDominance: payload.stateGroupDominance,
             hungColleges: payload.hungColleges,
+            electionScheduled: payload.electionScheduled ?? false,
             // Phase / UI fields
             phase: payload.phase,
             activePlayerIndex: payload.activePlayerIndex,
@@ -1059,7 +1114,7 @@ export function useElectoralResult(): ElectoralResult {
     turn: 0, seqCounter: 0, players,
     rungs, natRungs, reachSeq, natReachSeq,
     securedBy, natSecuredBy,
-    stateGroupDominance: {}, hungColleges: 0,
+    stateGroupDominance: {}, hungColleges: 0, electionScheduled: false,
   });
 }
 

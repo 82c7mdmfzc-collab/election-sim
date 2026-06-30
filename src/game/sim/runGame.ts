@@ -144,7 +144,7 @@ export function runGame(seats: Seat[], seed: number, maxTurns = 40): GameResult 
   let timedOut = false;
 
   for (let turn = 1; turn <= maxTurns; turn++) {
-    state = { ...state, turn };
+    state = { ...state, turn, electionScheduled: rollElection({ ...state, turn }, rng) };
     const view = planningView(state);
 
     const purchasesByPlayer: Record<string, ReturnType<typeof buildPendingSubmission>['pending']> = {};
@@ -163,7 +163,8 @@ export function runGame(seats: Seat[], seed: number, maxTurns = 40): GameResult 
 
     state = resolveTurn(state, purchasesByPlayer).state;
 
-    if (rollElection(state, rng)) {
+    if (state.electionScheduled) {
+      state = { ...state, electionScheduled: false };
       const outcome = resolveElection(state);
       if (outcome.type === 'winner') {
         winnerId = outcome.result.winner;

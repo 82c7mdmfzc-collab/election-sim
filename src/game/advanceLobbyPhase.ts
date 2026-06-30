@@ -37,11 +37,17 @@ function nextDeadline(remote: LobbyGameState, nowMs: number): number | null {
 }
 
 /** Build a fresh PLANNING-phase lobby state for the given turn number. */
-function toPlanning(base: LobbyGameState, turn: number, nowMs: number): LobbyGameState {
+function toPlanning(
+  base: LobbyGameState,
+  turn: number,
+  nowMs: number,
+  rng: () => number,
+): LobbyGameState {
   return {
     ...base,
     phase: 'PLANNING',
     turn,
+    electionScheduled: rollElection({ ...base, turn }, rng),
     activePlayerIndex: 0,
     electionResult: null,
     electionTallyProgress: 0,
@@ -61,16 +67,17 @@ export function advanceLobbyPhase(
   remote: LobbyGameState,
   action: PhaseAction,
   nowMs = Date.now(),
+  rng: () => number = Math.random,
 ): LobbyGameState | null {
   if (remote.phase !== REQUIRED_PHASE[action]) return null;
 
   switch (action) {
     case 'confirmResolution': {
-      if (rollElection(remote)) {
+      if (remote.electionScheduled) {
         const result = tallyElectoralVotes(remote);
-        return { ...remote, electionResult: result, phase: 'ELECTION' };
+        return { ...remote, electionResult: result, phase: 'ELECTION', electionScheduled: false };
       }
-      return toPlanning(remote, remote.turn + 1, nowMs);
+      return toPlanning(remote, remote.turn + 1, nowMs, rng);
     }
 
     case 'resolveElection': {
@@ -83,7 +90,7 @@ export function advanceLobbyPhase(
 
       if (outcome.type === 'hung') {
         return {
-          ...toPlanning(remote, remote.turn + 1, nowMs),
+          ...toPlanning(remote, remote.turn + 1, nowMs, rng),
           hungColleges: remote.hungColleges + 1,
         };
       }
@@ -102,7 +109,7 @@ export function advanceLobbyPhase(
           electionTallyProgress: 0,
         };
       }
-      return toPlanning(merged, nextState.turn + 1, nowMs);
+      return toPlanning(merged, nextState.turn + 1, nowMs, rng);
     }
 
     case 'completeTally':

@@ -57,7 +57,7 @@ export function useGameRewards(): void {
       return myRungs > 0 && myRungs === topRungs;
     });
     const nationalGroupsEarning = nationalGroupsLed.filter((g) => (s.natRungs[g.id]?.[ownerId] ?? 0) >= 4);
-    const mode = s.multiplayerMode === 'online' ? 'online' : bots.length > 0 ? 'bot' : 'single';
+    const mode = s.multiplayerMode === 'online' ? 'online' : s.isDailyChallenge ? 'daily' : bots.length > 0 ? 'bot' : 'single';
     const botDifficulty = strongestDifficulty(bots.map((b) => b.botDifficulty).filter(Boolean) as BotDifficulty[]);
 
     if (!finishedTracked.has(gameId)) {
@@ -111,6 +111,13 @@ export function useGameRewards(): void {
       if (useProfile.getState().userId) {
         void recordDailyResultRemote(dateKey, won, electoralVotes);
       }
+    }
+
+    if (mode === 'single') {
+      useProfile.getState().clearLastReward();
+      setLastAwardedGameId(gameId);
+      inflightClaims.delete(gameId);
+      return;
     }
 
     void useProfile.getState().applyGameResult({

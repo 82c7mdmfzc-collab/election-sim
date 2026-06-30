@@ -103,6 +103,7 @@ function NativeTopRibbon({ timer, onOptions }: {
   const turn = useGameStore((s) => s.turn);
   const phase = useGameStore((s) => s.phase);
   const hungColleges = useGameStore((s) => s.hungColleges);
+  const electionScheduled = useGameStore((s) => s.electionScheduled);
   const tickerDone = useGameStore((s) => s.resolutionTickerDone);
   const abortGame = useGameStore((s) => s.abortGame);
   const result = useElectoralResult();
@@ -145,7 +146,9 @@ function NativeTopRibbon({ timer, onOptions }: {
           </span>
           {hungColleges > 0 && <span className="native-game-ribbon__hung">{hungColleges} hung</span>}
         </div>
-        <div className="native-game-ribbon__phase">{phaseLabel(phase)}</div>
+        <div className="native-game-ribbon__phase">
+          {electionScheduled && phase === 'PLANNING' ? 'Election after this round' : phaseLabel(phase)}
+        </div>
       </div>
       <NativeTurnButton />
       {showInstruction && (

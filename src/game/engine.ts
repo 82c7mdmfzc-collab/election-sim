@@ -28,6 +28,7 @@ import {
   minRungsForDominance,
   rungCostFor,
 } from './config';
+import { CANDIDATE_MAP } from './candidates';
 import { ALL_STATES } from './statesData';
 import type {
   ElectoralResult,
@@ -368,7 +369,7 @@ export function payTurnIncome(
   const activePlayers = players.filter((p) => !p.eliminated);
 
   for (const p of activePlayers) {
-    p.nationalCash += NATIONAL_INCOME;
+    p.nationalCash += p.baseIncome ?? CANDIDATE_MAP[p.candidateId]?.baseIncome ?? NATIONAL_INCOME;
   }
 
   // State group wallet bonuses (scaled by the player's profit modifier)
@@ -655,7 +656,7 @@ export function resolveTurn(
 // ── Election ──────────────────────────────────────────────────────────────────
 
 /**
- * Should an election trigger at the end of this turn?
+ * Should this planning round be marked as election-scheduled?
  * Pass rng = Math.random in production; deterministic fn in tests.
  */
 export function rollElection(state: GameState, rng: () => number = Math.random): boolean {
@@ -753,6 +754,7 @@ export function resolveElection(state: GameState): ElectionOutcome {
     natSecuredBy: nextNatSecured,
     stateGroupDominance: nextDominance,
     hungColleges: state.hungColleges + 1,
+    electionScheduled: false,
   };
 
   return { type: 'elimination', result, eliminatedId, nextState };

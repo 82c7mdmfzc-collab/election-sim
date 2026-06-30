@@ -490,9 +490,15 @@ export function ElectionOverlay() {
   let eliminatedId: string | null = null;
   if (!winner && active.length > 2) {
     let lowestEV = Infinity;
+    let lowestCash = Infinity;
     for (const p of active) {
       const ev = electionResult.evByPlayer[p.id] ?? 0;
-      if (ev < lowestEV) { lowestEV = ev; eliminatedId = p.id; }
+      const totalCash = p.nationalCash + Object.values(p.groupWallets).reduce((a, b) => a + b, 0);
+      if (ev < lowestEV || (ev === lowestEV && totalCash < lowestCash)) {
+        lowestEV = ev;
+        lowestCash = totalCash;
+        eliminatedId = p.id;
+      }
     }
   }
 

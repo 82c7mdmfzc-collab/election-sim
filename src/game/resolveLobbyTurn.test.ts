@@ -35,6 +35,7 @@ function makeLobbyState(overrides: Partial<LobbyGameState> = {}): LobbyGameState
     natSecuredBy: Object.fromEntries(natIds.map((id) => [id, null])),
     stateGroupDominance: Object.fromEntries(STATE_GROUPS.map((g) => [g.id, null])),
     hungColleges: 0,
+    electionScheduled: false,
     phase: 'PLANNING',
     activePlayerIndex: 0,
     electionResult: null,

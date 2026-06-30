@@ -9,7 +9,7 @@
  *   payoutModifiers  — PROFIT modifiers. payout = basePayout * (1 + modifier).
  *                      Positive = extra profit, negative = profit reduction.
  *
- * Starting cash is in $1k units (300 = $300k).
+ * Starting cash and per-turn base income are in $1k units (300 = $300k).
  *
  * ⚠️ Trump's Gun Lobby cost reduction is 0.15 (overridden from 0.20) and he
  * carries a +0.05 Swing States cost affinity (override) — see plan.
@@ -44,6 +44,8 @@ export interface CandidateDef {
   readonly tokenUrl: string;
   /** $1k units. */
   readonly startingCash: number;
+  /** Optional flat War Chest income per turn in $1k units. Defaults to NATIONAL_INCOME. */
+  readonly baseIncome?: number;
   /** Political party — cosmetic (sets color + badge, drives no gameplay). */
   readonly party: Party;
   /** Default political color (overridable per-seat at setup). */
@@ -112,6 +114,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     portraitUrl: '/assets/portraits/bobby_tooley.jpg',
     tokenUrl: '/assets/tokens/bobby_tooley_token.png',
     startingCash: 300,
+    baseIncome: 300,
     party: 'independent',
     color: 'green',
     tagline: 'The Baseline — completely neutral across every track.',

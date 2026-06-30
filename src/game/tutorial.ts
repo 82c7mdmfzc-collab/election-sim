@@ -58,7 +58,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     id: 'election',
     art: '270',
     title: 'Election Night',
-    body: 'From Turn 11 on, Election Night pressure fires each turn with rising Projection Pressure. EV is tallied and the first to 270 wins. No winner means a Deadlocked Election — and the odds climb for next time. Have your path to 270 ready before Election Night.',
+    body: 'From Turn 10 on, a round can be marked for Election Night. You always get one full round of warning; then EV is tallied, 270 wins, and last place is eliminated if nobody has a majority in a bigger field.',
   },
   {
     id: 'go',
