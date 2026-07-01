@@ -1,13 +1,13 @@
 /**
- * Settings — the consolidated preferences panel (audio + accessibility).
+ * Settings — the consolidated preferences panel (account + audio + accessibility).
  *
- * Opened from the home gear; available signed-in or out, since these are
- * device-local prefs (localPrefs), not account data. Reuses the audio volume bars
- * and the `.help-overlay` modal shell. Motion + colorblind toggles re-apply the
- * live html classes / palette via applyAppearancePrefs so changes show instantly.
+ * Opened from the home gear; available signed-in or out. Reuses the audio volume
+ * bars and the `.help-overlay` modal shell. Motion + colorblind toggles re-apply
+ * the live html classes / palette via applyAppearancePrefs so changes show instantly.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useProfile, selectFunds, selectIsSignedIn } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { isNativeRuntime } from '../utils/platform';
 import { haptic } from '../utils/haptics';
@@ -42,15 +42,51 @@ function ToggleRow({ label, hint, checked, onChange }: {
   );
 }
 
-export function Settings({ onClose }: { onClose: () => void }) {
+interface SettingsProps {
+  onClose: () => void;
+  onOpenAccount?: () => void;
+}
+
+export function Settings({ onClose, onOpenAccount }: SettingsProps) {
   const native = isNativeRuntime();
+  const signedIn = useProfile(selectIsSignedIn);
+  const displayName = useProfile((s) => s.displayName);
+  const funds = useProfile(selectFunds);
+  const signOut = useProfile((s) => s.signOut);
   const [haptics, setHaptics] = useState(() => isHapticsEnabled());
   const [motion, setMotion] = useState(() => isReducedMotion());
   const [cb, setCb] = useState(() => isColorblindMode());
+  const [signingOut, setSigningOut] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      AudioManager.play('quit');
+      onClose();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   function close() {
     AudioManager.play('quit');
     onClose();
+  }
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      close();
+    }
+  }
+
+  function handleSignIn() {
+    AudioManager.play('click');
+    onClose();
+    onOpenAccount?.();
   }
 
   function toggleHaptics(next: boolean) {
@@ -78,6 +114,40 @@ export function Settings({ onClose }: { onClose: () => void }) {
         <div className="howto__head">
           <h2 className="howto__title">Settings</h2>
           <button type="button" className="howto__close" onClick={close} aria-label="Close">✕</button>
+        </div>
+
+        <div className="settings-section settings-section--account">
+          <div className="settings-section__title">Account</div>
+          {signedIn ? (
+            <div className="settings-account">
+              <div className="settings-account__summary">
+                <span className="settings-account__name">{displayName ? `@${displayName}` : 'Signed in'}</span>
+                <span className="settings-account__funds">{funds.toLocaleString()} Campaign Funds</span>
+              </div>
+              <button
+                type="button"
+                className="auth-gate__signout settings-account__button"
+                disabled={signingOut}
+                onClick={() => void handleSignOut()}
+              >
+                {signingOut ? 'Signing out...' : 'Sign out'}
+              </button>
+            </div>
+          ) : (
+            <div className="settings-account">
+              <div className="settings-account__summary">
+                <span className="settings-account__name">Not signed in</span>
+                <span className="settings-account__funds">Sign in to sync progress and unlocks.</span>
+              </div>
+              <button
+                type="button"
+                className="auth-gate__signout settings-account__button"
+                onClick={handleSignIn}
+              >
+                Sign in
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="settings-section">

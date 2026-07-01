@@ -103,7 +103,13 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings }: {
       >
         <SettingsIcon size={20} />
       </button>
-      <button type="button" className="home__coin gold-pill" onClick={onAccount} title="Your account">
+      <button
+        type="button"
+        className="home__coin gold-pill"
+        onClick={onAccount}
+        title={signedIn ? 'Your account and Campaign Funds' : 'Sign in to your account'}
+        aria-label={signedIn ? `Your account, ${funds.toLocaleString()} Campaign Funds` : 'Sign in to your account'}
+      >
         {signedIn ? (
           <>
             <span className="gold-pill__coin" aria-hidden />
@@ -373,7 +379,12 @@ function App() {
       onViewLeaderboard={() => { setShowAccount(false); setAppMode('leaderboard'); }}
     />
   ) : null;
-  const settings = showSettings ? <Settings onClose={() => setShowSettings(false)} /> : null;
+  const settings = showSettings ? (
+    <Settings
+      onClose={() => setShowSettings(false)}
+      onOpenAccount={() => openAccount('account_button')}
+    />
+  ) : null;
 
   let screen: ReactNode;
   let screenKey: string;

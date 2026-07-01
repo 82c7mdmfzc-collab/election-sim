@@ -80,6 +80,14 @@ try {
     const btn = [...document.querySelectorAll('button')].find((b) => /Hand to|Resolve Turn|Submit Turn/i.test(b.textContent ?? ''));
     btn?.click();
   });
+
+  // Submitting with no allocations opens a confirm dialog ("End your turn
+  // without campaigning?") — accept it.
+  await page.waitForSelector('.confirm-dialog, [role="alertdialog"]', { timeout: 2500 }).catch(() => null);
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => /^End turn$/i.test((b.textContent ?? '').trim()));
+    btn?.click();
+  });
   log('human submitted; waiting for the computer opponent to play…');
 
   // Resolution only renders after EVERY active seat submits, so its appearance
