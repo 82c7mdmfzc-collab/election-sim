@@ -1,12 +1,19 @@
 /**
  * iap.ts — client entry point for real-money purchases.
  *
- * Purchases are NATIVE-ONLY (Apple StoreKit via tauri-plugin-iap). There is no web
- * billing rail: on the website the Shop hides the "Buy Campaign Funds" section and
- * players top up only in the iOS app. The plugin completes the StoreKit purchase and
- * returns the signed-transaction JWS, which we forward to the fulfill-purchase edge
- * function for server-side verification. Grant amounts are owned by supabase/iap.sql;
- * the client can never grant itself anything.
+ * Purchases are NATIVE-ONLY (Apple StoreKit / Google Play Billing via
+ * tauri-plugin-iap). There is no web billing rail: on the website the Shop hides
+ * the "Buy Campaign Funds" section and players top up only in the apps. The plugin
+ * completes the store purchase and returns a receipt — StoreKit's signed JWS on
+ * iOS, the purchaseToken on Android — which we forward to the fulfill-purchase
+ * edge function for server-side verification. Grant amounts are owned by
+ * supabase/iap.sql; the client can never grant itself anything.
+ *
+ * Android extra: funds packs are consumables, and Play Billing purchases must be
+ * CONSUMED after the server credits them — an un-consumed purchase blocks
+ * re-buying the same pack and is auto-refunded by Google after 3 days. The server
+ * defensively acknowledges; the client consumes post-credit, with
+ * recoverAndroidPurchases() sweeping up anything interrupted mid-flow.
  */
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { platformKind, type PlatformKind } from './platform';
@@ -85,11 +92,13 @@ export function iapPlatform(): IapPlatform {
   return platformKind();
 }
 
-/** True when the native StoreKit billing rail is available. The tauri-plugin-iap
- *  bridge is compiled into the iOS binary, so "running on iOS" ⇒ available. Kept
- *  synchronous because the Shop reads it during render. */
+/** True when a native billing rail (StoreKit / Play Billing) is available. The
+ *  tauri-plugin-iap bridge is compiled into both mobile binaries, so "running on
+ *  iOS/Android" ⇒ available. Kept synchronous because the Shop reads it during
+ *  render. */
 export function nativeIapAvailable(): boolean {
-  return iapPlatform() === 'ios';
+  const p = iapPlatform();
+  return p === 'ios' || p === 'android';
 }
 
 export type PurchaseResult =
@@ -120,31 +129,80 @@ function userFacingPurchaseError(message: string): string {
 
 export async function purchase(sku: string): Promise<PurchaseResult> {
   if (!isSupabaseConfigured) return { status: 'error', message: 'Purchases are not configured.' };
-  // Native StoreKit only — there is no web billing rail.
-  if (iapPlatform() === 'ios') return purchaseNative('ios', sku);
+  // Native billing only — there is no web billing rail.
+  const platform = iapPlatform();
+  if (platform === 'ios' || platform === 'android') return purchaseNative(platform, sku);
   return { status: 'unsupported' };
 }
 
-async function purchaseNative(platform: 'ios', sku: string): Promise<PurchaseResult> {
-  let jws: string;
+async function purchaseNative(platform: 'ios' | 'android', sku: string): Promise<PurchaseResult> {
+  // iOS: StoreKit's signed-transaction JWS. Android: the Play purchaseToken.
+  let receipt: string;
   try {
     // Dynamic import keeps the native plugin out of the web bundle / module-eval.
     const { purchase: iapPurchase } = await import('@choochmeque/tauri-plugin-iap-api');
-    const result = await iapPurchase(sku, 'inapp'); // funds are consumables (StoreKit 'inapp')
-    const rep = (result as { jwsRepresentation?: string }).jwsRepresentation;
+    const result = await iapPurchase(sku, 'inapp'); // funds are consumables ('inapp')
+    const rep = platform === 'ios'
+      ? (result as { jwsRepresentation?: string }).jwsRepresentation
+      : (result as { purchaseToken?: string }).purchaseToken;
     if (!rep) return { status: 'error', message: 'Purchase could not be verified on device.' };
-    jws = rep;
+    receipt = rep;
   } catch (err) {
     // The plugin rejects userCancelled / pending / unverified with a descriptive message.
     return { status: 'error', message: userFacingPurchaseError((err as Error)?.message ?? 'Purchase cancelled.') };
   }
 
   const { data, error } = await supabase.functions.invoke('fulfill-purchase', {
-    body: { platform, sku, receipt: jws },
+    body: { platform, sku, receipt },
   });
   if (error) return { status: 'error', message: userFacingPurchaseError(await edgeErrorMessage(error)) };
+
+  // Android: consume AFTER the server credited, so the pack can be re-bought and
+  // Google doesn't auto-refund. On failure the recovery sweep retries — the
+  // server's transaction-id idempotency makes the re-POST there harmless.
+  if (platform === 'android') {
+    try {
+      const { consumePurchase } = await import('@choochmeque/tauri-plugin-iap-api');
+      await consumePurchase(receipt);
+    } catch {
+      /* recoverAndroidPurchases() will consume it on the next Shop open */
+    }
+  }
   const balance = (data as { balance?: number } | null)?.balance ?? null;
   return { status: 'fulfilled', balance };
+}
+
+/**
+ * Android recovery sweep: re-fulfill and consume any owned-but-unconsumed funds
+ * packs. Covers the app being killed between purchase and consume, a failed
+ * consume after crediting, and PENDING purchases (slow payment methods) that
+ * completed after the original purchase() promise was abandoned. Safe to call
+ * often: the server is idempotent per transaction and consuming twice no-ops.
+ * Returns how many purchases were re-fulfilled (0 on non-Android / no-op).
+ */
+export async function recoverAndroidPurchases(): Promise<number> {
+  if (iapPlatform() !== 'android' || !isSupabaseConfigured) return 0;
+  const known = new Set(FUNDS_BUNDLES.map((b) => b.sku));
+  let recovered = 0;
+  try {
+    const { restorePurchases, consumePurchase, PurchaseState } = await import('@choochmeque/tauri-plugin-iap-api');
+    const { purchases } = await restorePurchases('inapp');
+    for (const p of purchases) {
+      if (p.purchaseState !== PurchaseState.PURCHASED || !known.has(p.productId)) continue;
+      const { error } = await supabase.functions.invoke('fulfill-purchase', {
+        body: { platform: 'android', sku: p.productId, receipt: p.purchaseToken },
+      });
+      // Consume ONLY once the server has credited — a consumed-but-uncredited
+      // purchase would be unrecoverable.
+      if (!error) {
+        await consumePurchase(p.purchaseToken);
+        recovered += 1;
+      }
+    }
+  } catch {
+    /* best-effort; the next Shop open retries */
+  }
+  return recovered;
 }
 
 /** Extract the real reason from a supabase-js FunctionsHttpError. On a non-2xx the
@@ -175,7 +233,7 @@ async function edgeErrorMessage(error: unknown): Promise<string> {
  *  user). So we retry with a short backoff until products resolve. Returns {} on
  *  non-iOS or if every attempt comes back empty (e.g. offline). */
 export async function getFundsPrices(): Promise<Record<string, string>> {
-  if (iapPlatform() !== 'ios') return {};
+  if (!nativeIapAvailable()) return {};
   const skus = FUNDS_BUNDLES.map((b) => b.sku);
   const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
   const ATTEMPTS = 6;
