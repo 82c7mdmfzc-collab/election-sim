@@ -153,6 +153,8 @@ interface GameStore extends GameState {
   returnToMenu(): void;
   /** Re-enter a persisted in-progress game from Home (sets viewingGame true). */
   resumeGame(): void;
+  /** Leave the board for Home without abandoning the game (Android back). */
+  minimizeGame(): void;
 
   // ── Multiplayer actions ──────────────────────────────────────────────────────
   /** Set session metadata after joining/creating a lobby. */
@@ -428,6 +430,14 @@ export const useGameStore = create<GameStore>()(
         // it true drops the player back into their saved game.
         resumeGame() {
           set({ viewingGame: true });
+        },
+
+        // ── minimizeGame ──────────────────────────────────────────────────────
+        // Inverse of resumeGame: drop back to Home while the game stays persisted
+        // and in progress. Home's Resume CTA re-enters it. Used by the Android
+        // hardware back button so backing out never abandons a campaign.
+        minimizeGame() {
+          set({ viewingGame: false });
         },
 
         // ── allocate ──────────────────────────────────────────────────────────
