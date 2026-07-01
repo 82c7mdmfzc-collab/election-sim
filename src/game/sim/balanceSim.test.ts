@@ -261,7 +261,6 @@ SIM(
     mkdirSync(outDir, { recursive: true });
     writeFileSync(join(outDir, 'economy-sim-findings.md'), lines.join('\n'));
     writeFileSync(join(outDir, 'results.json'), JSON.stringify(raw, null, 2));
-    // eslint-disable-next-line no-console
     console.log(`\n${lines.join('\n')}\n\n✓ wrote sim-output/economy-sim-findings.md`);
 
     expect(overall[0].wr).toBeGreaterThan(0);

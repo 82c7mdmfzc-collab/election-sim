@@ -3854,8 +3854,13 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   color: var(--text); font-weight: 700; letter-spacing: 0.03em;
   transition: filter 0.12s ease, transform 0.12s ease, border-color 0.12s ease;
 }
-@media (hover: hover) and (pointer: fine) { .auth-gate__signout:hover { border-color: var(--gold); filter: brightness(1.1); } }
-.auth-gate__signout:active { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) { .auth-gate__signout:hover:not(:disabled) { border-color: var(--gold); filter: brightness(1.1); } }
+.auth-gate__signout:active:not(:disabled) { transform: scale(0.98); }
+.auth-gate__signout:disabled {
+  opacity: 0.6;
+  cursor: progress;
+  transform: none;
+}
 .auth-gate__stats { display: flex; gap: 0.5rem; margin-bottom: 1.1rem; }
 .auth-gate__stat {
   flex: 1; text-align: center; background: rgba(255,255,255,0.03);
@@ -7847,12 +7852,50 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 .lb-row--pinned { max-width: 560px; width: 100%; margin: 0.5rem auto 0; }
 
 /* ── Settings panel ───────────────────────────────────────────────────────── */
-.settings-panel { max-width: 460px; }
+.settings-panel {
+  max-width: 460px;
+  max-height: min(86vh, 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .settings-section { margin-bottom: 1rem; }
 .settings-section__title {
   font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--brand); margin: 0 0 0.5rem;
 }
+.settings-section--account {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.settings-account {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.settings-account__summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.settings-account__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--text);
+}
+.settings-account__funds {
+  flex: 0 1 auto;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.settings-account__button.auth-gate__signout { margin: 0; }
 .settings-toggle {
   display: flex; align-items: center; gap: 0.75rem;
   padding: 0.55rem 0;
