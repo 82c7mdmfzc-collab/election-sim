@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useProfile, selectFunds, selectIsSignedIn } from '../hooks/useProfile';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 import { AudioManager } from '../utils/audioManager';
 import { isNativeRuntime } from '../utils/platform';
 import { haptic } from '../utils/haptics';
@@ -73,6 +74,9 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
     AudioManager.play('quit');
     onClose();
   }
+
+  // Android hardware back closes the panel, same as the ✕ button.
+  useAndroidBack(close);
 
   async function handleSignOut() {
     setSigningOut(true);

@@ -24,6 +24,7 @@ import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
+import { useAndroidBack } from './hooks/useAndroidBack';
 import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon } from './components/icons';
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
 import { AudioManager } from './utils/audioManager';
@@ -339,6 +340,29 @@ function App() {
     if (mode === 'daily') track('daily_challenge_opened', { entry_surface: 'menu' });
     setAppMode(mode);
   }
+
+  // Android hardware/gesture back mirrors the on-screen ← buttons. Modals
+  // (AuthGate, Settings) register their own handlers on top of this one, so
+  // back closes them first. At Home this is null: no sentinel exists and the
+  // system backgrounds the app, which is correct Android behavior.
+  const inGame = viewingGame && phase !== 'SETUP' && phase !== 'MENU';
+  const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const minimizeGame = useGameStore((s) => s.minimizeGame);
+  let backAction: (() => void) | null = null;
+  if (inGame) {
+    // Online games and the election tally swallow back: leaving mid-turn would
+    // abandon opponents, and a minimized tally has no Resume CTA to return to.
+    // Solo/local games minimize to Home, where Resume Campaign re-enters them.
+    const canMinimize = multiplayerMode !== 'online' && phase !== 'ELECTION_TALLY';
+    backAction = canMinimize ? minimizeGame : () => {};
+  } else if (ready && (signedIn || guestContinued)) {
+    if (appMode === 'tutorial') {
+      backAction = tutorialSource === 'menu' ? () => setAppMode('mode-select') : null;
+    } else if (appMode !== 'mode-select') {
+      backAction = () => setAppMode('mode-select');
+    }
+  }
+  useAndroidBack(backAction);
 
   function openAccount(trigger: 'account_button' | 'shop_gate' | 'online_gate' | 'other' = 'account_button') {
     track('account_prompt_opened', { trigger });

@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
+import { useAndroidBack } from '../hooks/useAndroidBack';
 import { AudioManager } from '../utils/audioManager';
 import { UsernameClaim } from './UsernameClaim';
 import { SignInButtons } from './SignInButtons';
@@ -51,6 +52,9 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
     AudioManager.play('quit');
     onClose();
   }
+
+  // Android hardware back closes the panel, same as the ✕ button.
+  useAndroidBack(close);
 
   async function handleDelete() {
     setDeleting(true);
