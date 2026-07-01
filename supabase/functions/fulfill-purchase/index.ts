@@ -116,15 +116,34 @@ async function verifyApple(jws: string): Promise<VerifiedPurchase> {
   return { transactionId, sku: txn.productId };
 }
 
+/** Exchange the Play service account's key for an androidpublisher-scoped OAuth2
+ *  access token (RFC 7523 JWT bearer grant). */
+async function googleAccessToken(sa: { client_email: string; private_key: string }): Promise<string> {
+  // Dashboard-pasted secrets often carry literal "\n" in the PEM — normalize.
+  const key = await importPKCS8(sa.private_key.replace(/\\n/g, '\n'), 'RS256');
+  const assertion = await new SignJWT({ scope: 'https://www.googleapis.com/auth/androidpublisher' })
+    .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+    .setIssuer(sa.client_email)
+    .setAudience('https://oauth2.googleapis.com/token')
+    .setIssuedAt()
+    .setExpirationTime('10m')
+    .sign(key);
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }),
+  });
+  if (!resp.ok) throw new Error(`Google OAuth token exchange failed: ${resp.status}`);
+  const { access_token } = (await resp.json()) as { access_token?: string };
+  if (!access_token) throw new Error('Google OAuth token exchange returned no token');
+  return access_token;
+}
+
 /**
  * Verify a Google Play purchase token against the Play Developer API and return
- * the authoritative { transactionId (orderId/token), productId }.
- *
- * TODO(native): implement using GOOGLE_SERVICE_ACCOUNT_JSON + ANDROID_PACKAGE_NAME:
- *   1. service-account JWT → OAuth2 access token (androidpublisher scope),
- *   2. GET .../androidpublisher/v3/applications/{pkg}/purchases/products/{sku}/tokens/{token},
- *   3. confirm purchaseState === 0 (purchased); use the token as the txn id.
- * Fail closed until configured.
+ * the authoritative { transactionId, sku }. The request URL binds token↔sku↔package
+ * — Google rejects a mismatch — so a 200 with purchaseState 0 IS the trust anchor.
+ * Fail closed until GOOGLE_SERVICE_ACCOUNT_JSON / ANDROID_PACKAGE_NAME are set.
  */
 async function verifyGoogle(purchaseToken: string, sku: string): Promise<VerifiedPurchase> {
   const svcAccount = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
@@ -133,8 +152,33 @@ async function verifyGoogle(purchaseToken: string, sku: string): Promise<Verifie
     throw new VerificationUnavailable('Google verification not configured');
   }
   if (!purchaseToken || !sku) throw new VerificationUnavailable('Google verification: missing token/sku');
-  // TODO(native): service-account OAuth → Play Developer API purchases.products.get.
-  throw new VerificationUnavailable('Google verification not yet implemented');
+
+  const token = await googleAccessToken(JSON.parse(svcAccount));
+  const base = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'
+    + `${encodeURIComponent(pkg)}/purchases/products/${encodeURIComponent(sku)}/tokens/${encodeURIComponent(purchaseToken)}`;
+  const resp = await fetch(base, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) throw new Error(`Google Play Developer API ${resp.status}`);
+  const p = (await resp.json()) as {
+    purchaseState?: number; // 0 purchased, 1 canceled, 2 pending
+    acknowledgementState?: number; // 0 yet-to-acknowledge, 1 acknowledged
+    orderId?: string;
+  };
+  if (p.purchaseState !== 0) throw new Error(`Google: purchaseState ${p.purchaseState} is not purchased`);
+
+  // Defensive server-side acknowledge: stops Google's 3-day auto-refund even if
+  // the client dies before consuming (consume still works on an acknowledged
+  // purchase). Best-effort — crediting never depends on it.
+  if (p.acknowledgementState === 0) {
+    fetch(`${base}:acknowledge`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    }).catch(() => {});
+  }
+
+  // orderId (GPA.…) is the human-traceable id, but license-tester purchases can
+  // omit it — the purchaseToken (unique per purchase) keeps idempotency intact.
+  return { transactionId: p.orderId || purchaseToken, sku };
 }
 
 Deno.serve(async (req: Request) => {

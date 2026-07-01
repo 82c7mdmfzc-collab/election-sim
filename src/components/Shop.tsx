@@ -16,7 +16,7 @@ import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
-import { FUNDS_BUNDLES, displayFundsPrice, getFundsPrices, iapPlatform, nativeIapAvailable, purchase } from '../utils/iap';
+import { FUNDS_BUNDLES, displayFundsPrice, getFundsPrices, iapPlatform, nativeIapAvailable, purchase, recoverAndroidPurchases, type PurchaseResult } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
 import { cosmeticsByCategory, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
 import {
@@ -338,11 +338,15 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
   }, [billingPlatform, hasNativeBilling, source]);
 
   // On open, refresh the balance (picks up funds credited by a recent purchase).
+  // On Android, also sweep for owned-but-unconsumed packs (purchase interrupted
+  // before consume, or a PENDING payment that has since completed) and refresh
+  // again if anything was credited.
   useEffect(() => {
     void refresh();
+    void recoverAndroidPurchases().then((n) => { if (n > 0) void refresh(); });
   }, [refresh]);
 
-  // Native (iOS): load StoreKit's localized prices for the funds packs. getFundsPrices
+  // Native: load the store's localized prices for the funds packs. getFundsPrices
   // retries until the catalog resolves, so this may settle a beat after mount.
   useEffect(() => {
     if (!nativeIapAvailable()) return;
@@ -463,7 +467,17 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
       platform: billingPlatform,
     });
-    const result = await purchase(sku);
+    // Play Billing never settles the purchase promise for PENDING payment methods
+    // (slow test card, cash top-ups) — don't leave the button on "Processing…"
+    // forever. The recovery sweep credits the purchase when it completes.
+    const pendingTimeout: PurchaseResult = {
+      status: 'error',
+      message: 'Purchase pending — Campaign Funds will be added once your payment completes.',
+    };
+    const result = await Promise.race([
+      purchase(sku),
+      new Promise<PurchaseResult>((resolve) => { window.setTimeout(() => resolve(pendingTimeout), 90_000); }),
+    ]);
     if (result.status === 'fulfilled') {
       AudioManager.play('victory');
       setPurchaseMsg('Purchase complete — Campaign Funds added.');
@@ -491,7 +505,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
         product_id: sku,
         product_type: 'funds',
         status: 'failed',
-        reason_category: 'provider_error',
+        reason_category: result === pendingTimeout ? 'pending_timeout' : 'provider_error',
         value_usd: bundle ? priceValue(bundle.priceLabel) : 0,
         platform: billingPlatform,
       });
@@ -587,7 +601,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
           <p className="shop__sub">
             {showPaidFunds
               ? 'Top up Campaign Funds instantly to recruit new candidates faster.'
-              : 'Top up Campaign Funds instantly in the Elector iOS app.'}
+              : 'Top up Campaign Funds instantly in the Elector app.'}
           </p>
           {purchaseMsg && <div className="shop__purchase-msg">{purchaseMsg}</div>}
           {showPaidFunds ? (
@@ -631,7 +645,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
                 <p>
                   {nativeBillingHeld
                     ? 'In-app purchases aren’t configured for this build yet.'
-                    : 'Campaign Funds top-ups are available in the Elector iOS app. On the web you can still earn Campaign Funds by winning games, watching ads, and inviting friends.'}
+                    : 'Campaign Funds top-ups are available in the Elector app for iPhone and Android. On the web you can still earn Campaign Funds by winning games, watching ads, and inviting friends.'}
                 </p>
               </div>
             </div>
