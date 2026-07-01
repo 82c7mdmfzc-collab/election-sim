@@ -86,6 +86,11 @@
       "infoPlist": "Info.ios.plist"
     },
 
+    "android": {
+      "minSdkVersion": 24,
+      "versionCode": 1
+    },
+
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
