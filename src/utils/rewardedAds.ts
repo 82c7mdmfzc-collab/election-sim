@@ -1,4 +1,4 @@
-import { isNativeRuntime, isIOS } from './platform';
+import { isNativeRuntime, platformKind } from './platform';
 
 export const AD_REWARD_MIN = 20;
 export const AD_REWARD_MAX = 60;
@@ -102,9 +102,10 @@ function bridge(): RewardedAdBridge | null {
 }
 
 export function nativeRewardedAdsAvailable(): boolean {
+  const kind = platformKind();
   return import.meta.env.VITE_ENABLE_NATIVE_REWARDED_ADS === 'true'
     && isNativeRuntime()
-    && isIOS();
+    && (kind === 'ios' || kind === 'android');
 }
 
 export function rewardedAdBridgeAvailable(): boolean {
