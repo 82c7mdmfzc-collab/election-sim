@@ -74,7 +74,12 @@ Client catalog lives in `src/utils/iap.ts`; server grants live in `supabase/iap.
 | `funds_20000` | 20,000 | $14.99 | £14.99 |
 | `funds_45000` | 45,000 | $19.99 | £19.99 |
 
-iOS is implemented with StoreKit via `@choochmeque/tauri-plugin-iap-api`. Android verification is intentionally deferred.
+Both native rails go through the same `@choochmeque/tauri-plugin-iap-api` plugin:
+iOS uses StoreKit 2 (receipt = signed JWS), Android uses Google Play Billing v8
+(receipt = purchaseToken; the client consumes after the server credits, and a
+recovery sweep on Shop open re-fulfills anything interrupted mid-flow). Server
+verification for both lives in `supabase/functions/fulfill-purchase/index.ts`
+and is fail-closed until the platform secrets exist.
 
 Required Supabase secrets for iOS crediting:
 
@@ -82,6 +87,15 @@ Required Supabase secrets for iOS crediting:
 supabase secrets set APPLE_ISSUER_ID=...
 supabase secrets set APPLE_KEY_ID=...
 supabase secrets set APPLE_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)"
+```
+
+Required Supabase secrets for Android crediting (service account invited in
+Play Console → Users and permissions with View financial data + Manage orders —
+see ANDROID_RELEASE_GUIDE.md):
+
+```bash
+supabase secrets set GOOGLE_SERVICE_ACCOUNT_JSON="$(cat service-account.json)"
+supabase secrets set ANDROID_PACKAGE_NAME=com.playelector.app
 ```
 
 Deploy:
