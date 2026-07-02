@@ -17,6 +17,8 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { resolveHostTurn } from '../utils/multiplayerActions';
+import { setConnectionState } from '../utils/connectionStatus';
+import { notifyOnce } from '../utils/toast';
 import { useGameStore } from '../game/store';
 import type { LobbyGameState } from '../game/types';
 
@@ -94,10 +96,18 @@ export function useMultiplayerSync() {
           },
         )
         .subscribe((status) => {
-          if (status === 'SUBSCRIBED') { retry = 0; return; }
+          if (status === 'SUBSCRIBED') {
+            // Surface the recovery only after an actual drop (retry > 0), not
+            // on the initial subscribe.
+            if (retry > 0) notifyOnce('info', 'Back online — game synced.');
+            retry = 0;
+            setConnectionState('connected');
+            return;
+          }
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             if (cancelled) return;
             console.error(`[multiplayer] Realtime ${status} for lobby ${lobbyId} — reconnecting`);
+            setConnectionState('reconnecting');
             if (channel) { supabase.removeChannel(channel); channel = null; }
             if (reconnectTimer) clearTimeout(reconnectTimer);
             const delay = Math.min(800 * 2 ** retry, 8000);
@@ -113,6 +123,7 @@ export function useMultiplayerSync() {
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (channel) supabase.removeChannel(channel);
+      setConnectionState('connected'); // never leave a stale banner behind
     };
   // resolvedForRef is stable; omit to avoid unnecessary re-subscriptions.
   }, [lobbyId, localId, hostId, currentTurn, syncFromPayload]);

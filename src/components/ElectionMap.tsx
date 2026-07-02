@@ -362,6 +362,13 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
           <span className="state-card__tier">{tier} · {maxRungs} Campaign Influence</span>
           <span className="state-card__cost">Base ${usState.baseCampaignCost}k each</span>
         </div>
+        <div className="state-card__tier-hint">
+          {tier === 'Megastate'
+            ? 'Biggest prize — a 16-step ladder that costs the most to climb.'
+            : tier === 'Small'
+              ? 'Quick win — a short 8-step ladder that is cheap to lock down.'
+              : 'Balanced — a 12-step ladder between cheap and contested.'}
+        </div>
 
         {securedName && (
           <div className="state-card__locked">🔒 Called for {securedName}</div>

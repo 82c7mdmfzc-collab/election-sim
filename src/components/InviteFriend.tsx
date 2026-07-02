@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { getMyReferralCode, referralLink, REFERRAL_RANGE } from '../game/referral';
 import { AudioManager } from '../utils/audioManager';
+import { Spinner } from './Spinner';
 import { track } from '../utils/analytics';
 
 export function InviteFriend() {
@@ -94,7 +95,7 @@ export function InviteFriend() {
       ) : failed ? (
         <div className="invite__note">Couldn’t load your invite link. Try again later.</div>
       ) : (
-        <div className="invite__note">Loading your invite link…</div>
+        <div className="invite__note"><Spinner label="Loading your invite link…" /></div>
       )}
     </div>
   );

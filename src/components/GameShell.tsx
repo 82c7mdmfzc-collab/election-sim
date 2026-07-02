@@ -31,12 +31,26 @@ import { useMultiplayerSync } from '../hooks/useMultiplayerSync';
 import { useBotDriver } from '../hooks/useBotDriver';
 import { STATE_GROUPS } from '../game/config';
 import { AudioManager } from '../utils/audioManager';
+import { useConnectionStatus } from '../utils/connectionStatus';
 
 // Null-render wrapper so useMultiplayerSync respects rules-of-hooks
 // (hooks cannot be called conditionally, so we conditionally render this component).
 function MultiplayerSyncEffect() {
   useMultiplayerSync();
   return null;
+}
+
+// Slim banner over the board while the Realtime channel is re-establishing, so
+// a connection blip reads as "reconnecting" instead of a silently frozen turn.
+function ConnectionBanner() {
+  const state = useConnectionStatus((s) => s.state);
+  if (state !== 'reconnecting') return null;
+  return (
+    <div className="conn-banner" role="status" aria-live="polite">
+      <span className="conn-banner__dot" aria-hidden />
+      Reconnecting to game…
+    </div>
+  );
 }
 
 export function GameShell() {
@@ -58,6 +72,7 @@ export function GameShell() {
   return (
     <div className="shell" data-sfx="none">
       {multiplayerMode === 'online' && <MultiplayerSyncEffect />}
+      {multiplayerMode === 'online' && <ConnectionBanner />}
 
       <div className="shell__top">
         <HeaderHud timer={timer} />
