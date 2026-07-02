@@ -4983,10 +4983,11 @@ html.native .play-mode__modes {
 
 html.native .landing {
   display: grid;
-  grid-template-columns: minmax(270px, 0.9fr) minmax(300px, 1fr);
+  grid-template-columns: minmax(250px, 1fr) minmax(300px, 430px);
   grid-template-rows: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.85rem 1rem;
+  justify-items: center;
+  gap: 0.85rem clamp(1.4rem, 4vw, 3rem);
   padding:
     calc(0.65rem + env(safe-area-inset-top))
     calc(1rem + env(safe-area-inset-right))
@@ -4996,13 +4997,13 @@ html.native .landing {
 html.native .landing > .brand { grid-column: 1 / -1; justify-self: center; }
 html.native .landing .brand__logo { width: min(260px, 34vw); }
 html.native .landing .brand__tagline { display: none; }
-html.native .landing__hero { grid-column: 1; min-width: 0; gap: 0.55rem; }
+html.native .landing__hero { grid-column: 1; min-width: 0; width: min(360px, 100%); gap: 0.55rem; }
 html.native .landing__pitch { max-width: 32ch; font-size: 0.82rem; line-height: 1.35; }
-html.native .landing__card { grid-column: 2; width: min(430px, 44vw); padding: 0.85rem; max-height: 62dvh; overflow: hidden; }
+html.native .landing__card { grid-column: 2; width: min(430px, 100%); justify-self: stretch; padding: 0.85rem; max-height: 62dvh; overflow: hidden; }
 html.native .landing__account-copy,
 html.native .landing__guest-note,
 html.native .landing__legal { display: none; }
-html.native .landing__guest { min-width: min(280px, 36vw); min-height: 44px; padding: 0.6rem 1rem; }
+html.native .landing__guest { min-width: 0; width: min(280px, 100%); min-height: 44px; padding: 0.6rem 1rem; }
 html.native .signin { gap: 0.42rem; }
 html.native .signin__provider { padding: 0.52rem 0.8rem; min-height: 40px; }
 html.native .signin__divider { margin: -0.08rem 0; }
@@ -6404,9 +6405,9 @@ html.native .auth-gate__input {
 
 @media (orientation: landscape) and (max-height: 430px) {
   html.native .landing {
-    grid-template-columns: minmax(145px, 0.45fr) minmax(230px, 0.78fr) minmax(300px, 1fr);
+    grid-template-columns: minmax(145px, 0.45fr) minmax(220px, 0.72fr) minmax(320px, 430px);
     grid-template-rows: minmax(0, 1fr);
-    gap: 0.9rem;
+    gap: clamp(1rem, 3vw, 2rem);
   }
   html.native .landing > .brand {
     grid-column: 1;
@@ -6418,6 +6419,7 @@ html.native .auth-gate__input {
   html.native .landing__hero {
     grid-column: 2;
     grid-row: 1;
+    width: min(300px, 100%);
   }
   html.native .landing__eyebrow {
     font-size: 0.68rem;
@@ -6433,7 +6435,7 @@ html.native .auth-gate__input {
   }
   html.native .landing__guest {
     min-width: 0;
-    width: min(220px, 25vw);
+    width: min(240px, 100%);
   }
   html.native .landing__card {
     grid-column: 3;

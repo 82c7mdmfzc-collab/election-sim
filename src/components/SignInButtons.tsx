@@ -56,6 +56,7 @@ export function SignInButtons() {
   const [message, setMessage] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const showOauth = !isNativeRuntime() || NATIVE_OAUTH_ENABLED;
+  const emailActionLabel = mode === 'signin' ? 'Continue' : 'Send code';
 
   // Tick the resend cooldown down to zero.
   useEffect(() => {
@@ -216,7 +217,7 @@ export function SignInButtons() {
             onKeyDown={(e) => { if (e.key === 'Enter') void sendCode(); }}
           />
           <button type="button" className="tutorial__btn" onClick={() => void sendCode()} disabled={status === 'sending' || cooldown > 0}>
-            {status === 'sending' ? 'Sending…' : cooldown > 0 ? `Wait ${cooldown}s` : 'Send code'}
+            {status === 'sending' ? 'Sending…' : cooldown > 0 ? `Wait ${cooldown}s` : emailActionLabel}
           </button>
         </div>
       ) : step === 'password' ? (
