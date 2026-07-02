@@ -28,6 +28,7 @@ import { notifyError } from '../utils/toast';
 import { sanitizeName } from '../utils/sanitize';
 import { track } from '../utils/analytics';
 import { Portrait } from './Portrait';
+import { Spinner } from './Spinner';
 import { Avatar } from './Avatar';
 import { CandidateStatsModal } from './CandidateStatsModal';
 import {
@@ -765,7 +766,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
 
             {publicLobbies.length === 0 ? (
               <p className="mp-join__hint">
-                {loadingPublic ? 'Looking for games…' : 'No public games right now — host one or join with a code.'}
+                {loadingPublic ? <Spinner label="Looking for games…" /> : 'No public games right now — host one or join with a code.'}
               </p>
             ) : (
               <ul className="mp-public__list">

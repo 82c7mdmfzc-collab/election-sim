@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
+import { Spinner } from './Spinner';
 import {
   fetchLeaderboardRemote,
   BOARD_META,
@@ -76,7 +77,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
 
       <div className="lb-list">
         {loading ? (
-          <div className="lb-state">Loading…</div>
+          <div className="lb-state"><Spinner /></div>
         ) : error ? (
           <div className="lb-state">Couldn’t load the leaderboard. Check your connection and try again.</div>
         ) : !data || data.rows.length === 0 ? (

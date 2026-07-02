@@ -114,9 +114,10 @@ function PlayerHudCard({ player, isActive, isLeader, projectedEV, income, displa
           {reserves > 0 && (
             <span
               className="hud-card__reserves"
-              title="Coalition wallet reserves — extra cash this player can spend in those states"
+              title="Coalition wallet reserves — extra cash this player can spend in those states. Tap for the breakdown."
             >
               +${reserves.toFixed(0)}k banked
+              <span className="hud-card__reserves-info" aria-hidden>ⓘ</span>
             </span>
           )}
           <span className="hud-card__chev">{walletOpen ? '▴' : '▾'}</span>
