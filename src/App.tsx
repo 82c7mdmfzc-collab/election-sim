@@ -352,9 +352,12 @@ function App() {
   if (inGame) {
     // Online games and the election tally swallow back: leaving mid-turn would
     // abandon opponents, and a minimized tally has no Resume CTA to return to.
-    // Solo/local games minimize to Home, where Resume Campaign re-enters them.
+    // Solo/local games minimize straight to Home (not the setup screen that
+    // launched them) — Home's Resume Campaign CTA re-enters the game.
     const canMinimize = multiplayerMode !== 'online' && phase !== 'ELECTION_TALLY';
-    backAction = canMinimize ? minimizeGame : () => {};
+    backAction = canMinimize
+      ? () => { minimizeGame(); setAppMode('mode-select'); }
+      : () => {};
   } else if (ready && (signedIn || guestContinued)) {
     if (appMode === 'tutorial') {
       backAction = tutorialSource === 'menu' ? () => setAppMode('mode-select') : null;

@@ -70,19 +70,29 @@ Current as of 2026-06-28. Public v1 is **web + iOS first**; Android is a fast-fo
 - [ ] Two-device iOS ↔ web full game through election/game-over.
 - [ ] Confirm turn submissions, waiting state, phase transitions, election tally, game-over rewards, and lobby recovery after refresh.
 
-## Android Fast-Follow
+## Android / Google Play (see ANDROID_RELEASE_GUIDE.md for the full runbook)
 
-- [ ] Install/configure Android Studio, SDK, NDK, JDK, and `ANDROID_HOME`.
-- [ ] Run `npm run tauri:android:init`.
-- [ ] Configure app id `com.playelector.app`, app label, adaptive icons, splash art, upload keystore, and Play App Signing.
-- [ ] Implement/finish Google Play Billing receipt verification in `fulfill-purchase`.
-- [ ] Upload an `.aab` to Play Internal Testing and repeat the web/iOS smoke gates.
+Code-side done (2026-07-02): toolchain installed, gen project + prepare/dev/upload
+scripts, hardware back button, Play Billing client + `verifyGoogle` server rail,
+Kotlin AdMob rewarded-ads plugin, upload keystore generated.
+
+Remaining (manual consoles):
+
+- [ ] Play Console: create app `com.playelector.app`, store listing, data safety,
+      content rating + ads declaration, Play App Signing, license testers.
+- [ ] Play Console: create the 6 in-app products (`funds_600` … `funds_45000`).
+- [ ] Google Cloud: service account + Play permissions; set Supabase secrets
+      `GOOGLE_SERVICE_ACCOUNT_JSON`, `ANDROID_PACKAGE_NAME`.
+- [ ] AdMob: Android app + rewarded unit; land real ids in tauri.conf.json
+      (replaces the Google TEST ids — android-upload.sh refuses to ship them).
+- [ ] `scripts/android-upload.sh` → upload the `.aab` to Internal Testing; run the
+      billing/ads/multiplayer smoke gates on a physical device; review the
+      pre-launch report.
 
 ## Deferred
 
 - Bundle code-splitting: current production build warns on the main JS chunk at about 1.27 MB minified / 389 KB gzip. Prioritize shop/native/progression surfaces after v1 unless real-device startup performance is poor.
 - WebP conversion for image assets.
-- Android production release.
 
 ## Handy Commands
 
