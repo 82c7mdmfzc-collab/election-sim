@@ -174,7 +174,7 @@ if printf '%s' "$ipad_orientations" | grep -q "Portrait"; then
   exit 1
 fi
 
-archive_entitlements="$(mktemp "$gen_root/build/archive-entitlements.XXXXXX.plist")"
+archive_entitlements="$(mktemp "$gen_root/build/archive-entitlements.XXXXXX")"
 extract_entitlements "$archive_app" "$archive_entitlements" || {
   echo "Error: archived app is not signed; check $archive_log." >&2
   exit 1
