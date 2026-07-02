@@ -37,3 +37,8 @@ supabase/.temp/
 
 # Balance-sim harness output (src/game/sim) — generated report + raw results
 sim-output/
+
+# Build-time copy of the Tauri Android API into the local admob plugin (regenerated every android build)
+src-tauri/plugins/elector-admob/android/.tauri/
+src-tauri/plugins/elector-admob/android/build/
+

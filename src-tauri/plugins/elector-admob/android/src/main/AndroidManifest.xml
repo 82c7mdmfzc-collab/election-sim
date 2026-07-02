@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The com.google.android.gms.ads.APPLICATION_ID meta-data is injected into
+         the generated app manifest by this plugin's build.rs (config-driven), so
+         it survives `tauri android init` regenerating gen/. -->
+</manifest>

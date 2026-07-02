@@ -12,3 +12,4 @@ thiserror = "2"
 
 [build-dependencies]
 tauri-plugin = { version = "2.6.2", features = ["build"] }
+serde = { version = "1", features = ["derive"] }

@@ -43,7 +43,9 @@
 
   "plugins": {
     "elector-admob": {
-      "iosRewardedAdUnitId": "ca-app-pub-5364561069734393/7845987969"
+      "iosRewardedAdUnitId": "ca-app-pub-5364561069734393/7845987969",
+      "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+      "androidRewardedAdUnitId": "ca-app-pub-3940256099942544/5224354917"
     },
     "deep-link": {
       "mobile":  [{ "scheme": ["com.playelector.app"] }],

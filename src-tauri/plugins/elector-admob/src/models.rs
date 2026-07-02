@@ -38,4 +38,11 @@ impl ShowRewardedAdResponse {
 #[serde(rename_all = "camelCase", default)]
 pub struct AdmobConfig {
     pub ios_rewarded_ad_unit_id: Option<String>,
+    /// AdMob Android APP id (ca-app-pub-…~…): injected into the generated
+    /// AndroidManifest by build.rs — the Mobile Ads SDK aborts at launch
+    /// without it.
+    pub android_app_id: Option<String>,
+    /// AdMob Android rewarded ad UNIT id (ca-app-pub-…/…), read by the Kotlin
+    /// plugin; falls back to Google's test unit when absent.
+    pub android_rewarded_ad_unit_id: Option<String>,
 }
