@@ -121,6 +121,14 @@ if printf '%s' "$ipad_orientations" | grep -q "Portrait"; then
   echo "Error: archive iPad orientations include portrait; App Store landscape build should be fullscreen landscape-only." >&2
   exit 1
 fi
+# Native Sign in with Apple needs the applesignin entitlement in the signed app;
+# ios-prepare-gen.sh injects it into the generated .entitlements — fail loudly if
+# a stale gen/ was archived without it (Apple sign-in would error at runtime).
+codesign -d --entitlements :- "$archive_path/Products/Applications/Elector.app" 2>/dev/null \
+  | grep -q "com.apple.developer.applesignin" || {
+  echo "Error: archive missing the Sign in with Apple entitlement (rerun scripts/ios-prepare-gen.sh)." >&2
+  exit 1
+}
 echo "[ios-upload] Archive complete: $archive_path"
 
 # ── Export ────────────────────────────────────────────────────────────────────

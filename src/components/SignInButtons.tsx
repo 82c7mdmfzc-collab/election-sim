@@ -12,7 +12,12 @@
 
 import { useEffect, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
-import { APPLE_SIGNIN_ENABLED, NATIVE_OAUTH_ENABLED, isNativeRuntime } from '../utils/authClient';
+import {
+  APPLE_SIGNIN_ENABLED,
+  NATIVE_OAUTH_ENABLED,
+  REVIEW_ACCOUNT_EMAIL,
+  isNativeRuntime,
+} from '../utils/authClient';
 import { track } from '../utils/analytics';
 import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 
@@ -22,7 +27,7 @@ import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 const RESEND_COOLDOWN_S = 60;
 
 type Mode = 'signin' | 'signup';
-type Step = 'email' | 'code';
+type Step = 'email' | 'code' | 'password';
 type Status = 'idle' | 'sending' | 'verifying' | 'sent' | 'error';
 type AuthMethod = 'apple' | 'google' | 'email';
 
@@ -38,6 +43,7 @@ function authFailureReason(message: string): string {
 export function SignInButtons() {
   const sendEmailCode = useProfile((s) => s.sendEmailCode);
   const verifyEmailCode = useProfile((s) => s.verifyEmailCode);
+  const signInWithPassword = useProfile((s) => s.signInWithPassword);
   const signInWithGoogle = useProfile((s) => s.signInWithGoogle);
   const signInWithApple = useProfile((s) => s.signInWithApple);
 
@@ -45,6 +51,7 @@ export function SignInButtons() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
   const [cooldown, setCooldown] = useState(0);
@@ -63,16 +70,25 @@ export function SignInButtons() {
     setStatus('idle');
     setMessage('');
     setCode('');
+    setPassword('');
   }
 
-  async function oauth(method: AuthMethod, fn: () => Promise<{ error?: string }>) {
+  async function oauth(
+    method: AuthMethod,
+    fn: () => Promise<{ error?: string; cancelled?: boolean }>,
+  ) {
     setStatus('idle');
     setMessage('');
     track('auth_started', { method, mode });
     if (method === 'apple' || method === 'google') {
       window.sessionStorage.setItem('elector.pendingAuthMethod', method);
     }
-    const { error } = await fn();
+    const { error, cancelled } = await fn();
+    // User dismissed the native sheet — an expected action, keep the UI quiet.
+    if (cancelled) {
+      window.sessionStorage.removeItem('elector.pendingAuthMethod');
+      return;
+    }
     if (error) {
       window.sessionStorage.removeItem('elector.pendingAuthMethod');
       track('auth_failed', { method, mode, reason_category: authFailureReason(error) });
@@ -93,6 +109,13 @@ export function SignInButtons() {
 
   async function sendCode() {
     if (!email.trim() || status === 'sending' || cooldown > 0) return;
+    // App Review demo account: show a password field instead of emailing an OTP.
+    if (email.trim().toLowerCase() === REVIEW_ACCOUNT_EMAIL) {
+      setStep('password');
+      setStatus('idle');
+      setMessage('');
+      return;
+    }
     setStatus('sending');
     setMessage('');
     track('auth_started', { method: 'email', mode });
@@ -106,6 +129,20 @@ export function SignInButtons() {
     setStep('code');
     setStatus('sent');
     setCooldown(RESEND_COOLDOWN_S);
+  }
+
+  async function verifyPassword() {
+    if (!password || status === 'verifying') return;
+    setStatus('verifying');
+    setMessage('');
+    const { error } = await signInWithPassword(email.trim(), password);
+    if (error) {
+      track('auth_failed', { method: 'email', mode, reason_category: authFailureReason(error) });
+      setStatus('error');
+      setMessage(error);
+      return;
+    }
+    track('auth_completed', { method: 'email', mode });
   }
 
   async function verify() {
@@ -181,6 +218,31 @@ export function SignInButtons() {
           <button type="button" className="tutorial__btn" onClick={() => void sendCode()} disabled={status === 'sending' || cooldown > 0}>
             {status === 'sending' ? 'Sending…' : cooldown > 0 ? `Wait ${cooldown}s` : 'Send code'}
           </button>
+        </div>
+      ) : step === 'password' ? (
+        <div className="signin__verify">
+          <p className="auth-gate__hint">
+            Enter the password for <strong>{email}</strong>.
+          </p>
+          <div className="auth-gate__row">
+            <input
+              type="password"
+              autoComplete="current-password"
+              className="auth-gate__input"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void verifyPassword(); }}
+            />
+            <button type="button" className="tutorial__btn" onClick={() => void verifyPassword()} disabled={status === 'verifying' || !password}>
+              {status === 'verifying' ? 'Signing in…' : 'Sign in'}
+            </button>
+          </div>
+          <div className="signin__actions">
+            <button type="button" className="home__link" onClick={() => { setStep('email'); setPassword(''); setStatus('idle'); setMessage(''); }}>
+              Use a different email
+            </button>
+          </div>
         </div>
       ) : (
         <div className="signin__verify">

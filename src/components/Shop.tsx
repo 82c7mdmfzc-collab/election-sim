@@ -40,6 +40,8 @@ import { Portrait } from './Portrait';
 interface ShopProps {
   source?: 'menu' | 'locked_candidate' | 'victory' | 'account';
   onBack: () => void;
+  /** Open the sign-in modal — invoked when a guest tries to buy or unlock. */
+  onSignIn?: () => void;
 }
 
 type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages' | 'cosmetics';
@@ -292,7 +294,7 @@ function RewardedAdCard() {
   );
 }
 
-export function Shop({ source = 'menu', onBack }: ShopProps) {
+export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
   const unlock = useProfile((s) => s.unlock);
@@ -381,7 +383,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
 
   async function unlockOrEquipFrame(c: CosmeticDef) {
     if (isCosmeticAvailable(c.id, unlocked)) { equipFrame(c.id); return; }
-    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); onSignIn?.(); return; }
     if (funds < c.unlockCost) {
       setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Campaign Funds to unlock ${c.name}.`);
       return;
@@ -404,7 +406,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
 
   async function unlockOrEquipVictoryMessage(m: VictoryMessage) {
     if (isVictoryMessageAvailable(m.id, unlocked)) { equipVictoryMessage(m.id); return; }
-    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); onSignIn?.(); return; }
     if (funds < m.unlockCost) {
       setCosmeticMsg(`Earn ${(m.unlockCost - funds).toLocaleString()} more Campaign Funds to unlock ${m.label}.`);
       return;
@@ -457,7 +459,7 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
 
   async function buyFunds(sku: string) {
     const bundle = FUNDS_BUNDLES.find((b) => b.sku === sku);
-    if (guest) { setPurchaseMsg('Sign in to buy Campaign Funds.'); return; }
+    if (guest) { setPurchaseMsg('Sign in to buy Campaign Funds.'); onSignIn?.(); return; }
     if (nativeBillingHeld) { setPurchaseMsg('Campaign Funds purchases are not available in this build.'); return; }
     setBuyingSku(sku);
     AudioManager.play('click');
@@ -538,7 +540,8 @@ export function Shop({ source = 'menu', onBack }: ShopProps) {
       subtext = 'Free to claim this month.';
     } else if (guest) {
       actionLabel = 'Sign in to unlock';
-      actionDisabled = true;
+      actionDisabled = !onSignIn;
+      onAction = () => { close(); onSignIn?.(); };
     } else if (affordable) {
       actionLabel = working ? 'Unlocking…' : `Unlock — ${c.unlockCost.toLocaleString()} Campaign Funds`;
       actionDisabled = working;

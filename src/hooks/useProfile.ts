@@ -57,6 +57,7 @@ import {
   onAuthChange,
   sendEmailCode as authSendEmailCode,
   verifyEmailCode as authVerifyEmailCode,
+  signInWithPassword as authSignInWithPassword,
   signInWithGoogle as authSignInWithGoogle,
   signInWithApple as authSignInWithApple,
   claimDisplayName,
@@ -127,8 +128,9 @@ interface ProfileStore {
   isUnlocked(characterId: string): boolean;
   sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
   verifyEmailCode(email: string, code: string): Promise<{ error?: string }>;
+  signInWithPassword(email: string, password: string): Promise<{ error?: string }>;
   signInWithGoogle(): Promise<{ error?: string }>;
-  signInWithApple(): Promise<{ error?: string }>;
+  signInWithApple(): Promise<{ error?: string; cancelled?: boolean }>;
   claimUsername(name: string): Promise<ClaimNameResult>;
   signOut(): Promise<void>;
   /** Permanently delete the account + all server data, then sign out. */
@@ -498,6 +500,10 @@ export const useProfile = create<ProfileStore>((set, get) => ({
 
   async verifyEmailCode(email, code) {
     return authVerifyEmailCode(email, code);
+  },
+
+  async signInWithPassword(email, password) {
+    return authSignInWithPassword(email, password);
   },
 
   async signInWithGoogle() {

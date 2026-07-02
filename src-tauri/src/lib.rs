@@ -11,6 +11,7 @@ pub fn run() {
         //   .invoke_handler(tauri::generate_handler![my_command])
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_elector_siwa::init())
         .plugin(tauri_plugin_elector_admob::init())
         .plugin(tauri_plugin_iap::init())
         // Local notifications build on every platform (unlike haptics), so this

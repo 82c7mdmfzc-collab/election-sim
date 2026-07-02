@@ -484,12 +484,12 @@ function App() {
     );
     screenKey = 'tutorial';
   } else if (appMode === 'shop') {
-    screen = signedIn ? (
-      <Shop source={shopSource} onBack={() => setAppMode('mode-select')} />
-    ) : (
-      <GuestGate
-        title="Campaign Shop"
-        message="Sign in to keep Campaign Funds, unlocks, and your roster synced across devices."
+    // Browsable signed-out so the store (and its in-app purchases) is discoverable
+    // from a clean install — Shop handles guest state itself and prompts sign-in
+    // on buy/unlock attempts via onSignIn.
+    screen = (
+      <Shop
+        source={shopSource}
         onBack={() => setAppMode('mode-select')}
         onSignIn={() => openAccount('shop_gate')}
       />
