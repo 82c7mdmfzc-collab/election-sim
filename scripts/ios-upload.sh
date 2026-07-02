@@ -21,6 +21,8 @@ ISSUER="cb582172-4f30-4747-a979-fbd27dc2fc7c"
 APPLE_API_KEY_ID="K7JZWQB6L4"
 APPLE_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY_ID}.p8"
 TEAM_ID="NSUP6D9BX5"
+CODE_SIGN_IDENTITY="Apple Distribution: DANIEL JOSEPH TOOLEY (${TEAM_ID})"
+PROVISIONING_PROFILE_SPECIFIER="Elector App Store Distribution"
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 gen_root="$repo_root/src-tauri/gen/apple"
@@ -31,6 +33,45 @@ export_path="$gen_root/build/export"
 export_options="$repo_root/scripts/ExportOptions-AppStore.plist"
 project="$gen_root/election-sim.xcodeproj"
 scheme="election-sim_iOS"
+archive_log="$gen_root/build/archive.log"
+export_log="$gen_root/build/export.log"
+
+print_log_tail() {
+  label="$1"
+  log="$2"
+  echo "[ios-upload] Last lines from $label:"
+  grep -E 'error:|warning:.*error|Archive|CodeSign|Signing Identity|Provisioning Profile|EXPORT|Exported|success|Done|BUILD|FAILED|SUCCEEDED' "$log" \
+    | tail -40 || tail -40 "$log"
+}
+
+extract_entitlements() {
+  app="$1"
+  output="$2"
+  codesign -d --entitlements :- "$app" > "$output" 2>/dev/null
+  plutil -lint "$output" >/dev/null
+}
+
+require_siwa_entitlement() {
+  entitlements="$1"
+  label="$2"
+  /usr/libexec/PlistBuddy -c "Print :com.apple.developer.applesignin:0" "$entitlements" 2>/dev/null \
+    | grep -qx "Default" || {
+    echo "Error: $label missing the Sign in with Apple entitlement." >&2
+    exit 1
+  }
+  echo "[ios-upload] $label includes Sign in with Apple entitlement."
+}
+
+require_get_task_allow_false() {
+  entitlements="$1"
+  label="$2"
+  /usr/libexec/PlistBuddy -c "Print :get-task-allow" "$entitlements" 2>/dev/null \
+    | grep -qx "false" || {
+    echo "Error: $label has get-task-allow enabled; App Store IPA must be distribution-signed." >&2
+    exit 1
+  }
+  echo "[ios-upload] $label has get-task-allow=false."
+}
 
 # ── Pre-flight checks ──────────────────────────────────────────────────────────
 if [ -z "$ISSUER" ]; then
@@ -79,12 +120,14 @@ echo "[ios-upload] Version bump pushed to main"
 # ── Archive ───────────────────────────────────────────────────────────────────
 echo "[ios-upload] Archiving (builds frontend + Rust + app — takes a few minutes)..."
 rm -rf "$archive_path" "$export_path"
+mkdir -p "$gen_root/build"
 # ELECTOR_NO_SYNC=1 prevents the Xcode build-phase script from re-syncing (we
 # already synced above, and a second pull could conflict with the bump commit).
 # project.yml defines configs as lowercase "release"/"debug" — match exactly.
-# ios-prepare-gen.sh clears the hardcoded "iPhone Developer" identity in the pbxproj
-# so automatic signing can choose Apple Distribution for this archive operation.
-ELECTOR_NO_SYNC=1 xcodebuild archive \
+# Sign the archive with the App Store distribution profile so Xcode records the
+# entitlement request and export preserves Sign in with Apple in the final IPA.
+if ! env -u GIT_CONFIG_COUNT -u GIT_CONFIG_KEY_0 -u GIT_CONFIG_VALUE_0 \
+  ELECTOR_NO_SYNC=1 xcodebuild archive \
   -project "$project" \
   -scheme "$scheme" \
   -configuration release \
@@ -95,15 +138,24 @@ ELECTOR_NO_SYNC=1 xcodebuild archive \
   -authenticationKeyID "$APPLE_API_KEY_ID" \
   -authenticationKeyIssuerID "$ISSUER" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
-  CODE_SIGN_STYLE=Automatic \
-  2>&1 | grep -E 'error:|warning:.*error|Archive|Compiling|Linking|BUILD' | tail -20 || true
+  CODE_SIGN_STYLE=Manual \
+  CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
+  PROVISIONING_PROFILE_SPECIFIER="$PROVISIONING_PROFILE_SPECIFIER" \
+  CODE_SIGNING_ALLOWED=YES \
+  CODE_SIGNING_REQUIRED=YES \
+  > "$archive_log" 2>&1; then
+  echo "Error: archive failed." >&2
+  print_log_tail "archive log" "$archive_log" >&2
+  exit 1
+fi
+print_log_tail "archive log" "$archive_log"
 
 if [ ! -d "$archive_path" ]; then
-  echo "Error: archive failed — rerun with verbose output to diagnose:" >&2
-  echo "  ELECTOR_NO_SYNC=1 xcodebuild archive -project $project -scheme $scheme -configuration release -destination 'generic/platform=iOS' -archivePath $archive_path -allowProvisioningUpdates CODE_SIGN_IDENTITY='Apple Distribution' DEVELOPMENT_TEAM=$TEAM_ID" >&2
+  echo "Error: archive failed — expected archive not found at $archive_path" >&2
   exit 1
 fi
 app_info="$archive_path/Products/Applications/Elector.app/Info.plist"
+archive_app="$archive_path/Products/Applications/Elector.app"
 if [ ! -f "$app_info" ]; then
   echo "Error: archived app Info.plist not found at $app_info" >&2
   exit 1
@@ -121,14 +173,14 @@ if printf '%s' "$ipad_orientations" | grep -q "Portrait"; then
   echo "Error: archive iPad orientations include portrait; App Store landscape build should be fullscreen landscape-only." >&2
   exit 1
 fi
-# Native Sign in with Apple needs the applesignin entitlement in the signed app;
-# ios-prepare-gen.sh injects it into the generated .entitlements — fail loudly if
-# a stale gen/ was archived without it (Apple sign-in would error at runtime).
-codesign -d --entitlements :- "$archive_path/Products/Applications/Elector.app" 2>/dev/null \
-  | grep -q "com.apple.developer.applesignin" || {
-  echo "Error: archive missing the Sign in with Apple entitlement (rerun scripts/ios-prepare-gen.sh)." >&2
+
+archive_entitlements="$(mktemp "$gen_root/build/archive-entitlements.XXXXXX.plist")"
+extract_entitlements "$archive_app" "$archive_entitlements" || {
+  echo "Error: archived app is not signed; check $archive_log." >&2
   exit 1
 }
+require_siwa_entitlement "$archive_entitlements" "archive"
+require_get_task_allow_false "$archive_entitlements" "archive"
 echo "[ios-upload] Archive complete: $archive_path"
 
 # ── Export ────────────────────────────────────────────────────────────────────
@@ -136,7 +188,8 @@ echo "[ios-upload] Archive complete: $archive_path"
 # via altool. This avoids the "Cloud signing permission" error from xcodebuild's
 # auto-upload path.
 echo "[ios-upload] Exporting IPA..."
-xcodebuild -exportArchive \
+if ! env -u GIT_CONFIG_COUNT -u GIT_CONFIG_KEY_0 -u GIT_CONFIG_VALUE_0 \
+  xcodebuild -exportArchive \
   -archivePath "$archive_path" \
   -exportPath "$export_path" \
   -exportOptionsPlist "$export_options" \
@@ -144,13 +197,34 @@ xcodebuild -exportArchive \
   -authenticationKeyPath "$APPLE_API_KEY_PATH" \
   -authenticationKeyID "$APPLE_API_KEY_ID" \
   -authenticationKeyIssuerID "$ISSUER" \
-  2>&1 | grep -E 'error:|EXPORT|success|Done' | tail -20 || true
+  > "$export_log" 2>&1; then
+  echo "Error: export failed." >&2
+  print_log_tail "export log" "$export_log" >&2
+  exit 1
+fi
+print_log_tail "export log" "$export_log"
 
 ipa=$(find "$export_path" -name "*.ipa" 2>/dev/null | head -1)
 if [ -z "$ipa" ]; then
   echo "Error: export failed — no IPA found in $export_path" >&2
   exit 1
 fi
+
+ipa_check_dir="$(mktemp -d "$gen_root/build/ipa-check.XXXXXX")"
+trap 'rm -rf "$ipa_check_dir"' EXIT HUP INT TERM
+unzip -q "$ipa" -d "$ipa_check_dir"
+ipa_app="$ipa_check_dir/Payload/Elector.app"
+if [ ! -d "$ipa_app" ]; then
+  echo "Error: exported IPA missing Payload/Elector.app." >&2
+  exit 1
+fi
+ipa_entitlements="$ipa_check_dir/ipa-entitlements.plist"
+extract_entitlements "$ipa_app" "$ipa_entitlements" || {
+  echo "Error: exported IPA app is not signed; check $export_log." >&2
+  exit 1
+}
+require_siwa_entitlement "$ipa_entitlements" "exported IPA"
+require_get_task_allow_false "$ipa_entitlements" "exported IPA"
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 echo "[ios-upload] Uploading $(basename "$ipa") (build $next_build)..."
