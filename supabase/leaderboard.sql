@@ -65,6 +65,8 @@ begin
       end as value
     from public.profiles p
     where p.display_name is not null
+      -- App Review demo account: never shown on public boards.
+      and p.display_name <> 'AppleReview'
   ),
   withrank as (
     select id, name, value, rank() over (order by value desc) as rnk

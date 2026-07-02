@@ -72,6 +72,23 @@ plutil -extract CFBundleURLTypes.0.CFBundleURLSchemes.0 raw -o - "$target_info" 
 plutil -extract UIRequiresFullScreen raw -o - "$target_info" | grep -qx "true"
 echo "Patched generated Info.plist: OAuth URL scheme + fullscreen landscape policy."
 
+# Sign in with Apple entitlement — the generated project already wires
+# CODE_SIGN_ENTITLEMENTS to this (empty) file; the elector-siwa plugin's native
+# sheet fails at runtime without the capability in the signed app. The App ID
+# com.playelector.app has the capability enabled, so automatic signing picks up
+# a matching provisioning profile.
+entitlements="$target_dir/election-sim_iOS.entitlements"
+if [ ! -f "$entitlements" ]; then
+  echo "Missing generated entitlements file at $entitlements" >&2
+  exit 1
+fi
+$pb -c "Delete :com.apple.developer.applesignin" "$entitlements" >/dev/null 2>&1 || true
+$pb -c "Add :com.apple.developer.applesignin array" "$entitlements"
+$pb -c "Add :com.apple.developer.applesignin:0 string Default" "$entitlements"
+plutil -lint "$entitlements" >/dev/null
+plutil -extract "com\\.apple\\.developer\\.applesignin.0" raw -o - "$entitlements" | grep -qx "Default"
+echo "Patched entitlements: Sign in with Apple (Default)."
+
 # (3) stage the privacy manifest next to the app target.
 cp "$repo_root/src-tauri/PrivacyInfo.xcprivacy" "$target_dir/PrivacyInfo.xcprivacy"
 if grep -q "PrivacyInfo.xcprivacy" "$pbxproj"; then

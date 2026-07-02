@@ -1,6 +1,6 @@
 # Apple Setup — Sign In, IAP, and TestFlight
 
-Current as of 2026-06-28.
+Current as of 2026-07-02.
 
 ## Project Facts
 
@@ -17,11 +17,22 @@ Current as of 2026-06-28.
 
 ## Sign in with Apple
 
-The code flag `APPLE_SIGNIN_ENABLED` is currently `true` in `src/utils/authClient.ts`, so the Apple button starts a real OAuth flow. Keep the Apple provider configured in Supabase before shipping any build with that flag enabled.
+On iOS the Apple button presents the NATIVE Sign in with Apple sheet
+(ASAuthorizationController via the in-repo `elector-siwa` plugin) and finishes with
+`supabase.auth.signInWithIdToken` — no browser round-trip. If the native sheet is
+unavailable or errors, the app falls back to browser OAuth in external Safari,
+returning through `com.playelector.app://auth-callback`. On web it is plain OAuth.
+
+The code flag `APPLE_SIGNIN_ENABLED` is currently `true` in `src/utils/authClient.ts`.
+Keep the Apple provider configured in Supabase before shipping any build with that
+flag enabled.
 
 Apple Developer portal:
 
-- App ID `com.playelector.app` has **Sign in with Apple** enabled.
+- App ID `com.playelector.app` has **Sign in with Apple** enabled. The
+  `com.apple.developer.applesignin` entitlement is injected into the generated
+  Xcode project by `scripts/ios-prepare-gen.sh` (and verified post-archive by
+  `scripts/ios-upload.sh`).
 - Services ID should be `com.playelector.signin`.
 - Services ID configuration:
   - Primary App ID: `com.playelector.app`
@@ -31,7 +42,12 @@ Apple Developer portal:
 Supabase:
 
 - Authentication → Providers → Apple ON.
-- Client ID includes `com.playelector.signin`; adding `com.playelector.app` as a second client id is fine.
+- **Client IDs MUST include BOTH** `com.playelector.signin` (web/browser OAuth) **and**
+  `com.playelector.app` (the bundle id is the `aud` claim of native identity tokens —
+  without it `signInWithIdToken` rejects every native sign-in).
+- The provider's "Secret Key (for OAuth)" is a JWT capped at ~6 months — regenerate
+  with `scripts/generate-apple-client-secret.cjs` before it expires (expiry only
+  breaks the browser/web flow; the native sheet doesn't use it).
 - URL Configuration redirect allowlist includes:
   - `https://playelector.com`
   - `https://www.playelector.com`
@@ -40,7 +56,22 @@ Supabase:
   - `http://localhost:5174`
   - `com.playelector.app://auth-callback`
 
-Test: open the account panel, choose Apple, complete OAuth, and confirm the app returns signed in.
+Test: open the account panel, choose Apple, confirm the native sheet appears (not
+Safari), complete it, and confirm the app is signed in. Test on iPhone AND iPad.
+
+## App Review demo account
+
+Apple requires working demo credentials (Guideline 2.1). The app has a hidden
+password path: typing `applereview@playelector.com` on the sign-in screen and
+tapping "Send code" reveals a password field instead of emailing an OTP
+(`REVIEW_ACCOUNT_EMAIL` in `src/utils/authClient.ts`).
+
+Server side (Supabase): the user is created in Authentication → Users (auto-confirm,
+strong password) and its profile is seeded with `display_name = 'AppleReview'` and
+`campaign_funds = 100000` so a reviewer can exercise every feature. The account is
+excluded from `get_leaderboard` (supabase/leaderboard.sql). Keep the credentials in
+App Store Connect → App Review Information up to date; rotate the password after
+approval if desired (update ASC too).
 
 ## In-App Purchases
 

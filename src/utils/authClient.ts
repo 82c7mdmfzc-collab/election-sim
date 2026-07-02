@@ -14,7 +14,7 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { isNativeRuntime } from './platform';
+import { isNativeRuntime, isIOSNative } from './platform';
 
 export type { Session, User };
 
@@ -64,9 +64,11 @@ export async function getUser(): Promise<User | null> {
  *  • Web: signInWithOAuth performs the full-page browser redirect; detectSessionInUrl
  *    finishes sign-in on return.
  *  • Native (Tauri): there is no page redirect, so we request the authorize URL
- *    (skipBrowserRedirect) and open it in the mobile in-app browser. The provider
- *    returns to com.playelector.app://auth-callback, handled by
- *    utils/nativeAuthCallback.ts.
+ *    (skipBrowserRedirect) and open it in the EXTERNAL system browser. The provider
+ *    returns to com.playelector.app://auth-callback, which foregrounds the app and is
+ *    handled by utils/nativeAuthCallback.ts. (Not the 'inAppBrowser' mode: the opener
+ *    plugin presents an SFSafariViewController it never dismisses, which would leave a
+ *    dead sheet covering the game after the deep-link return.)
  */
 async function startOAuth(provider: 'google' | 'apple'): Promise<{ error?: string }> {
   if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
@@ -81,7 +83,7 @@ async function startOAuth(provider: 'google' | 'apple'): Promise<{ error?: strin
       if (!data?.url) return { error: 'Could not start sign-in. Please try again.' };
       // Dynamic import keeps the opener plugin out of the web / iOS-14 module-eval path.
       const { openUrl } = await import('@tauri-apps/plugin-opener');
-      await openUrl(data.url, 'inAppBrowser');
+      await openUrl(data.url);
       return {};
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -101,8 +103,51 @@ export function signInWithGoogle(): Promise<{ error?: string }> {
   return startOAuth('google');
 }
 
-/** Begin the Apple OAuth flow. */
-export function signInWithApple(): Promise<{ error?: string }> {
+/** Shape returned by the elector-siwa plugin's signInWithApple command. */
+interface AppleSignInNativeResult {
+  status: 'authorized' | 'cancelled' | 'error' | 'unavailable';
+  identityToken?: string;
+  rawNonce?: string;
+  givenName?: string;
+  familyName?: string;
+  email?: string;
+  error?: string;
+}
+
+/**
+ * Sign in with Apple.
+ *  • Native iOS: present the native ASAuthorizationController sheet (elector-siwa
+ *    plugin) and redeem the identity token with signInWithIdToken — no browser
+ *    round-trip, works reliably on iPhone and iPad. The plugin generates the nonce
+ *    (raw + SHA-256) on the Swift side.
+ *  • If the native sheet is unavailable or errors (NOT user-cancel), fall back to
+ *    the browser OAuth flow. A signInWithIdToken failure is surfaced instead of
+ *    re-prompting — the user just completed a sheet; a surprise second prompt is
+ *    worse than a visible error.
+ *  • Web / Android: browser OAuth flow.
+ */
+export async function signInWithApple(): Promise<{ error?: string; cancelled?: boolean }> {
+  if (isSupabaseConfigured && isIOSNative()) {
+    try {
+      // Dynamic import keeps @tauri-apps/api out of the web / iOS-14 module-eval path.
+      const { invoke } = await import('@tauri-apps/api/core');
+      const res = await invoke<AppleSignInNativeResult>('plugin:elector-siwa|sign_in_with_apple');
+      if (res.status === 'cancelled') return { cancelled: true };
+      if (res.status === 'authorized' && res.identityToken && res.rawNonce) {
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: res.identityToken,
+          nonce: res.rawNonce,
+        });
+        return error ? { error: error.message } : {};
+      }
+      // status 'error' / 'unavailable' → try the browser flow instead.
+      console.warn('[auth] native Apple sign-in unavailable:', res.error ?? res.status);
+    } catch (err) {
+      // Plugin missing or command denied → browser flow.
+      console.warn('[auth] native Apple sign-in failed, falling back to browser:', err);
+    }
+  }
   return startOAuth('apple');
 }
 
@@ -130,6 +175,24 @@ export async function sendEmailCode(
     ? 'No account found for that email. Switch to Create Account to make one.'
     : error.message;
   return { error: msg };
+}
+
+/**
+ * App Review demo account. When this email is entered on the sign-in screen the UI
+ * shows a password field instead of sending an OTP (see SignInButtons), so Apple's
+ * reviewers can sign in with the credentials provided in App Store Connect. The
+ * account is seeded server-side; this path is invisible for any other email.
+ */
+export const REVIEW_ACCOUNT_EMAIL = 'applereview@playelector.com';
+
+/** Password sign-in — used ONLY by the App Review demo account path. */
+export async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<{ error?: string }> {
+  if (!isSupabaseConfigured) return { error: 'Online accounts are not configured.' };
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  return error ? { error: error.message } : {};
 }
 
 /** Redeem the 8-digit email code. On success the session is set and onAuthChange fires. */
