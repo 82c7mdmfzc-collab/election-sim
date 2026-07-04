@@ -32,6 +32,24 @@ alter table public.purchases alter column transaction_id set not null;
 create unique index if not exists purchases_transaction_id_key
   on public.purchases (transaction_id);
 
+-- Cascade the ledger when the auth user is deleted (belt-and-braces alongside the
+-- explicit delete in delete_account). Guarded: skipped if orphan rows from deleted
+-- accounts pre-date the constraint — delete_account still cleans the live path.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'purchases_user_id_fkey'
+  ) then
+    begin
+      alter table public.purchases
+        add constraint purchases_user_id_fkey
+        foreign key (user_id) references auth.users(id) on delete cascade;
+    exception when others then
+      raise notice 'purchases_user_id_fkey not added: %', sqlerrm;
+    end;
+  end if;
+end $$;
+
 create or replace function public.fulfill_purchase(
   p_user uuid,
   p_platform text,

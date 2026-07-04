@@ -117,10 +117,22 @@ export const CANDIDATES: readonly CandidateDef[] = [
     baseIncome: 300,
     party: 'independent',
     color: 'green',
-    tagline: 'The Baseline — completely neutral across every track.',
+    tagline: 'The Grassroots Generalist — modest edges, no weaknesses.',
     unlockCost: CANDIDATE_PRICE.FREE,
-    affinities: {},
-    payoutModifiers: {},
+    // ⚖️ Starter buff (2026-07-04): the old zero-modifier kit lost to every other
+    // candidate (sim E3: 58.8–100% against). Smallest-granularity (0.05), penalty-
+    // free bonuses spread wide — the "no downsides" generalist. Sim note: E3 vs a
+    // blank slate saturates near ~70% for ANY small kit (a hard-bot mirror exploits
+    // every edge), so keep magnitudes at 0.05 and avoid 'Swing States' (its cost
+    // affinity alone measured +10pts over this kit).
+    affinities: {
+      'Agriculture': 0.05,
+      'Manufacturing Base': 0.05,
+    },
+    payoutModifiers: {
+      'Export Driven': 0.05,
+      'Youth Vote': 0.05,
+    },
   },
   {
     id: 'trump',

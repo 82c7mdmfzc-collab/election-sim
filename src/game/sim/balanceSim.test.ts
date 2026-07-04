@@ -19,7 +19,16 @@ import { CANDIDATES, CANDIDATE_MAP, type CandidateDef } from '../candidates';
 import { STATE_GROUPS, MEGASTATE_IDS } from '../config';
 import { ALL_STATES } from '../statesData';
 
-const NEUTRAL = CANDIDATE_MAP['tooley']; // zero affinities — isolates strategy/state effects
+// Synthetic blank slate — Tooley gained real modifiers in the 2026-07 starter
+// buff, so the sim keeps its own zero-modifier baseline to isolate strategy and
+// state effects (E1/E2) and to measure EVERY real candidate, Tooley included (E3).
+const NEUTRAL: CandidateDef = {
+  ...CANDIDATE_MAP['tooley'],
+  id: 'baseline',
+  name: 'Blank Slate',
+  affinities: {},
+  payoutModifiers: {},
+};
 const MEGA = [...MEGASTATE_IDS];
 
 // ── small stats helpers ─────────────────────────────────────────────────────────
@@ -200,14 +209,14 @@ SIM(
 
     // ── E3: candidate strength vs the neutral baseline ───────────────────────────
     P(`## E3 — Candidate strength vs the neutral baseline`);
-    P(`Each candidate (bot-hard) plays the zero-modifier baseline Bobby Tooley (bot-hard),`);
+    P(`Each candidate (bot-hard) plays a synthetic zero-modifier baseline (bot-hard),`);
     P(`seat order alternated. Win rate >50% ⇒ stronger than a blank slate. Baseline ≡ 50%.`);
     P('');
-    const crank = CANDIDATES.filter((c) => c.id !== 'tooley')
+    const crank = [...CANDIDATES]
       .map((c) => {
         const games = runPair(
           seat(c.id, c, botStrategy('hard')),
-          seat('tooley', NEUTRAL, botStrategy('hard')),
+          seat('baseline', NEUTRAL, botStrategy('hard')),
           n3,
           `e3-${c.id}`,
         );

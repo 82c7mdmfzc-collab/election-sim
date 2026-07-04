@@ -61,6 +61,12 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     body: 'From Turn 10 on, a round can be marked for Election Night. You always get one full round of warning; then EV is tallied, 270 wins, and last place is eliminated if nobody has a majority in a bigger field.',
   },
   {
+    id: 'beyond',
+    art: '★',
+    title: 'Beyond Your First Race',
+    body: 'Winning earns Campaign Funds — spend them in the Shop to recruit legendary candidates. Take on the Daily Challenge for a fresh rival every day, and climb the global Leaderboard from the main menu.',
+  },
+  {
     id: 'go',
     art: 'GO',
     title: "You're Ready, Candidate",
