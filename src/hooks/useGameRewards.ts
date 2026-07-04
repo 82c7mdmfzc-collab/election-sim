@@ -17,7 +17,7 @@ import { getLastAwardedGameId, setLastAwardedGameId, recordDailyChallengeResult 
 import { clearGameTiming, gameDurationSeconds, track } from '../utils/analytics';
 import { NATIONAL_GROUPS } from '../game/config';
 import { dailyDateKey } from '../game/dailyChallenge';
-import { recordDailyResultRemote } from '../game/profile';
+import { recordDailyResultRemote, recordDailyScoreRemote } from '../game/profile';
 import type { BotDifficulty } from '../game/types';
 
 const inflightClaims = new Set<string>();
@@ -78,6 +78,16 @@ export function useGameRewards(): void {
         bot_difficulty: botDifficulty,
         opponent_count: Math.max(0, s.players.length - 1),
       });
+      if (s.isOpeningCampaign) {
+        track('first_mission_completed', {
+          game_id: gameId,
+          won,
+          final_ev_self: electoralVotes,
+          turn_number: s.turn,
+          secured_states: securedStates,
+          state_groups_dominated: coalitionsDominated,
+        });
+      }
       clearGameTiming(gameId);
     }
 
@@ -110,6 +120,23 @@ export function useGameRewards(): void {
       // Cross-device: persist to the server too (fire-and-forget; never blocks the reward flow).
       if (useProfile.getState().userId) {
         void recordDailyResultRemote(dateKey, won, electoralVotes);
+        void recordDailyScoreRemote({
+          dateKey,
+          won,
+          ev: electoralVotes,
+          turns: s.turn,
+          securedStates,
+          coalitions: coalitionsDominated,
+        }).then((dailyBoard) => {
+          if (!dailyBoard) return;
+          track('daily_score_submitted', {
+            game_id: gameId,
+            date_key: dateKey,
+            won,
+            final_ev_self: electoralVotes,
+            rank: dailyBoard.me?.rank ?? null,
+          });
+        });
       }
     }
 
@@ -141,6 +168,20 @@ export function useGameRewards(): void {
           claimed,
           game_mode: mode,
         });
+      }
+      if (breakdown.masteryAward.xpGained > 0) {
+        track('candidate_mastery_xp_awarded', {
+          candidate_id: breakdown.masteryAward.candidateId,
+          xp: breakdown.masteryAward.xpGained,
+          previous_level: breakdown.masteryAward.previousLevel,
+          new_level: breakdown.masteryAward.newLevel,
+        });
+        if (breakdown.masteryAward.leveledUp) {
+          track('candidate_mastery_level_up', {
+            candidate_id: breakdown.masteryAward.candidateId,
+            level: breakdown.masteryAward.newLevel,
+          });
+        }
       }
     }).finally(() => {
       inflightClaims.delete(gameId);

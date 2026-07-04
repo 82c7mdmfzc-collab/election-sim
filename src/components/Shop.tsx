@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PREMIUM_CANDIDATES } from '../game/candidates';
+import { candidateMasteryTrainingOffer, normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { playerColorHex } from '../game/playerColors';
 import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
@@ -297,12 +298,15 @@ function RewardedAdCard() {
 export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
+  const mastery = useProfile((s) => s.profile.candidateMastery);
   const unlock = useProfile((s) => s.unlock);
   const claimFreeCharacter = useProfile((s) => s.claimFreeCharacter);
+  const trainCandidate = useProfile((s) => s.trainCandidate);
   const unlockCosmetic = useProfile((s) => s.unlockCosmetic);
   const guest = useProfile((s) => s.guest);
   const refresh = useProfile((s) => s.refresh);
   const [busy, setBusy] = useState<string | null>(null);
+  const [trainingBusy, setTrainingBusy] = useState<string | null>(null);
   const [buyingSku, setBuyingSku] = useState<string | null>(null);
   const [cosmeticBusy, setCosmeticBusy] = useState<string | null>(null);
   const [cosmeticMsg, setCosmeticMsg] = useState<string | null>(null);
@@ -310,6 +314,7 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
   const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
   const [messageFilter, setMessageFilter] = useState<MessageToneFilter>('all');
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
+  const [recruitMsg, setRecruitMsg] = useState<string | null>(null);
   const [nativePrices, setNativePrices] = useState<Record<string, string>>({});
   const billingPlatform = iapPlatform();
   const hasNativeBilling = nativeIapAvailable();
@@ -444,6 +449,35 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
     return ok;
   }
 
+  async function train(id: string) {
+    const candidate = PREMIUM_CANDIDATES.find((c) => c.id === id);
+    if (!candidate) return false;
+    const offer = candidateMasteryTrainingOffer(candidate, mastery);
+    if (!offer) return false;
+    if (guest) { setRecruitMsg('Sign in to train candidates.'); onSignIn?.(); return false; }
+    if (funds < offer.cost) {
+      setRecruitMsg(`Earn ${(offer.cost - funds).toLocaleString()} more Campaign Funds to train ${candidate.name}.`);
+      return false;
+    }
+    setTrainingBusy(id);
+    setRecruitMsg(null);
+    AudioManager.play('click');
+    const ok = await trainCandidate(id);
+    if (ok) {
+      AudioManager.play('victory');
+      setRecruitMsg(`${candidate.name} trained to Level ${offer.nextLevel}.`);
+      track('candidate_mastery_trained', {
+        item_id: id,
+        next_level: offer.nextLevel,
+        price_funds: offer.cost,
+      });
+    } else {
+      setRecruitMsg('Could not train this candidate. Please try again.');
+    }
+    setTrainingBusy(null);
+    return ok;
+  }
+
   // Free-claim path (e.g. George Washington in July): zero-cost, server-validated.
   async function claim(id: string) {
     setBusy(id);
@@ -524,15 +558,34 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
     const freeClaim = !owned && isCandidateFreeClaimAvailable(c.id);
     const affordable = funds >= c.unlockCost;
     const working = busy === c.id;
+    const trainingOffer = owned ? candidateMasteryTrainingOffer(c, mastery) : null;
+    const trainingWorking = trainingBusy === c.id;
+    const canAffordTraining = trainingOffer ? funds >= trainingOffer.cost : false;
 
     let actionLabel: string;
     let actionDisabled: boolean;
     let onAction = close;
     let subtext: string | undefined;
+    let secondaryActionLabel: string | undefined;
+    let secondaryActionDisabled: boolean | undefined;
+    let onSecondaryAction: (() => void) | undefined;
+    let secondarySubtext: string | undefined;
 
     if (owned) {
       actionLabel = 'Owned ✓';
       actionDisabled = true;
+      if (trainingOffer) {
+        secondaryActionLabel = trainingWorking
+          ? 'Training...'
+          : canAffordTraining
+            ? `Train to Level ${trainingOffer.nextLevel} — ${trainingOffer.cost.toLocaleString()} Campaign Funds`
+            : `Need ${(trainingOffer.cost - funds).toLocaleString()} more to train`;
+        secondaryActionDisabled = trainingWorking || !canAffordTraining;
+        onSecondaryAction = () => { void train(c.id); };
+        secondarySubtext = `${trainingOffer.xpNeeded.toLocaleString()} XP or ${trainingOffer.cost.toLocaleString()} Campaign Funds to Level ${trainingOffer.nextLevel}.`;
+      } else {
+        secondarySubtext = 'Max level reached.';
+      }
     } else if (freeClaim) {
       actionLabel = working ? 'Claiming…' : 'Claim Free';
       actionDisabled = working;
@@ -560,6 +613,10 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
         onAction={onAction}
         onClose={close}
         subtext={subtext}
+        secondaryActionLabel={secondaryActionLabel}
+        secondaryActionDisabled={secondaryActionDisabled}
+        onSecondaryAction={onSecondaryAction}
+        secondarySubtext={secondarySubtext}
       />
     );
   }
@@ -668,6 +725,7 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
         <section className={`shop__pane shop__pane--recruit${tab === 'recruit' ? ' is-active' : ''}`}>
           <h2 className="shop__section">Recruit Candidates</h2>
           <p className="shop__sub">Tap a candidate to see their bonuses &amp; penalties, then recruit with Campaign Funds.</p>
+          {recruitMsg && <div className="shop__purchase-msg">{recruitMsg}</div>}
           <div className="shop__grid shop-rail">
             {PREMIUM_CANDIDATES.map((c) => {
               const owned = unlocked.includes(c.id);
@@ -691,6 +749,7 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
                   </div>
 
                   <div className="shop-card__foot">
+                    <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
                     {owned ? (
                       <div className="shop-card__owned">Owned ✓</div>
                     ) : freeClaim ? (

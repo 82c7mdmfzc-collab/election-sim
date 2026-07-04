@@ -20,7 +20,6 @@ import { Settings } from './components/Settings';
 import { ScreenTransition } from './components/ScreenTransition';
 import { isNativeRuntime } from './utils/platform';
 import { useGameStore } from './game/store';
-import { CANDIDATE_MAP } from './game/candidates';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
@@ -38,7 +37,6 @@ import {
   track,
 } from './utils/analytics';
 import type { ComponentType, ReactNode } from 'react';
-import type { BotDifficulty } from './game/types';
 
 type AppMode = 'mode-select' | 'play' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard';
 type TutorialSource = 'menu' | 'onboarding';
@@ -78,14 +76,16 @@ function appModeToShopSource(mode: AppMode): ShopSource {
   return mode === 'single' ? 'locked_candidate' : 'menu';
 }
 
-function ModeSelect({ onSelect, onTutorial, onAccount, onSettings }: {
+function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCampaign }: {
   onSelect: (mode: AppMode) => void;
   onTutorial: () => void;
   onAccount: () => void;
   onSettings: () => void;
+  onOpeningCampaign: () => void;
 }) {
   const funds = useProfile(selectFunds);
   const signedIn = useProfile(selectIsSignedIn);
+  const gamesFinished = useProfile((s) => s.profile.achievementCounters.gamesFinished);
   const native = isNativeRuntime();
   const [progressOpen, setProgressOpen] = useState(false);
   // A persisted in-progress game is offered as an explicit Resume on Home, rather
@@ -133,6 +133,16 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings }: {
           onClick={() => { AudioManager.play('confirm'); resumeGame(); }}
         >
           Resume Campaign →
+        </button>
+      )}
+
+      {signedIn && gamesFinished === 0 && !hasResumableGame && (
+        <button
+          type="button"
+          className="home__resume btn-cta"
+          onClick={() => { AudioManager.play('confirm'); onOpeningCampaign(); }}
+        >
+          Opening Campaign →
         </button>
       )}
 
@@ -255,7 +265,7 @@ function App() {
   const userId = useProfile((s) => s.userId);
   const displayName = useProfile((s) => s.displayName);
   const accountChecked = useProfile((s) => s.accountChecked);
-  const startGame = useGameStore((s) => s.startGame);
+  const startOpeningCampaign = useGameStore((s) => s.startOpeningCampaign);
   const [showAccount, setShowAccount] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const loginBonusClaimed = useRef(false);
@@ -373,12 +383,9 @@ function App() {
   }
 
   function startPracticeGame() {
-    const human = CANDIDATE_MAP.tooley;
-    const opponent = CANDIDATE_MAP.trump;
-    const botSeats: Record<string, BotDifficulty> = { [opponent.id]: 'easy' };
     setGuestContinued(true);
     setAppMode('bot');
-    startGame([human, opponent], null, botSeats);
+    startOpeningCampaign();
   }
 
   function continueAsGuest() {
@@ -547,6 +554,10 @@ function App() {
         onTutorial={openTutorial}
         onAccount={() => openAccount('account_button')}
         onSettings={() => setShowSettings(true)}
+        onOpeningCampaign={() => {
+          setGuestContinued(true);
+          startOpeningCampaign();
+        }}
       />
     );
     screenKey = 'menu';

@@ -22,6 +22,16 @@ import {
   normalizeDailyStreak,
   premiumUnlockCount,
 } from './achievements';
+import { CANDIDATES } from './candidates';
+import {
+  type CandidateMastery,
+  normalizeCandidateMastery,
+  type CandidateMasteryAward,
+} from './candidateMastery';
+import {
+  parseDailyLeaderboardResult,
+  type DailyLeaderboardResult,
+} from './dailyRankings';
 import type { BotDifficulty } from './types';
 
 export interface ProfileStats {
@@ -41,6 +51,7 @@ export interface Profile {
   achievementCounters: AchievementCounters;
   claimedAchievements: string[];
   dailyStreak: DailyStreakState;
+  candidateMastery: CandidateMastery;
 }
 
 export const DEFAULT_STATS: ProfileStats = {
@@ -59,6 +70,7 @@ export const DEFAULT_PROFILE: Profile = {
   achievementCounters: normalizeAchievementCounters(null),
   claimedAchievements: [],
   dailyStreak: { ...DEFAULT_DAILY_STREAK },
+  candidateMastery: normalizeCandidateMastery(null, CANDIDATES),
 };
 
 // ── Remote (Supabase) ─────────────────────────────────────────────────────────
@@ -69,6 +81,7 @@ interface ProfileRow {
   stats: Partial<ProfileStats> | null;
   achievement_counters?: Partial<AchievementCounters> | null;
   daily_streak?: Partial<DailyStreakState> | null;
+  candidate_mastery?: unknown;
   display_name?: string | null;
 }
 
@@ -89,6 +102,7 @@ function rowToProfile(row: ProfileRow, claimedAchievements: string[] = []): Prof
     achievementCounters: counters,
     claimedAchievements,
     dailyStreak: normalizeDailyStreak(row.daily_streak),
+    candidateMastery: normalizeCandidateMastery(row.candidate_mastery, CANDIDATES),
   };
 }
 
@@ -103,7 +117,7 @@ export async function fetchRemoteAccount(userId: string): Promise<RemoteAccount 
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('profiles')
-    .select('campaign_funds, unlocked_characters, stats, achievement_counters, daily_streak, display_name')
+    .select('campaign_funds, unlocked_characters, stats, achievement_counters, daily_streak, candidate_mastery, display_name')
     .eq('id', userId)
     .maybeSingle();
 
@@ -180,6 +194,8 @@ export interface CompleteGameResultRemote {
   dailyStreak: DailyStreakState;
   newlyCompletedAchievements: string[];
   claimedAchievements: string[];
+  candidateMastery: CandidateMastery;
+  masteryAward: CandidateMasteryAward;
 }
 
 function jsonNumber(obj: Record<string, unknown>, key: string): number {
@@ -207,6 +223,25 @@ function parseCompleteGameResult(data: unknown, fallbackClaimed: string[]): Comp
     claimedAchievements: jsonStringArray(row, 'claimedAchievements').length > 0
       ? jsonStringArray(row, 'claimedAchievements')
       : fallbackClaimed,
+    candidateMastery: normalizeCandidateMastery(row.candidateMastery, CANDIDATES),
+    masteryAward: parseMasteryAward(row.masteryAward),
+  };
+}
+
+function parseMasteryAward(data: unknown): CandidateMasteryAward {
+  if (!data || typeof data !== 'object') {
+    return { candidateId: null, xpGained: 0, previousLevel: 1, newLevel: 1, leveledUp: false };
+  }
+  const row = data as Record<string, unknown>;
+  const candidateId = typeof row.candidateId === 'string' && row.candidateId ? row.candidateId : null;
+  const previousLevel = Math.max(1, Math.min(5, jsonNumber(row, 'previousLevel'))) as CandidateMasteryAward['previousLevel'];
+  const newLevel = Math.max(1, Math.min(5, jsonNumber(row, 'newLevel'))) as CandidateMasteryAward['newLevel'];
+  return {
+    candidateId,
+    xpGained: jsonNumber(row, 'xpGained'),
+    previousLevel,
+    newLevel,
+    leveledUp: row.leveledUp === true,
   };
 }
 
@@ -288,6 +323,51 @@ export async function claimAchievementRewardRemote(achievementId: string): Promi
     amount: jsonNumber(row, 'amount'),
     claimedAchievements: jsonStringArray(row, 'claimedAchievements'),
   };
+}
+
+export interface TrainCandidateMasteryResult {
+  balance: number;
+  candidateMastery: CandidateMastery;
+  trainingAward: {
+    candidateId: string | null;
+    cost: number;
+    previousLevel: CandidateMasteryAward['previousLevel'];
+    newLevel: CandidateMasteryAward['newLevel'];
+    xp: number;
+  };
+}
+
+function parseTrainCandidateMasteryResult(data: unknown): TrainCandidateMasteryResult | null {
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  const awardRaw = row.trainingAward;
+  const award = awardRaw && typeof awardRaw === 'object' ? awardRaw as Record<string, unknown> : {};
+  const candidateId = typeof award.candidateId === 'string' && award.candidateId ? award.candidateId : null;
+  const previousLevel = Math.max(1, Math.min(5, jsonNumber(award, 'previousLevel'))) as CandidateMasteryAward['previousLevel'];
+  const newLevel = Math.max(1, Math.min(5, jsonNumber(award, 'newLevel'))) as CandidateMasteryAward['newLevel'];
+  return {
+    balance: jsonNumber(row, 'balance'),
+    candidateMastery: normalizeCandidateMastery(row.candidateMastery, CANDIDATES),
+    trainingAward: {
+      candidateId,
+      cost: jsonNumber(award, 'cost'),
+      previousLevel,
+      newLevel,
+      xp: jsonNumber(award, 'xp'),
+    },
+  };
+}
+
+export async function trainCandidateMasteryRemote(characterId: string): Promise<TrainCandidateMasteryResult | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('train_candidate_mastery', {
+    p_character: characterId,
+  });
+  if (error) {
+    console.warn('trainCandidateMasteryRemote failed:', error.message);
+    return null;
+  }
+  return parseTrainCandidateMasteryResult(data);
 }
 
 function jsonStringOrNull(obj: Record<string, unknown>, key: string): string | null {
@@ -473,6 +553,43 @@ export async function recordDailyResultRemote(dateKey: string, won: boolean, ev:
     return null;
   }
   return parseDailyStatus(data);
+}
+
+export async function recordDailyScoreRemote(args: {
+  dateKey: string;
+  won: boolean;
+  ev: number;
+  turns: number;
+  securedStates: number;
+  coalitions: number;
+}): Promise<DailyLeaderboardResult | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('record_daily_score', {
+    p_date_key: args.dateKey,
+    p_won: args.won,
+    p_ev: args.ev,
+    p_turns: args.turns,
+    p_secured_states: args.securedStates,
+    p_coalitions: args.coalitions,
+  });
+  if (error) {
+    console.warn('recordDailyScoreRemote failed:', error.message);
+    return null;
+  }
+  return parseDailyLeaderboardResult(data);
+}
+
+export async function getDailyLeaderboardRemote(dateKey: string, limit = 50): Promise<DailyLeaderboardResult | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('get_daily_leaderboard', {
+    p_date_key: dateKey,
+    p_limit: limit,
+  });
+  if (error) {
+    console.warn('getDailyLeaderboardRemote failed:', error.message);
+    return null;
+  }
+  return parseDailyLeaderboardResult(data);
 }
 
 /**

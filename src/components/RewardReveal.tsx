@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { ACHIEVEMENT_BY_ID } from '../game/achievements';
+import { CANDIDATE_MAP } from '../game/candidates';
 import { AudioManager } from '../utils/audioManager';
 
 export function RewardReveal() {
@@ -66,6 +67,17 @@ export function RewardReveal() {
               {ACHIEVEMENT_BY_ID[id]?.title ?? 'Achievement complete'}
             </span>
           ))}
+        </div>
+      )}
+      {lastReward.masteryAward.xpGained > 0 && (
+        <div className="reward-reveal__mastery">
+          <span>
+            {CANDIDATE_MAP[lastReward.masteryAward.candidateId ?? '']?.name ?? 'Candidate'} mastery
+          </span>
+          <strong>+{lastReward.masteryAward.xpGained} XP</strong>
+          {lastReward.masteryAward.leveledUp && (
+            <em>Level {lastReward.masteryAward.newLevel}</em>
+          )}
         </div>
       )}
     </div>

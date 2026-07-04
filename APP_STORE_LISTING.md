@@ -64,6 +64,9 @@ for parody and commentary.
 • OPTIONAL REWARDED ADS: The Shop includes an opt-in rewarded ad button. Ads are
   never shown automatically; completing one grants a small random amount of
   Campaign Funds, capped server-side.
+• ACCOUNT DELETION: Signed-in users can delete their account in-app from the
+  home screen: Settings gear > Account > Delete account > Delete forever. This
+  permanently removes the account and associated app data.
 • PARODY/SATIRE: Names and likenesses of public figures are used for satire,
   parody, and political commentary. The app is not affiliated with or endorsed
   by anyone depicted; an in-app disclaimer states this.
@@ -77,7 +80,7 @@ Data collected:
 - **Contact Info (email)** + **User Content (username, game stats)** → account (Supabase). Purpose: App Functionality. Linked to the user's account.
 - **Purchases (Purchase History)** → in-app purchase records (Supabase `purchases` ledger keyed to the StoreKit transaction id). Purpose: App Functionality. Linked to the user's account.
 - If personalized ads/IDFA are enabled, include the ATT prompt and `NSUserTrackingUsageDescription`.
-- Account deletion is available in-app (Your Account → Delete account) and satisfies 5.1.1(v).
+- Account deletion is available in-app (Settings > Account > Delete account) and satisfies 5.1.1(v).
 
 ## Assets you still need to produce
 - **Screenshots** (landscape): 6.7" iPhone set required; capture menu, the board mid-game, a coalition/shop screen, the VS matchup, a victory screen. (Take from `tauri:ios:dev` on a simulator.)

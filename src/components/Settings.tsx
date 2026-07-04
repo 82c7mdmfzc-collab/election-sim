@@ -19,6 +19,7 @@ import {
   isColorblindMode, setColorblindMode,
 } from '../utils/localPrefs';
 import { SfxVolumeBar, MusicVolumeBar } from './MuteButton';
+import { AccountDeletionSection } from './AccountDeletionSection';
 
 function ToggleRow({ label, hint, checked, onChange }: {
   label: string;
@@ -136,6 +137,7 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
               >
                 {signingOut ? 'Signing out...' : 'Sign out'}
               </button>
+              <AccountDeletionSection className="settings-account__delete" onDeleted={onClose} />
             </div>
           ) : (
             <div className="settings-account">

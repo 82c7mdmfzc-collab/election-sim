@@ -18,7 +18,7 @@ Elector v1 is a fair soft launch:
 - Game completion rewards: server-calculated by `complete_game_result`, capped at 60 before daily diminishing returns.
 - Daily finish streak: 10–100 Funds per UTC day, once per day.
 - Achievement claims: 10–100 Funds each.
-- Rewarded ads: 20–60 Funds, max 5 claims per rolling 12 hours.
+- Rewarded ads: 10–25 Funds, max 5 claims per rolling 12 hours.
 - Referrals: 500 Funds to both accounts when the invited player finishes their first game.
 - Native iOS IAP: six consumable funds packs.
 
@@ -116,7 +116,7 @@ Test: purchase in TestFlight/sandbox, confirm balance updates, reinstall/sign in
 
 Production UI is hidden unless a native bridge is available or `VITE_ENABLE_INLINE_REWARDED_ADS=true` is intentionally set.
 
-Test: sign in → Shop → Watch ad → provider completion → balance increases by 20–60 Funds → repeat 5 times → 6th attempt is blocked until the oldest claim is 12 hours old.
+Test: sign in → Shop → Watch ad → provider completion → balance increases by 10–25 Funds → repeat 5 times → 6th attempt is blocked until the oldest claim is 12 hours old.
 
 ## Referrals
 

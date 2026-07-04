@@ -145,7 +145,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'High Tech': -0.15,
     },
     payoutModifiers: {
-      'Big Conservative': 0.25,
+      'Big Conservative': 0.20,
       'Gun Lobby': 0.15,
       'Oil and Gas': 0.15,
       'Old South': 0.10,
@@ -171,7 +171,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Oil and Gas': -0.15,
     },
     payoutModifiers: {
-      "Women's Vote": 0.25,
+      "Women's Vote": 0.20,
       'Environmental': 0.15,
       'Town and Gown': 0.10,
       'Oil and Gas': -0.15,
@@ -245,7 +245,6 @@ export const CANDIDATES: readonly CandidateDef[] = [
     color: 'red',
     tagline: 'The Sun Belt Optimist.',
     unlockCost: CANDIDATE_PRICE.TIER2,
-    // Positive (good) modifiers buffed +5pp; penalties unchanged.
     affinities: {
       'Swing States': 0.20,
       'Old South': 0.20,
@@ -255,8 +254,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Town and Gown': -0.15,
     },
     payoutModifiers: {
-      'Big Conservative': 0.30,
-      'Old South': 0.20,
+      'Big Conservative': 0.20,
+      'Old South': 0.15,
       'Swing States': 0.15,
       'Oil and Gas': 0.15,
       'Environmental': -0.20,
@@ -303,7 +302,6 @@ export const CANDIDATES: readonly CandidateDef[] = [
     color: 'blue',
     tagline: 'The Technocratic Centre.',
     unlockCost: CANDIDATE_PRICE.TIER2,
-    // Positive (good) modifiers buffed +5pp; penalties unchanged.
     affinities: {
       'High Tech': 0.20,
       'Town and Gown': 0.20,
@@ -314,7 +312,7 @@ export const CANDIDATES: readonly CandidateDef[] = [
     },
     payoutModifiers: {
       "Women's Vote": 0.20,
-      'High Tech': 0.20,
+      'High Tech': 0.15,
       'Export Driven': 0.15,
       'Gun Lobby': -0.20,
     },
@@ -330,8 +328,6 @@ export const CANDIDATES: readonly CandidateDef[] = [
     color: 'red',
     tagline: 'The Insurgent Populist.',
     unlockCost: CANDIDATE_PRICE.TIER3,
-    // Positive modifiers buffed +5pp; penalties unchanged. Standout: his signature
-    // Big Conservative payout gets +20pp (0.25 → 0.45) instead of the small bump.
     affinities: {
       'Gun Lobby': 0.20,
       'Old South': 0.20,
@@ -341,8 +337,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Town and Gown': -0.15,
     },
     payoutModifiers: {
-      'Big Conservative': 0.45,
-      'Gun Lobby': 0.20,
+      'Big Conservative': 0.20,
+      'Gun Lobby': 0.15,
       'Old South': 0.15,
       'Environmental': -0.20,
     },
@@ -358,7 +354,6 @@ export const CANDIDATES: readonly CandidateDef[] = [
     color: 'blue',
     tagline: 'The New Frontier.',
     unlockCost: CANDIDATE_PRICE.TIER2,
-    // Positive (good) modifiers buffed +5pp; penalties unchanged.
     affinities: {
       'High Tech': 0.20,
       'Youth Vote': 0.20,
@@ -368,8 +363,8 @@ export const CANDIDATES: readonly CandidateDef[] = [
       'Old South': -0.10,
     },
     payoutModifiers: {
-      'Youth Vote': 0.25,
-      'High Tech': 0.20,
+      'Youth Vote': 0.20,
+      'High Tech': 0.15,
       "Women's Vote": 0.15,
       'Gun Lobby': -0.20,
     },

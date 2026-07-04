@@ -20,6 +20,8 @@ import { playerColorHex } from '../game/playerColors';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { getDailyStatusRemote } from '../game/profile';
+import { getDailyLeaderboardRemote } from '../game/profile';
+import type { DailyLeaderboardResult } from '../game/dailyRankings';
 import { AudioManager } from '../utils/audioManager';
 import { track } from '../utils/analytics';
 import {
@@ -28,6 +30,7 @@ import {
   resolveDailyOpponents,
   getDailyRival,
 } from '../game/dailyChallenge';
+import { normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/localPrefs';
 import { Portrait } from './Portrait';
 import { CandidateStatsModal } from './CandidateStatsModal';
@@ -48,20 +51,23 @@ function timerLabel(seconds: number | null): string {
 export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const startDailyChallenge = useGameStore((s) => s.startDailyChallenge);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
+  const mastery = useProfile((s) => s.profile.candidateMastery);
   const userId = useProfile((s) => s.userId);
 
   const dateKey = useMemo(() => dailyDateKey(), []);
   const config = useMemo(() => getDailyChallengeConfig(dateKey), [dateKey]);
   const local = useMemo(() => getDailyChallengeLocal(), []);
   const [serverStatus, setServerStatus] = useState<DailyChallengeLocal | null>(null);
+  const [dailyBoard, setDailyBoard] = useState<DailyLeaderboardResult | null>(null);
 
   // Cross-device: prefer the server-synced status when signed in (falls back to local).
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     void getDailyStatusRemote().then((s) => { if (!cancelled && s) setServerStatus(s); });
+    void getDailyLeaderboardRemote(dateKey, 5).then((b) => { if (!cancelled && b) setDailyBoard(b); });
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [dateKey, userId]);
 
   const status = serverStatus ?? local;
   const streak = status.streak;
@@ -154,6 +160,23 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
             })}
           </div>
           <div className="daily__status">{statusText}</div>
+          {dailyBoard && dailyBoard.rows.length > 0 && (
+            <div className="daily__leaderboard" aria-label="Today's Daily Race leaders">
+              <div className="daily__leaderboard-title">Today’s pace</div>
+              {dailyBoard.rows.slice(0, 3).map((row) => (
+                <div key={`${row.rank}-${row.name}`} className={`daily__leaderboard-row${row.isMe ? ' is-me' : ''}`}>
+                  <span>#{row.rank} {row.name}</span>
+                  <strong>{row.ev} EV · T{row.turns}</strong>
+                </div>
+              ))}
+              {dailyBoard.me && !dailyBoard.rows.some((row) => row.isMe) && (
+                <div className="daily__leaderboard-row is-me">
+                  <span>#{dailyBoard.me.rank} You</span>
+                  <strong>{dailyBoard.me.ev} EV · T{dailyBoard.me.turns}</strong>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -180,6 +203,7 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
                   </div>
                 </div>
                 <div className="shop-card__foot">
+                  <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
                   {chosen && <div className="shop-card__owned">Your pick ✓</div>}
                   <span className="shop-card__stats-hint">View stats ›</span>
                 </div>

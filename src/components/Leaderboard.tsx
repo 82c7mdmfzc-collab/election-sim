@@ -16,13 +16,21 @@ import {
   type LeaderboardBoard,
   type LeaderboardResult,
 } from '../game/leaderboard';
+import { dailyDateKey } from '../game/dailyChallenge';
+import { getDailyLeaderboardRemote } from '../game/profile';
+import type { DailyLeaderboardResult } from '../game/dailyRankings';
+import { track } from '../utils/analytics';
 
-const BOARDS: LeaderboardBoard[] = ['wins_all', 'wins_month', 'wins_week', 'streak'];
+type Board = LeaderboardBoard | 'daily_today';
+
+const BOARDS: Board[] = ['daily_today', 'wins_all', 'wins_month', 'wins_week', 'streak'];
 const MEDALS = ['🥇', '🥈', '🥉'];
+const DAILY_META = { label: 'Today', sub: 'Daily Race ranking', unit: 'EV' };
 
 export function Leaderboard({ onBack }: { onBack: () => void }) {
-  const [board, setBoard] = useState<LeaderboardBoard>('wins_all');
+  const [board, setBoard] = useState<Board>('daily_today');
   const [data, setData] = useState<LeaderboardResult | null>(null);
+  const [dailyData, setDailyData] = useState<DailyLeaderboardResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -33,13 +41,21 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
       setLoading(true);
       setError(false);
     }, 0);
-    void fetchLeaderboardRemote(board).then((res) => {
+    const fetcher = board === 'daily_today'
+      ? getDailyLeaderboardRemote(dailyDateKey(), 100).then((res) => {
+          if (res) track('daily_rank_viewed', { date_key: dailyDateKey(), has_rank: !!res.me });
+          return { daily: res, standard: null };
+        })
+      : fetchLeaderboardRemote(board).then((res) => ({ daily: null, standard: res }));
+    void fetcher.then((res) => {
       if (!live) return;
-      if (!res) {
+      if (!res.daily && !res.standard) {
         setError(true);
         setData(null);
+        setDailyData(null);
       } else {
-        setData(res);
+        setData(res.standard);
+        setDailyData(res.daily);
       }
       setLoading(false);
     });
@@ -49,8 +65,10 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
     };
   }, [board]);
 
-  const meta = BOARD_META[board];
-  const meInTop = data?.rows.some((r) => r.isMe) ?? false;
+  const meta = board === 'daily_today' ? DAILY_META : BOARD_META[board];
+  const meInTop = board === 'daily_today'
+    ? dailyData?.rows.some((r) => r.isMe) ?? false
+    : data?.rows.some((r) => r.isMe) ?? false;
 
   return (
     <div className="setup native-screen leaderboard">
@@ -68,7 +86,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
             className={`lb-tab${board === b ? ' is-active' : ''}`}
             onClick={() => { if (b !== board) { AudioManager.play('click'); setBoard(b); } }}
           >
-            {BOARD_META[b].label}
+            {b === 'daily_today' ? DAILY_META.label : BOARD_META[b].label}
           </button>
         ))}
       </div>
@@ -80,6 +98,21 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
           <div className="lb-state"><Spinner /></div>
         ) : error ? (
           <div className="lb-state">Couldn’t load the leaderboard. Check your connection and try again.</div>
+        ) : board === 'daily_today' ? (
+          !dailyData || dailyData.rows.length === 0 ? (
+            <div className="lb-state">No Daily Race scores yet. Run today’s race to set the pace!</div>
+          ) : (
+            dailyData.rows.map((r) => (
+              <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}`}>
+                <span className="lb-row__rank">{r.rank <= 3 ? MEDALS[r.rank - 1] : `#${r.rank}`}</span>
+                <span className="lb-row__name">
+                  {r.name}
+                  {r.isMe && <em className="lb-row__you"> · You</em>}
+                </span>
+                <span className="lb-row__value">{r.ev.toLocaleString()} <small>{meta.unit}</small> <small>· T{r.turns}</small></span>
+              </div>
+            ))
+          )
         ) : !data || data.rows.length === 0 ? (
           <div className="lb-state">No ranked players yet. Win a game to claim a spot!</div>
         ) : (
@@ -96,7 +129,15 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      {data?.me && !meInTop && (
+      {board === 'daily_today' && dailyData?.me && !meInTop && (
+        <div className="lb-row lb-row--me lb-row--pinned">
+          <span className="lb-row__rank">#{dailyData.me.rank}</span>
+          <span className="lb-row__name">You</span>
+          <span className="lb-row__value">{dailyData.me.ev.toLocaleString()} <small>{meta.unit}</small> <small>· T{dailyData.me.turns}</small></span>
+        </div>
+      )}
+
+      {board !== 'daily_today' && data?.me && !meInTop && (
         <div className="lb-row lb-row--me lb-row--pinned">
           <span className="lb-row__rank">#{data.me.rank}</span>
           <span className="lb-row__name">You</span>

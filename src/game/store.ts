@@ -38,6 +38,11 @@ import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES }
 import { STATE_GROUPS } from './config';
 import { dailyDateKey, getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
 import { recordDailyResultRemote } from './profile';
+import {
+  candidateAtLevel,
+  candidateAtMastery,
+  candidateStartingLevel,
+} from './candidateMastery';
 import { rpcForfeitAndFinish } from '../utils/supabaseClient';
 import { advanceHostPhase } from '../utils/multiplayerActions';
 import { pushMySubmission, resolveHostTurn } from '../utils/multiplayerActions';
@@ -45,7 +50,7 @@ import { saveSession, clearSession } from '../utils/sessionStore';
 import { clearGameTiming, gameDurationSeconds, markGameStarted, track } from '../utils/analytics';
 import { recordDailyChallengeResult } from '../utils/localPrefs';
 import { useProfile } from '../hooks/useProfile';
-import type { CandidateDef } from './candidates';
+import { CANDIDATE_MAP, type CandidateDef } from './candidates';
 import type {
   BotDifficulty,
   ElectoralResult,
@@ -87,6 +92,8 @@ interface GameStore extends GameState {
   versusPending: boolean;
   /** True while the current game is today's Daily Challenge (drives local streak + analytics). */
   isDailyChallenge: boolean;
+  /** True while a first-run guided campaign is active. */
+  isOpeningCampaign: boolean;
   /**
    * True only while the player is actively viewing the in-game board this session.
    * NOT persisted, so it is false on every cold boot — a persisted in-progress
@@ -138,6 +145,8 @@ interface GameStore extends GameState {
    * date seed. Reuses startGame, then flags the game as the daily challenge.
    */
   startDailyChallenge(playerCandidate: CandidateDef, dateKey: string): void;
+  /** Start the guided first campaign: one Easy bot, no timer, normal rules. */
+  startOpeningCampaign(): void;
   allocate(kind: 'state' | 'national', targetId: string, rungs: number): { ok: boolean; reason?: string };
   cancelAllocation(kind: 'state' | 'national', targetId: string): void;
   /** Retract just the most-recently queued rung for a target (refunds it). */
@@ -356,6 +365,7 @@ export const useGameStore = create<GameStore>()(
         hasSubmittedLocalTurn: false,
         versusPending: false,
         isDailyChallenge: false,
+        isOpeningCampaign: false,
         viewingGame: false,
         gameId: null,
         multiplayerMode: 'single',
@@ -370,7 +380,13 @@ export const useGameStore = create<GameStore>()(
 
         // ── startGame ─────────────────────────────────────────────────────────
         startGame(chosen, turnTimeLimit, botSeats) {
-          const fresh = createInitialGameState(chosen);
+          const mastery = useProfile.getState().profile.candidateMastery;
+          const leveledChosen = chosen.map((candidate) => (
+            botSeats?.[candidate.id]
+              ? candidateAtLevel(candidate, candidateStartingLevel(candidate))
+              : candidateAtMastery(candidate, mastery)
+          ));
+          const fresh = createInitialGameState(leveledChosen);
           const gameId = newGameId();
           // Tag computer-controlled seats (Solo). Player ids equal candidate ids
           // here, and every other map keys by id, so this is a safe overlay.
@@ -404,6 +420,7 @@ export const useGameStore = create<GameStore>()(
             handoffAckKey: '1:0',
             versusPending: true,
             isDailyChallenge: false,
+            isOpeningCampaign: false,
             viewingGame: true,
           });
         },
@@ -417,6 +434,15 @@ export const useGameStore = create<GameStore>()(
           // Reuse the standard solo start path (sets isDailyChallenge:false), then flag it.
           get().startGame(chosen, cfg.turnTimeLimit, botSeats);
           set({ isDailyChallenge: true });
+        },
+
+        // ── startOpeningCampaign ────────────────────────────────────────────────
+        startOpeningCampaign() {
+          const human = CANDIDATE_MAP.tooley;
+          const opponent = CANDIDATE_MAP.trump;
+          get().startGame([human, opponent], null, { [opponent.id]: 'easy' });
+          track('first_mission_started', { candidate_id: human.id, opponent_id: opponent.id });
+          set({ isOpeningCampaign: true });
         },
 
         // ── clearVersus ───────────────────────────────────────────────────────
@@ -808,6 +834,7 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: null,
             handoffAckKey: null,
             isDailyChallenge: false,
+            isOpeningCampaign: false,
           });
         },
 
@@ -848,6 +875,7 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: null,
             handoffAckKey: null,
             isDailyChallenge: false,
+            isOpeningCampaign: false,
           });
           AudioManager.play('quit');
         },
@@ -888,6 +916,7 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: null,
             handoffAckKey: null,
             isDailyChallenge: false,
+            isOpeningCampaign: false,
           });
         },
 
@@ -1000,6 +1029,7 @@ export const useGameStore = create<GameStore>()(
             handoffAckKey: '1:0',
             versusPending: true,
             isDailyChallenge: false,
+            isOpeningCampaign: false,
             viewingGame: true,
           });
         },

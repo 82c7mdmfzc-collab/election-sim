@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   AD_REWARD_LIMIT,
+  AD_REWARD_MAX,
+  AD_REWARD_MIN,
   AD_REWARD_WINDOW_MS,
   adRewardStatusFromTimestamps,
 } from './rewardedAds';
 
 describe('adRewardStatusFromTimestamps', () => {
+  it('keeps the balanced rewarded-ad payout range', () => {
+    expect(AD_REWARD_MIN).toBe(10);
+    expect(AD_REWARD_MAX).toBe(25);
+    expect(AD_REWARD_LIMIT).toBe(5);
+  });
+
   it('counts only rewarded ads inside the rolling 12 hour window', () => {
     const now = 1_000_000_000;
     const status = adRewardStatusFromTimestamps([
