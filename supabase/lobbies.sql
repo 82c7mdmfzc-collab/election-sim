@@ -78,6 +78,53 @@ begin
   end loop;
 end $$;
 
+-- ── Rate limiting: fixed-window per-user counters ─────────────────────────────
+-- Service/definer-only (RLS on, no policies). Keys look like 'create_lobby:<uid>'.
+create table if not exists public.rate_limits (
+  key          text primary key,
+  window_start timestamptz not null default now(),
+  count        integer not null default 0
+);
+alter table public.rate_limits enable row level security;
+
+-- Raises when the caller exceeds p_max calls per p_window_seconds for p_key.
+-- Fixed-window: the counter resets when the window that contains the first call
+-- expires. Definer RPCs call this internally; the edge functions call it via the
+-- service role, so it needs no grant to authenticated.
+create or replace function public.check_rate_limit(
+  p_key text,
+  p_max integer,
+  p_window_seconds integer
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_now   timestamptz := now();
+  v_count integer;
+begin
+  insert into public.rate_limits as rl (key, window_start, count)
+  values (p_key, v_now, 1)
+  on conflict (key) do update
+    set count = case
+          when rl.window_start < v_now - make_interval(secs => p_window_seconds)
+          then 1 else rl.count + 1 end,
+        window_start = case
+          when rl.window_start < v_now - make_interval(secs => p_window_seconds)
+          then v_now else rl.window_start end
+  returning count into v_count;
+
+  if v_count > p_max then
+    raise exception 'rate limited: %', split_part(p_key, ':', 1);
+  end if;
+end;
+$$;
+
+revoke execute on function public.check_rate_limit(text, integer, integer) from public, anon, authenticated;
+grant  execute on function public.check_rate_limit(text, integer, integer) to service_role;
+
 -- ── Identity helpers (SECURITY DEFINER so they can read despite RLS) ──────────
 create or replace function public.is_lobby_participant(p_lobby_id uuid)
 returns boolean
@@ -275,6 +322,10 @@ begin
   -- Delete finished rows older than 24 hours to keep the table lean
   delete from public.lobbies
   where status = 'finished' and updated_at < now() - interval '24 hours';
+
+  -- Expired rate-limit windows (any window older than a day is inert)
+  delete from public.rate_limits
+  where window_start < now() - interval '24 hours';
 end;
 $$;
 
@@ -301,6 +352,8 @@ begin
   if v_uid is null then
     raise exception 'auth required';
   end if;
+
+  perform public.check_rate_limit('create_lobby:' || v_uid, 5, 3600);
 
   -- Expire abandoned lobbies on each create (no cron needed)
   perform public.cleanup_stale_lobbies();
@@ -366,6 +419,9 @@ declare
   v_count  integer;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
+
+  perform public.check_rate_limit('join_lobby:' || v_uid, 20, 60);
+
   v_player := public.normalize_waiting_player(p_player, false);
   v_pid := v_player->>'id';
   v_candidate := v_player->>'candidateId';

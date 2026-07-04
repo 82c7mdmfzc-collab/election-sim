@@ -207,6 +207,24 @@ Deno.serve(async (req: Request) => {
     if (!sku || !KNOWN_SKUS.has(sku)) return json({ error: 'unknown sku' }, 400, cors);
     if (!receipt) return json({ error: 'missing receipt' }, 400, cors);
 
+    const admin = createClient(url, serviceKey);
+
+    // Throttle before the (expensive) platform round-trip. Only an explicit
+    // "rate limited" raise blocks the request — any other failure (helper not
+    // yet migrated, transient DB error) fails OPEN so purchases keep working;
+    // verification + transaction-id idempotency remain the fraud gate.
+    const { error: rlErr } = await admin.rpc('check_rate_limit', {
+      p_key: `iap:${uid}`,
+      p_max: 6,
+      p_window_seconds: 60,
+    });
+    if (rlErr) {
+      if (/rate limited/i.test(rlErr.message ?? '')) {
+        return json({ error: 'too many purchase attempts, retry shortly' }, 429, cors);
+      }
+      console.error('[fulfill-purchase] rate-limit check unavailable:', rlErr.message);
+    }
+
     // Trust anchor: verify with the platform before crediting anything.
     let verified: VerifiedPurchase;
     try {
@@ -225,7 +243,6 @@ Deno.serve(async (req: Request) => {
     // The verified product must match the SKU the client claims.
     if (verified.sku !== sku) return json({ error: 'sku mismatch' }, 400, cors);
 
-    const admin = createClient(url, serviceKey);
     const { data: balance, error } = await admin.rpc('fulfill_purchase', {
       p_user: uid,
       p_platform: platform,
