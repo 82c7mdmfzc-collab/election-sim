@@ -8,6 +8,7 @@
 
 import { useMemo, useState } from 'react';
 import { CANDIDATES, isCandidateAvailable, type CandidateDef } from '../game/candidates';
+import { normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { playerColorHex } from '../game/playerColors';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
@@ -30,6 +31,7 @@ interface CandidateSelectProps {
 export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
   const startGame = useGameStore((s) => s.startGame);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
+  const mastery = useProfile((s) => s.profile.candidateMastery);
   const [count, setCount] = useState(2);
   // seats[i] = candidateId | null
   const [seats, setSeats] = useState<(string | null)[]>([null, null]);
@@ -180,6 +182,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
                   </div>
                 </div>
                 <div className="shop-card__foot">
+                  <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
                   {locked
                     ? <span className="shop-card__price">🔒 Unlock in Shop</span>
                     : isAssigned

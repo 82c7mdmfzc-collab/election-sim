@@ -8,6 +8,8 @@ import {
   nextAchievement,
   streakRewardForDay,
 } from '../game/achievements';
+import { CANDIDATES } from '../game/candidates';
+import { nextCandidateMasteryTarget } from '../game/candidateMastery';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { track } from '../utils/analytics';
@@ -182,15 +184,26 @@ export function NextChallengeHint({ context = 'general' }: { context?: 'general'
   const counters = profile.achievementCounters;
   const claimable = claimableAchievements(counters, profile.claimedAchievements)[0];
   const next = claimable ?? nextAchievement(counters, profile.claimedAchievements);
-  if (!next) return null;
+  const masteryTarget = nextCandidateMasteryTarget(profile.candidateMastery, CANDIDATES);
+  if (!next && !masteryTarget) return null;
 
-  const value = achievementValue(next, counters);
+  if (!next && masteryTarget) {
+    return (
+      <div className={`next-challenge next-challenge--${context}`}>
+        <span>Next mastery</span>
+        <strong>{masteryTarget.candidateName} Level {masteryTarget.nextLevel}</strong>
+        <em>{masteryTarget.xpNeeded} XP needed. {masteryTarget.progressPct}% there.</em>
+      </div>
+    );
+  }
+
+  const value = achievementValue(next!, counters);
 
   return (
     <div className={`next-challenge next-challenge--${context}`}>
       <span>{claimable ? 'Ready to claim' : 'Next challenge'}</span>
-      <strong>{next.title}</strong>
-      <em>{next.description} {claimable ? `+${next.reward} Campaign Funds waiting.` : `${Math.min(value, next.target)} / ${next.target}.`}</em>
+      <strong>{next!.title}</strong>
+      <em>{next!.description} {claimable ? `+${next!.reward} Campaign Funds waiting.` : `${Math.min(value, next!.target)} / ${next!.target}.`}</em>
     </div>
   );
 }

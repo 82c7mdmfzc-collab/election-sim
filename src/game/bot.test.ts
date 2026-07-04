@@ -10,7 +10,7 @@ import {
   tallyElectoralVotes,
 } from './engine';
 import { createInitialGameState, createInitialGameStateFromPlayers, playerFromCandidate, ALL_STATES } from './statesData';
-import { NATIONAL_GROUPS } from './config';
+import { NATIONAL_GROUPS, STATE_GROUPS_BY_STATE } from './config';
 import { CANDIDATES } from './candidates';
 import type { BotDifficulty, GameState, PendingPurchase, PlayerState } from './types';
 
@@ -263,6 +263,78 @@ describe('planBotTurn — behavior', () => {
     const moves = planBotTurn(state, botId, 'impossible', () => 0);
     expect(moves.some((m) => m.kind === 'national' && m.targetId === 'Gun Lobby')).toBe(true);
     assertLegal(state, botId, moves);
+  });
+
+  it('avoids penalized national ladders when a useful alternative exists', () => {
+    const state = freshGame();
+    const botId = state.players[1].id;
+    state.players[1] = {
+      ...state.players[1],
+      affinities: { 'Gun Lobby': -0.8 },
+      payoutModifiers: { 'Gun Lobby': -0.8, Environmental: 0.35 },
+      nationalCash: 2000,
+    };
+    const moves = planBotTurn(state, botId, 'impossible', () => 0);
+    const nationalMoves = moves.filter((m) => m.kind === 'national');
+    expect(nationalMoves.length).toBeGreaterThan(0);
+    expect(nationalMoves.some((m) => m.targetId === 'Gun Lobby')).toBe(false);
+    assertLegal(state, botId, moves);
+  });
+
+  it('pulls opening state buys toward strongly aligned state coalitions', () => {
+    const state = freshGame();
+    const botId = state.players[1].id;
+    state.players[1] = {
+      ...state.players[1],
+      affinities: { 'Old South': 0.75 },
+      payoutModifiers: { 'Old South': 0.75 },
+      nationalCash: 1200,
+    };
+    const moves = planBotTurn(state, botId, 'hard', () => 0.5);
+    const stateMoves = moves.filter((m) => m.kind === 'state');
+    expect(stateMoves.some((m) => STATE_GROUPS_BY_STATE[m.targetId]?.includes('Old South'))).toBe(true);
+    assertLegal(state, botId, moves);
+  });
+
+  it('reduces bad-fit state buys compared with the same perk as an upside', () => {
+    const liked = freshGame();
+    const disliked = freshGame();
+    const likedBot = liked.players[1].id;
+    const dislikedBot = disliked.players[1].id;
+    liked.players[1] = {
+      ...liked.players[1],
+      affinities: { 'Old South': 0.75 },
+      payoutModifiers: { 'Old South': 0.75 },
+      nationalCash: 1600,
+    };
+    disliked.players[1] = {
+      ...disliked.players[1],
+      affinities: { 'Old South': -0.75 },
+      payoutModifiers: { 'Old South': -0.75 },
+      nationalCash: 1600,
+    };
+    const countOldSouth = (moves: BotMove[]) =>
+      moves.filter((m) => m.kind === 'state' && STATE_GROUPS_BY_STATE[m.targetId]?.includes('Old South')).length;
+
+    const likedMoves = planBotTurn(liked, likedBot, 'hard', () => 0.5);
+    const dislikedMoves = planBotTurn(disliked, dislikedBot, 'hard', () => 0.5);
+    expect(countOldSouth(dislikedMoves)).toBeLessThan(countOldSouth(likedMoves));
+    assertLegal(liked, likedBot, likedMoves);
+    assertLegal(disliked, dislikedBot, dislikedMoves);
+  });
+
+  it('makes different opening plans for different candidate perk maps with the same seed', () => {
+    const players = [
+      { ...playerFromCandidate(CANDIDATES[0], { id: 'human', name: 'Human' }) },
+      { ...playerFromCandidate(CANDIDATES[1], { id: 'trump-bot', name: 'Trump' }), isBot: true, botDifficulty: 'hard' as const },
+      { ...playerFromCandidate(CANDIDATES[2], { id: 'harris-bot', name: 'Harris' }), isBot: true, botDifficulty: 'hard' as const },
+    ];
+    const state = createInitialGameStateFromPlayers(players);
+    const trumpMoves = planBotTurn(state, 'trump-bot', 'hard', mulberry32(123));
+    const harrisMoves = planBotTurn(state, 'harris-bot', 'hard', mulberry32(123));
+    expect(trumpMoves).not.toEqual(harrisMoves);
+    assertLegal(state, 'trump-bot', trumpMoves);
+    assertLegal(state, 'harris-bot', harrisMoves);
   });
 
   it('calibrates full simulated games by difficulty tier', () => {

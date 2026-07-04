@@ -25,6 +25,7 @@ import { ElectionApproachBanner } from './ElectionApproachBanner';
 import { SecuredToast } from './SecuredToast';
 import { WaitingOnPlayers } from './WaitingOnPlayers';
 import { FirstGameplayTips } from './FirstGameplayTips';
+import { OpeningCampaignMissions } from './OpeningCampaignMissions';
 import { useActivePlayer, useGameStore } from '../game/store';
 import { useTurnTimer } from '../game/useTurnTimer';
 import { useMultiplayerSync } from '../hooks/useMultiplayerSync';
@@ -57,6 +58,7 @@ export function GameShell() {
   const phase = useGameStore((s) => s.phase);
   const reset = useGameStore((s) => s.reset);
   const multiplayerMode = useGameStore((s) => s.multiplayerMode);
+  const isOpeningCampaign = useGameStore((s) => s.isOpeningCampaign);
   const activePlayer = useActivePlayer();
   const timer = useTurnTimer();
   useBotDriver();
@@ -138,7 +140,8 @@ export function GameShell() {
       <ElectionApproachBanner />
       <SecuredToast />
       <HandoffCurtain />
-      <FirstGameplayTips />
+      <OpeningCampaignMissions />
+      {!isOpeningCampaign && <FirstGameplayTips />}
     </div>
   );
 }

@@ -52,6 +52,68 @@ create policy game_rewards_select_own on public.game_rewards
 -- remains idempotent when applied after an older profiles.sql.
 alter table public.profiles add column if not exists achievement_counters jsonb not null default '{}'::jsonb;
 alter table public.profiles add column if not exists daily_streak jsonb not null default '{}'::jsonb;
+alter table public.profiles add column if not exists candidate_mastery jsonb not null default '{}'::jsonb;
+
+-- One-time grandfathering for the paid candidate floor rebalance. Before this
+-- change, Tier 2 candidates displayed at Level 3 and Farage displayed at Level 5
+-- even with 0 XP. Preserve that visible level for existing owners once, while
+-- allowing future unlocks to use the new lower floors.
+create table if not exists public.economy_migrations (
+  key text primary key,
+  applied_at timestamptz not null default now()
+);
+
+do $$
+declare
+  v_inserted integer := 0;
+  r record;
+  v_mastery jsonb;
+  v_entry jsonb;
+  v_candidate text;
+  v_xp integer;
+  v_level integer;
+begin
+  insert into public.economy_migrations (key)
+  values ('candidate_mastery_floor_rebalance_2026_07')
+  on conflict (key) do nothing;
+  get diagnostics v_inserted = row_count;
+  if v_inserted <> 1 then
+    return;
+  end if;
+
+  for r in select id, unlocked_characters, candidate_mastery from public.profiles loop
+    v_mastery := coalesce(r.candidate_mastery, '{}'::jsonb);
+
+    foreach v_candidate in array array['ronald_reagan', 'washington', 'starmer', 'jfk'] loop
+      if v_candidate = any(coalesce(r.unlocked_characters, '{}')) then
+        v_entry := coalesce(v_mastery -> v_candidate, '{}'::jsonb);
+        v_xp := greatest(900, greatest(0, coalesce((v_entry->>'xp')::integer, 0)));
+        v_level := case
+          when v_xp >= 4000 then 5
+          when v_xp >= 1800 then 4
+          when v_xp >= 900 then 3
+          when v_xp >= 150 then 2
+          else 1
+        end;
+        v_entry := jsonb_set(v_entry, '{xp}', to_jsonb(v_xp), true);
+        v_entry := jsonb_set(v_entry, '{level}', to_jsonb(greatest(v_level, 3)), true);
+        v_mastery := jsonb_set(v_mastery, array[v_candidate], v_entry, true);
+      end if;
+    end loop;
+
+    if 'farage' = any(coalesce(r.unlocked_characters, '{}')) then
+      v_entry := coalesce(v_mastery -> 'farage', '{}'::jsonb);
+      v_xp := greatest(4000, greatest(0, coalesce((v_entry->>'xp')::integer, 0)));
+      v_entry := jsonb_set(v_entry, '{xp}', to_jsonb(v_xp), true);
+      v_entry := jsonb_set(v_entry, '{level}', to_jsonb(5), true);
+      v_mastery := jsonb_set(v_mastery, array['farage'], v_entry, true);
+    end if;
+
+    update public.profiles
+      set candidate_mastery = v_mastery, updated_at = now()
+      where id = r.id and v_mastery <> coalesce(r.candidate_mastery, '{}'::jsonb);
+  end loop;
+end; $$;
 
 -- ── Ledger: one reward per achievement per account ──────────────────────────
 create table if not exists public.achievement_rewards (
@@ -212,6 +274,16 @@ declare
   v_balance      integer;
   v_premium_unlocks integer;
   v_referrals    integer;
+  v_candidate_id text := nullif(btrim(coalesce(p_candidate_id, '')), '');
+  v_candidate_mastery jsonb;
+  v_mastery_entry jsonb;
+  v_mastery_prev_xp integer;
+  v_mastery_xp integer;
+  v_mastery_new_xp integer;
+  v_mastery_floor integer;
+  v_mastery_prev_level integer;
+  v_mastery_new_level integer;
+  v_mastery_award jsonb;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
   if p_game_id is null or length(p_game_id) < 1 or length(p_game_id) > 64 then
@@ -259,7 +331,15 @@ begin
       'achievementCounters', prof.achievement_counters,
       'dailyStreak', prof.daily_streak,
       'newlyCompletedAchievements', '[]'::jsonb,
-      'claimedAchievements', to_jsonb(coalesce(v_claimed, '{}'))
+      'claimedAchievements', to_jsonb(coalesce(v_claimed, '{}')),
+      'candidateMastery', prof.candidate_mastery,
+      'masteryAward', jsonb_build_object(
+        'candidateId', null,
+        'xpGained', 0,
+        'previousLevel', 1,
+        'newLevel', 1,
+        'leveledUp', false
+      )
     );
   end if;
 
@@ -350,11 +430,75 @@ begin
     'referralsRedeemed', v_referrals
   );
 
+  v_candidate_mastery := coalesce(prof.candidate_mastery, '{}'::jsonb);
+  v_mastery_floor := case
+    when v_candidate_id = 'farage' then 3
+    when v_candidate_id in ('ronald_reagan', 'washington', 'starmer', 'jfk') then 2
+    else 1
+  end;
+  v_mastery_entry := coalesce(v_candidate_mastery -> coalesce(v_candidate_id, ''), '{}'::jsonb);
+  v_mastery_prev_xp := greatest(0, coalesce((v_mastery_entry->>'xp')::integer, 0));
+  v_mastery_xp := 10
+    + case when p_won then 25 else 0 end
+    + v_secured
+    + v_coalitions * 5
+    + case when p_won and v_mode = 'bot' and v_bot_diff in ('hard', 'impossible') then 10 else 0 end
+    + case when p_won and v_mode = 'online' then 15 else 0 end;
+  v_mastery_new_xp := v_mastery_prev_xp + v_mastery_xp;
+  v_mastery_prev_level := greatest(v_mastery_floor, case
+    when v_mastery_prev_xp >= 4000 then 5
+    when v_mastery_prev_xp >= 1800 then 4
+    when v_mastery_prev_xp >= 900 then 3
+    when v_mastery_prev_xp >= 150 then 2
+    else 1
+  end);
+  v_mastery_new_level := greatest(v_mastery_floor, case
+    when v_mastery_new_xp >= 4000 then 5
+    when v_mastery_new_xp >= 1800 then 4
+    when v_mastery_new_xp >= 900 then 3
+    when v_mastery_new_xp >= 150 then 2
+    else 1
+  end);
+  if v_mastery_new_level > 5 then v_mastery_new_level := 5; end if;
+  if v_mastery_prev_level > 5 then v_mastery_prev_level := 5; end if;
+
+  if v_candidate_id is not null then
+    v_candidate_mastery := jsonb_set(
+      v_candidate_mastery,
+      array[v_candidate_id],
+      jsonb_build_object(
+        'xp', v_mastery_new_xp,
+        'level', v_mastery_new_level,
+        'gamesFinished', greatest(0, coalesce((v_mastery_entry->>'gamesFinished')::integer, 0)) + 1,
+        'wins', greatest(0, coalesce((v_mastery_entry->>'wins')::integer, 0)) + case when p_won then 1 else 0 end,
+        'bestEv', greatest(greatest(0, coalesce((v_mastery_entry->>'bestEv')::integer, 0)), v_ev),
+        'fastestWin', case
+          when not p_won then v_mastery_entry->'fastestWin'
+          when v_mastery_entry->>'fastestWin' is null then to_jsonb(v_turns)
+          else to_jsonb(least((v_mastery_entry->>'fastestWin')::integer, v_turns))
+        end,
+        'maxCoalitions', greatest(greatest(0, coalesce((v_mastery_entry->>'maxCoalitions')::integer, 0)), v_coalitions),
+        'maxSecuredStates', greatest(greatest(0, coalesce((v_mastery_entry->>'maxSecuredStates')::integer, 0)), v_secured),
+        'hardWins', greatest(0, coalesce((v_mastery_entry->>'hardWins')::integer, 0)) + case when p_won and v_mode = 'bot' and v_bot_diff in ('hard', 'impossible') then 1 else 0 end,
+        'onlineWins', greatest(0, coalesce((v_mastery_entry->>'onlineWins')::integer, 0)) + case when p_won and v_mode = 'online' then 1 else 0 end
+      ),
+      true
+    );
+  end if;
+  v_mastery_award := jsonb_build_object(
+    'candidateId', v_candidate_id,
+    'xpGained', case when v_candidate_id is null then 0 else v_mastery_xp end,
+    'previousLevel', v_mastery_prev_level,
+    'newLevel', v_mastery_new_level,
+    'leveledUp', v_mastery_new_level > v_mastery_prev_level
+  );
+
   update public.profiles
     set campaign_funds = campaign_funds + v_reward + v_daily_reward,
         stats = v_stats,
         achievement_counters = v_counters,
         daily_streak = jsonb_build_object('count', v_streak_count, 'lastDate', v_today::text),
+        candidate_mastery = v_candidate_mastery,
         updated_at = now()
     where id = v_uid
     returning campaign_funds into v_balance;
@@ -397,7 +541,9 @@ begin
     'achievementCounters', v_counters,
     'dailyStreak', jsonb_build_object('count', v_streak_count, 'lastDate', v_today::text),
     'newlyCompletedAchievements', to_jsonb(v_claimable),
-    'claimedAchievements', to_jsonb(coalesce(v_claimed, '{}'))
+    'claimedAchievements', to_jsonb(coalesce(v_claimed, '{}')),
+    'candidateMastery', v_candidate_mastery,
+    'masteryAward', v_mastery_award
   );
 end; $$;
 
@@ -519,6 +665,110 @@ begin
   );
 end; $$;
 
+-- ── RPC: train_candidate_mastery ────────────────────────────────────────────
+-- Paid acceleration sink: spends Campaign Funds to raise an owned candidate to
+-- the next mastery threshold. The server owns both the costs and level math.
+create or replace function public.train_candidate_mastery(p_character text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  prof public.profiles;
+  v_candidate_id text := nullif(btrim(coalesce(p_character, '')), '');
+  v_owned boolean;
+  v_floor integer;
+  v_entry jsonb;
+  v_prev_xp integer;
+  v_prev_level integer;
+  v_next_level integer;
+  v_next_xp integer;
+  v_cost integer;
+  v_mastery jsonb;
+  v_balance integer;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+  if v_candidate_id not in (
+    'tooley', 'trump', 'harris', 'lincoln', 'joe_biden',
+    'ronald_reagan', 'washington', 'starmer', 'farage', 'jfk'
+  ) then
+    raise exception 'train_candidate_mastery: unknown character %', coalesce(v_candidate_id, '');
+  end if;
+
+  select * into prof from public.profiles where id = v_uid for update;
+  if prof.id is null then raise exception 'train_candidate_mastery: no profile'; end if;
+
+  v_owned := v_candidate_id in ('tooley', 'trump', 'harris', 'lincoln', 'joe_biden')
+    or v_candidate_id = any(prof.unlocked_characters);
+  if not v_owned then raise exception 'train_candidate_mastery: character not owned'; end if;
+
+  v_floor := case
+    when v_candidate_id = 'farage' then 3
+    when v_candidate_id in ('ronald_reagan', 'washington', 'starmer', 'jfk') then 2
+    else 1
+  end;
+  v_mastery := coalesce(prof.candidate_mastery, '{}'::jsonb);
+  v_entry := coalesce(v_mastery -> v_candidate_id, '{}'::jsonb);
+  v_prev_xp := greatest(0, coalesce((v_entry->>'xp')::integer, 0));
+  v_prev_level := greatest(v_floor, case
+    when v_prev_xp >= 4000 then 5
+    when v_prev_xp >= 1800 then 4
+    when v_prev_xp >= 900 then 3
+    when v_prev_xp >= 150 then 2
+    else 1
+  end);
+  if v_prev_level >= 5 then
+    raise exception 'train_candidate_mastery: already max level';
+  end if;
+
+  v_next_level := v_prev_level + 1;
+  v_next_xp := case v_next_level
+    when 2 then 150
+    when 3 then 900
+    when 4 then 1800
+    when 5 then 4000
+    else null
+  end;
+  v_cost := case v_next_level
+    when 2 then 750
+    when 3 then 2000
+    when 4 then 4500
+    when 5 then 9000
+    else null
+  end;
+  if v_next_xp is null or v_cost is null then
+    raise exception 'train_candidate_mastery: invalid next level';
+  end if;
+  if prof.campaign_funds < v_cost then
+    raise exception 'train_candidate_mastery: insufficient funds';
+  end if;
+
+  v_entry := jsonb_set(v_entry, '{xp}', to_jsonb(greatest(v_prev_xp, v_next_xp)), true);
+  v_entry := jsonb_set(v_entry, '{level}', to_jsonb(v_next_level), true);
+  v_mastery := jsonb_set(v_mastery, array[v_candidate_id], v_entry, true);
+
+  update public.profiles
+    set campaign_funds = campaign_funds - v_cost,
+        candidate_mastery = v_mastery,
+        updated_at = now()
+    where id = v_uid
+    returning campaign_funds into v_balance;
+
+  return jsonb_build_object(
+    'balance', v_balance,
+    'candidateMastery', v_mastery,
+    'trainingAward', jsonb_build_object(
+      'candidateId', v_candidate_id,
+      'cost', v_cost,
+      'previousLevel', v_prev_level,
+      'newLevel', v_next_level,
+      'xp', greatest(v_prev_xp, v_next_xp)
+    )
+  );
+end; $$;
+
 -- ── GRANTs (A5) — explicit so authenticated clients can call the RPCs ────────
 revoke execute on function public.claim_game_reward(text, boolean, integer, integer, integer) from public, anon;
 grant execute on function public.claim_game_reward(text, boolean, integer, integer, integer)
@@ -529,5 +779,7 @@ grant execute on function public.complete_game_result(text, boolean, integer, in
 revoke execute on function public.claim_achievement_reward(text) from public, anon;
 grant execute on function public.claim_achievement_reward(text)
   to authenticated;
+revoke execute on function public.train_candidate_mastery(text) from public, anon;
+grant execute on function public.train_candidate_mastery(text) to authenticated;
 revoke execute on function public.unlock_character(text) from public, anon;
 grant execute on function public.unlock_character(text) to authenticated;

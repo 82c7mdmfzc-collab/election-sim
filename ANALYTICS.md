@@ -37,6 +37,9 @@ Every event includes:
 Onboarding:
 
 - `app_opened`
+- `first_mission_started`
+- `first_mission_objective_completed`
+- `first_mission_completed`
 - `tutorial_started`
 - `tutorial_completed`
 - `tutorial_skipped`
@@ -63,6 +66,8 @@ Economy and store:
 - `item_unlocked`
 - `funds_earned`
 - `achievement_claimed`
+- `candidate_mastery_xp_awarded`
+- `candidate_mastery_level_up`
 
 Daily:
 
@@ -70,6 +75,8 @@ Daily:
 - `daily_challenge_started`
 - `daily_challenge_completed`
 - `daily_challenge_won`
+- `daily_score_submitted`
+- `daily_rank_viewed`
 
 Cosmetics:
 

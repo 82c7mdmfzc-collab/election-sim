@@ -246,6 +246,11 @@ as $$
   select l.id, l.room_code, l.is_public, l.status, l.player_count, l.game_state, l.created_at, l.updated_at
   from public.lobbies l
   where l.status = 'waiting' and l.is_public = true
+    and (l.host_uid is null or l.host_uid <> auth.uid())
+    and not exists (
+      select 1 from public.lobby_participants lp
+      where lp.lobby_id = l.id and lp.auth_uid = auth.uid()
+    )
   order by l.created_at desc
   limit 20;
 $$;
@@ -371,6 +376,20 @@ begin
 
   if v_state is null then raise exception 'lobby not found'; end if;
   if v_status <> 'waiting' then raise exception 'lobby not joinable'; end if;
+
+  if exists (
+    select 1 from public.lobbies
+    where id = p_lobby_id and host_uid = v_uid
+  ) then
+    raise exception 'account already in lobby';
+  end if;
+
+  if exists (
+    select 1 from public.lobby_participants
+    where lobby_id = p_lobby_id and auth_uid = v_uid
+  ) then
+    raise exception 'account already in lobby';
+  end if;
 
   v_count := coalesce(jsonb_array_length(v_state->'players'), 0);
   if v_count >= coalesce(v_cap, 2) then raise exception 'lobby full'; end if;

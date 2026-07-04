@@ -248,8 +248,8 @@ National Network ids. The best (max) affinity across a state's Coalitions is the
 | Candidate | Party | Start cash | Identity | Cost discounts (affinity) | Cost penalties | Profit boosts (payout) | Profit penalties |
 |---|---|---:|---|---|---|---|---|
 | **Bobby Tooley** | Independent | **300** | "The Baseline" — fully neutral | — | — | — | — |
-| **Donald Trump** | Republican | 250 | "Industrial Populist" | Gun Lobby .15, Manufacturing .15, Oil & Gas .15, Agriculture .10, Swing .05 | Town&Gown −.20, High Tech −.15 | Big Conservative .25, Gun Lobby .15, Oil&Gas .15, Old South .10 | Environmental −.20 |
-| **Kamala Harris** | Democrat | 250 | "Metro Coalition" | Environmental .20, High Tech .15 | Big Conservative −.25, Old South −.15, Oil&Gas −.15 | Women's Vote .25, Environmental .15, Town&Gown .10 | Oil&Gas −.15, Gun Lobby −.20 |
+| **Donald Trump** | Republican | 250 | "Industrial Populist" | Gun Lobby .15, Manufacturing .15, Oil & Gas .15, Agriculture .10, Swing .05 | Town&Gown −.20, High Tech −.15 | Big Conservative .20, Gun Lobby .15, Oil&Gas .15, Old South .10 | Environmental −.20 |
+| **Kamala Harris** | Democrat | 250 | "Metro Coalition" | Environmental .20, High Tech .15 | Big Conservative −.25, Old South −.15, Oil&Gas −.15 | Women's Vote .20, Environmental .15, Town&Gown .10 | Oil&Gas −.15, Gun Lobby −.20 |
 | **Abraham Lincoln** | Republican | 250 | "Centrist Unifier" | African American .15, Manufacturing .10, Agriculture .10 | Youth Vote −.20, Big Conservative −.10, Environmental −.10 | Swing .20, Export Driven .15, Agriculture .10 | High Tech −.15 |
 
 | **Joe Biden** | Democrat | 250 | "Union Hall Veteran" | Manufacturing .15, African American .15, Town&Gown .10, Agriculture .10 | Gun Lobby −.20, Old South −.10 | Women's Vote .15, Environmental .10, Youth Vote .10 | Big Conservative −.20 |
@@ -257,15 +257,18 @@ National Network ids. The best (max) affinity across a state's Coalitions is the
 ### Premium roster — unlock with Campaign Funds
 | Candidate | Price | Party | Identity | Cost discounts | Cost penalties | Profit boosts | Profit penalties |
 |---|---:|---|---|---|---|---|---|
-| **Ronald Reagan** | 4,500 | Republican | "Sun Belt Optimist" | Swing .20, Old South .20, Big Conservative .15, Oil&Gas .15 | High Tech −.10, Town&Gown −.15 | Big Conservative .30, Old South .20, Swing .15, Oil&Gas .15 | Environmental −.20 |
+| **Ronald Reagan** | 4,500 | Republican | "Sun Belt Optimist" | Swing .20, Old South .20, Big Conservative .15, Oil&Gas .15 | High Tech −.10, Town&Gown −.15 | Big Conservative .20, Old South .15, Swing .15, Oil&Gas .15 | Environmental −.20 |
 | **George Washington** | 4,500 | Independent | "Nonpartisan Founder" — **net-neutral sidegrade** (perks sum to zero) | Agriculture .05, Swing .05 | High Tech −.05, Big Conservative −.05 | Swing .10, Export Driven .05 | Old South −.05, Environmental −.10 |
-| **Keir Starmer** | 4,500 | Democrat | "Technocratic Centre" | High Tech .20, Town&Gown .20, Manufacturing .15 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Women's Vote .20, High Tech .20, Export Driven .15 | Gun Lobby −.20 |
-| **John F. Kennedy** | 4,500 | Democrat | "New Frontier" | High Tech .20, Youth Vote .20, African American .15 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Youth Vote .25, High Tech .20, Women's Vote .15 | Gun Lobby −.20 |
-| **Nigel Farage** | 10,000 | Republican | "Insurgent Populist" | Gun Lobby .20, Old South .20, Big Conservative .15, Oil&Gas .15 | High Tech −.20, Town&Gown −.15 | Big Conservative .45, Gun Lobby .20, Old South .15 | Environmental −.20 |
+| **Keir Starmer** | 4,500 | Democrat | "Technocratic Centre" | High Tech .20, Town&Gown .20, Manufacturing .15 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Women's Vote .20, High Tech .15, Export Driven .15 | Gun Lobby −.20 |
+| **John F. Kennedy** | 4,500 | Democrat | "New Frontier" | High Tech .20, Youth Vote .20, African American .15 | Big Conservative −.20, Oil&Gas −.15, Old South −.10 | Youth Vote .20, High Tech .15, Women's Vote .15 | Gun Lobby −.20 |
+| **Nigel Farage** | 10,000 | Republican | "Insurgent Populist" | Gun Lobby .20, Old South .20, Big Conservative .15, Oil&Gas .15 | High Tech −.20, Town&Gown −.15 | Big Conservative .20, Gun Lobby .15, Old South .15 | Environmental −.20 |
 
 Party is **cosmetic only** (sets color/badge; never affects gameplay). **George Washington** was a
 limited-time **free grant for July signups**; everyone else buys him for 4,500 Funds, and his
 stats are deliberately net-neutral so a free campaign style grants no economic edge.
+Candidate mastery levels preserve these identities without broad runaway scaling: signature .20 stats can
+reach .30 at Level 5, ordinary .10/.15 stats rise only about five points total, penalties soften slightly,
+and Washington does not gain mastery stat or cash scaling.
 
 ---
 
@@ -314,7 +317,7 @@ Funds: 10  15  20  25  30  35  40  45  50  60  70  80  90  100
 
 **C) Achievements** (one-time claims; 23 total across 5 trees — see §12): **10–100 Funds** each.
 
-**D) Rewarded ads** (opt-in): server rolls a **random 20–60 Funds**, **max 5 per rolling 12 hours**.
+**D) Rewarded ads** (opt-in): server rolls a **random 10–25 Funds**, **max 5 per rolling 12 hours**.
 Requires an account. Ads are never auto-shown.
 
 **E) Referrals:** **500 Funds to BOTH parties**, paid when the **invitee finishes their first game**
@@ -382,7 +385,7 @@ are earnable sidegrades; cosmetic items are the preferred long-term sink.
 - **Google AdMob**, **rewarded only**, **opt-in**, **iOS launch target** (Android deferred). Publisher
   `pub-5364561069734393`; rewarded unit `ca-app-pub-5364561069734393/7845987969`.
 - **Non-personalized** (no ATT/IDFA prompt; no cross-app tracking) per the privacy configuration.
-- Payout 20–60 Funds, server-random, capped 5 / 12 hours (shared with §11D).
+- Payout 10–25 Funds, server-random, capped 5 / 12 hours (shared with §11D).
 - A first-party **inline "sponsored message"** fallback (8-second timer) exists for dev/no-network-revenue
   builds; off in production by default.
 
@@ -465,7 +468,7 @@ Factual relationships derived from the numbers above — useful seeds for analys
   What cadence of new cosmetics/candidates keeps engaged players motivated without creating pay-to-win pressure?
 - **IAP ladder fit:** the $19.99 pack now has a collector/supporter role. Does conversion cluster around the
   starter, most-popular, or top pack once TestFlight purchase telemetry exists?
-- **Ads vs IAP cannibalization:** 5 free 20–60 Funds ad-claims per 12h (≈ up to 600 Funds/day) plus
+- **Ads vs IAP cannibalization:** 5 free 10–25 Funds ad-claims per 12h (up to 250 Funds/day) plus
   per-game rewards may undercut the impulse to buy Funds. Worth modeling.
 - **Virality math:** 500+500 Funds per completed-first-game referral — strong incentive; the gate is
   first-game completion. What's the realistic invite→signup→first-game conversion?

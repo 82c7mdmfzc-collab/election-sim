@@ -16,6 +16,7 @@ import {
   CANDIDATE_MAP,
   isCandidateAvailable,
 } from '../game/candidates';
+import { normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { playerColorHex } from '../game/playerColors';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
@@ -46,6 +47,7 @@ interface BotSetupProps {
 export function BotSetup({ onBack }: BotSetupProps) {
   const startGame = useGameStore((s) => s.startGame);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
+  const mastery = useProfile((s) => s.profile.candidateMastery);
 
   const ownedCandidates = useMemo(
     () => CANDIDATES.filter((c) => isCandidateAvailable(c, unlocked)),
@@ -162,6 +164,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
                   </div>
                 </div>
                 <div className="shop-card__foot">
+                  <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
                   {chosen && <div className="shop-card__owned">Your pick ✓</div>}
                   <span className="shop-card__stats-hint">View stats ›</span>
                 </div>

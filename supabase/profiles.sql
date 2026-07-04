@@ -1,9 +1,8 @@
--- profiles.sql — surgical catalog update.
+-- profiles.sql — surgical account/economy RPCs.
 --
 -- The base profiles schema (table, handle_new_user, claim_display_name, …) already
--- lives in the live database. This file intentionally contains ONLY the one function
--- that needs to change when the purchasable roster grows, so re-applying it on deploy
--- is a safe, idempotent `create or replace` that touches nothing else.
+-- lives in the live database. This file intentionally contains narrow, idempotent
+-- RPC definitions so re-applying it on deploy converges the desired server behavior.
 --
 -- ── RPC: unlock_character ────────────────────────────────────────────────────
 -- The SERVER owns the price catalog so the client cannot spoof a low cost.
@@ -71,3 +70,71 @@ end; $$;
 
 revoke execute on function public.claim_free_character(text) from public, anon;
 grant  execute on function public.claim_free_character(text) to authenticated;
+
+-- ── RPC: delete_account ─────────────────────────────────────────────────────
+-- Apple 5.1.1(v): authenticated users can permanently delete their account from
+-- inside the app. The auth user delete cascades most account-owned tables; the
+-- explicit cleanup below covers ledgers/relationships that are not FK-cascaded.
+create or replace function public.delete_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+begin
+  if v_uid is null then
+    raise exception 'delete_account: auth required';
+  end if;
+
+  if to_regclass('public.lobbies') is not null
+     and to_regclass('public.lobby_participants') is not null then
+    delete from public.lobbies l
+      where l.status in ('waiting', 'in_progress')
+        and (
+          l.host_uid = v_uid
+          or exists (
+            select 1
+            from public.lobby_participants lp
+            where lp.lobby_id = l.id
+              and lp.auth_uid = v_uid
+          )
+        );
+  elsif to_regclass('public.lobbies') is not null then
+    delete from public.lobbies
+      where host_uid = v_uid
+        and status in ('waiting', 'in_progress');
+  end if;
+
+  if to_regclass('public.lobby_participants') is not null then
+    delete from public.lobby_participants
+      where auth_uid = v_uid;
+  end if;
+
+  if to_regclass('public.purchases') is not null then
+    delete from public.purchases
+      where user_id = v_uid;
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'profiles'
+      and column_name = 'referred_by'
+  ) then
+    execute
+      'update public.profiles set referred_by = null, updated_at = now() where referred_by = $1'
+      using v_uid;
+  end if;
+
+  delete from public.profiles
+    where id = v_uid;
+
+  delete from auth.users
+    where id = v_uid;
+end; $$;
+
+revoke execute on function public.delete_account() from public, anon;
+grant  execute on function public.delete_account() to authenticated;

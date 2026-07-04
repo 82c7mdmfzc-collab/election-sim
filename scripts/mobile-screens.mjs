@@ -280,8 +280,18 @@ async function auditEndgame(browser, viewport) {
       [...(grp?.querySelectorAll('.setup__count-btn') ?? [])].find((b) => b.textContent.trim() === '3')?.click();
     });
     await wait(250);
-    await page.click('.setup__start'); await wait(700); await applyNative(page);
-    if (await page.$('.versus')) { await page.click('.versus'); await wait(400); }
+    const started = await page.evaluate(() => {
+      const b = [...document.querySelectorAll('.setup--bot .setup__start, .setup--bot .cand-select__start')]
+        .find((el) => !el.disabled && el.offsetParent !== null);
+      if (b instanceof HTMLElement) { b.click(); return true; }
+      return false;
+    });
+    if (started) {
+      await wait(700); await applyNative(page);
+      if (await page.$('.versus')) { await page.click('.versus'); await wait(400); }
+    } else {
+      console.log('  – endgame: could not restart 4-player bot setup');
+    }
   }
   let gotElection = false, gotTally = false;
   for (let i = 0; i < 240; i += 1) {
@@ -352,6 +362,110 @@ async function auditInjected(browser, viewport) {
   console.log(`\n▶ ${viewport.name}: injected fallbacks (labeled)`);
   const page = await browser.newPage();
   await load(page, viewport);
+
+  const playerRow = (name, candidate, color, badge = '') => `
+    <div class="mp-player-row" style="--p-color:${color}">
+      <span class="mp-player-token cand-token">${name.slice(0, 2).toUpperCase()}</span>
+      <span class="mp-player-name">${name}</span>
+      <span class="mp-player-cand">${candidate}</span>
+      ${badge ? `<span class="mp-player-badge">${badge}</span>` : ''}
+    </div>`;
+
+  // Online lobby waiting host — real class composition for the compact native layout.
+  await page.evaluate((rows) => {
+    document.body.innerHTML = `
+      <div class="setup native-screen mp-screen mp-screen--waiting mp-screen--waiting-host">
+        <div class="setup__header"><h1 class="setup__title">Waiting for players to join…</h1></div>
+        <div class="mp-wait">
+          <div class="mp-wait__code-label">Your room code</div>
+          <div class="mp-wait__code">7075</div>
+          <p class="mp-wait__hint">Share this code with friends — they each join on their own device.</p>
+          <div class="mp-players">${rows}<div class="mp-player-row mp-player-row--empty">Open seat</div></div>
+          <div class="mp-bot-panel">
+            <div class="mp-bot-panel__head"><span>Computer Seats</span><strong>1/3</strong></div>
+            <div class="mp-bot-panel__controls">
+              <div class="mp-bot-difficulty"><button class="mp-bot-difficulty__btn">Easy</button><button class="mp-bot-difficulty__btn is-active">Medium</button><button class="mp-bot-difficulty__btn">Hard</button><button class="mp-bot-difficulty__btn">Impossible</button></div>
+              <button class="mp-bot-add">Add Computer</button>
+            </div>
+            <div class="mp-bot-list"><div class="mp-bot-chip"><span class="mp-bot-chip__avatar cand-token">AI</span><span class="mp-bot-chip__text"><strong>Donald Trump</strong><em>medium</em></span><button class="mp-bot-chip__remove">Remove</button></div></div>
+          </div>
+        </div>
+        <div class="setup__foot mp-wait-actions"><button class="setup__start">Waiting for 1 more player(s)…</button><button class="mp-back">← Leave</button></div>
+      </div>`;
+  }, [
+    playerRow('Dannytooley01', 'Bobby Tooley', '#22c55e', 'Host'),
+    playerRow('Kamala Fan', 'Kamala Harris', '#3b82f6'),
+    playerRow('AI_1', 'Donald Trump', '#ef4444', 'Computer'),
+  ].join(''));
+  await wait(150);
+  await capture(page, viewport.name, 'online-waiting-host', { injected: true });
+
+  // Online lobby waiting guest.
+  await page.evaluate((rows) => {
+    document.body.innerHTML = `
+      <div class="setup native-screen mp-screen mp-screen--waiting mp-screen--waiting-guest">
+        <div class="setup__header"><h1 class="setup__title">Waiting for the host…</h1></div>
+        <div class="mp-wait">
+          <div class="mp-wait__code-label">Your room code</div>
+          <div class="mp-wait__code">1907</div>
+          <p class="mp-wait__hint">Sit tight — the game starts when the host is ready.</p>
+          <div class="mp-players">${rows}<div class="mp-player-row mp-player-row--empty">Open seat</div><div class="mp-player-row mp-player-row--empty">Open seat</div></div>
+        </div>
+        <div class="setup__foot mp-wait-actions"><button class="mp-back">← Leave</button></div>
+      </div>`;
+  }, [
+    playerRow('Dannytooley01', 'Bobby Tooley', '#22c55e', 'Host'),
+    playerRow('Trump Card', 'Donald Trump', '#ef4444'),
+  ].join(''));
+  await wait(150);
+  await capture(page, viewport.name, 'online-waiting-guest', { injected: true });
+
+  // Online candidate picking with existing players.
+  await page.evaluate((existingRows) => {
+    const card = (name, tag, color, state = '') => `
+      <button class="shop-card${state}" style="--p-color:${color}">
+        <div class="shop-card__top"><div class="shop-card__portrait"></div><div><span class="shop-card__name">${name}</span><span class="shop-card__tag">${tag}</span></div></div>
+        <div class="shop-card__foot"><span class="shop-card__stats-hint">View stats ›</span></div>
+      </button>`;
+    document.body.innerHTML = `
+      <div class="setup native-screen mp-screen mp-screen--picking">
+        <div class="setup__header"><h1 class="setup__title">Room 7075</h1></div>
+        <div class="cand-select-body">
+          <div class="mp-existing-players"><span class="mp-existing-players__label">Already here</span>${existingRows}</div>
+          <p class="shop__sub cand-select-body__hint">Tap a candidate to review their bonuses, then choose. Greyed-out candidates are already taken.</p>
+          <div class="shop__grid shop-rail">
+            ${card('Bobby Tooley', 'Taken', '#22c55e', ' is-locked')}
+            ${card('Donald Trump', 'Media shockwave', '#ef4444')}
+            ${card('Kamala Harris', 'Ground game', '#3b82f6')}
+            ${card('JFK', 'Charisma machine', '#f59e0b')}
+          </div>
+        </div>
+        <div class="setup__foot"><button class="setup__start">Join Game</button><button class="mp-back">← Use a different code</button></div>
+      </div>`;
+  }, playerRow('Dannytooley01', 'Bobby Tooley', '#22c55e', 'Host'));
+  await wait(150);
+  await capture(page, viewport.name, 'online-picking', { injected: true });
+
+  // Online joining with public lobby list.
+  await page.evaluate(() => {
+    const row = (code, count, cta) => `<li><button class="mp-public__row"><span class="mp-public__code">Room ${code}</span><span class="mp-public__count">${count} players</span><span class="mp-public__cta">${cta}</span></button></li>`;
+    document.body.innerHTML = `
+      <div class="setup native-screen mp-screen mp-screen--joining">
+        <div class="setup__header"><h1 class="setup__title">Join a Game</h1></div>
+        <div class="mp-join">
+          <p class="mp-join__hint">Got a code? Enter it below</p>
+          <div class="mp-join__row"><input class="mp-join__input" value="7075" /><button class="setup__start">Join Game</button></div>
+          <div class="mp-public">
+            <div class="mp-public__head"><span class="mp-public__title">Open public games</span><button class="mp-public__refresh">↻ Refresh</button></div>
+            <ul class="mp-public__list">${row('7075', '3/4', 'Join →')}${row('1907', '2/4', 'Join →')}${row('4512', '4/4', 'Full')}</ul>
+          </div>
+          <button class="mp-back">← Back</button>
+        </div>
+      </div>`;
+  });
+  await wait(150);
+  await capture(page, viewport.name, 'online-joining', { injected: true });
+
   // Signed-in shop interior (recruit tab) — real markup, account-gated route.
   await page.evaluate(() => {
     document.body.innerHTML = `

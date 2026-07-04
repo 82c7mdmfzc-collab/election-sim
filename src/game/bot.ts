@@ -33,6 +33,7 @@ import {
   STATE_GROUPS,
   STATE_GROUPS_BY_STATE,
   NATIONAL_GROUPS,
+  NATIONAL_BONUS_MIN_RUNGS,
   minRungsForDominance,
   WIN_THRESHOLD,
 } from './config';
@@ -126,10 +127,36 @@ function totalFunds(p: PlayerState): number {
   return p.nationalCash + Object.values(p.groupWallets).reduce((a, b) => a + b, 0);
 }
 
-function perkWeight(player: PlayerState, groupId: string): number {
-  const affinity = Math.max(0, player.affinities[groupId] ?? 0);
-  const payout = Math.max(0, player.payoutModifiers[groupId] ?? 0);
+function perkFit(player: PlayerState, groupId: string): number {
+  const affinity = player.affinities[groupId] ?? 0;
+  const payout = player.payoutModifiers[groupId] ?? 0;
   return affinity + payout * 0.85;
+}
+
+function perkDrag(player: PlayerState, groupId: string): number {
+  return Math.max(0, -perkFit(player, groupId));
+}
+
+function statePerkProfile(player: PlayerState, stateId: string): {
+  positive: number;
+  negative: number;
+  net: number;
+  mostlyBad: boolean;
+} {
+  const groups = STATE_GROUPS_BY_STATE[stateId] ?? [];
+  let positive = 0;
+  let negative = 0;
+  for (const gid of groups) {
+    const fit = perkFit(player, gid);
+    if (fit >= 0) positive += fit;
+    else negative += -fit;
+  }
+  return {
+    positive,
+    negative,
+    net: positive - negative,
+    mostlyBad: negative > 0 && negative > positive * 1.25,
+  };
 }
 
 function isPreElectionTurn(state: GameState): boolean {
@@ -310,7 +337,7 @@ function wouldMatchVisiblePending(
 }
 
 /** Groups where this bot can plausibly claim or preserve >50% EV control. */
-function dominancePressureByState(state: GameState, selfId: string): Record<string, number> {
+function dominancePressureByState(state: GameState, player: PlayerState): Record<string, number> {
   const pressure: Record<string, number> = {};
   for (const g of STATE_GROUPS) {
     let myEv = 0;
@@ -318,18 +345,20 @@ function dominancePressureByState(state: GameState, selfId: string): Record<stri
     for (const sid of g.members) {
       const us = STATE_BY_ID[sid];
       if (!us) continue;
-      const myR = state.rungs[sid]?.[selfId] ?? 0;
-      const { max } = opponentMaxRungs(state, sid, selfId);
+      const myR = state.rungs[sid]?.[player.id] ?? 0;
+      const { max } = opponentMaxRungs(state, sid, player.id);
       const threshold = minRungsForDominance(sid, us.electoralVotes);
       if (myR >= threshold && myR >= max) myEv += us.electoralVotes;
       else if (myR + 2 >= threshold) contestedEv += us.electoralVotes;
     }
     const gap = g.totalEV / 2 - myEv;
     if (gap <= contestedEv && myEv + contestedEv > g.totalEV * 0.35) {
+      const payoutScale = Math.max(0.35, 1 + (player.payoutModifiers[g.id] ?? 0) + perkFit(player, g.id) * 0.6);
       for (const sid of g.members) {
         const us = STATE_BY_ID[sid];
         if (!us) continue;
-        pressure[sid] = (pressure[sid] ?? 0) + Math.max(0.25, 1 - Math.max(0, gap) / Math.max(1, g.totalEV / 2));
+        const basePressure = Math.max(0.25, 1 - Math.max(0, gap) / Math.max(1, g.totalEV / 2));
+        pressure[sid] = (pressure[sid] ?? 0) + basePressure * payoutScale;
       }
     }
   }
@@ -363,6 +392,8 @@ function scoreState(
   stateId: string,
   k: Knobs,
   dominancePressure: Record<string, number>,
+  opponentLeader: { id: string | null; ev: number },
+  perkProfiles: Record<string, ReturnType<typeof statePerkProfile>>,
   rng: () => number,
 ): number {
   const us = STATE_BY_ID[stateId];
@@ -373,7 +404,6 @@ function scoreState(
 
   const { max: oppMax, leaderId } = opponentMaxRungs(state, stateId, sim.player.id);
   const leader = stateLeader(state, stateId);
-  const opponentLeader = topOpponentEv(state, sim.player.id);
   const discount = bestAffinityForState(sim.player, stateId);
   const plannedRungs = affordableStateRungs(state, sim, stateId, k.depth);
   if (plannedRungs <= 0) return -Infinity;
@@ -382,6 +412,7 @@ function scoreState(
 
   const preElection = isPreElectionTurn(state);
   const leaderPressure = opponentLeader.ev >= WIN_THRESHOLD - 80 ? 1.45 : opponentLeader.ev >= WIN_THRESHOLD - 130 ? 1.2 : 1;
+  const perks = perkProfiles[stateId] ?? statePerkProfile(sim.player, stateId);
   let value = us.electoralVotes * (leader === sim.player.id ? 0.35 : 1);
   // Taking or holding the lead is the point — buying past the current leader.
   if (leader !== sim.player.id && endRung > oppMax) value += us.electoralVotes * 0.8;
@@ -403,8 +434,16 @@ function scoreState(
   }
   if (STATE_GROUPS_BY_STATE[stateId]?.length) {
     value += STATE_GROUPS_BY_STATE[stateId].length * 0.2;
-    for (const gid of STATE_GROUPS_BY_STATE[stateId]) {
-      value += us.electoralVotes * perkWeight(sim.player, gid) * k.perkBonus;
+    value += us.electoralVotes * perks.positive * k.perkBonus * 1.25;
+
+    const tacticalRelief =
+      (preElection ? 0.45 : 0)
+      + (leader && leader !== sim.player.id && endRung > oppMax ? 0.35 : 0)
+      + (leaderId && oppMax > myRungs ? 0.2 : 0);
+    const penaltyScale = Math.max(0.25, 1.05 - tacticalRelief);
+    value -= us.electoralVotes * perks.negative * k.perkBonus * penaltyScale;
+    if (perks.mostlyBad && tacticalRelief < 0.55) {
+      value *= Math.max(0.35, 1 - perks.negative * k.perkBonus * 0.8);
     }
   }
 
@@ -420,6 +459,30 @@ function scoreState(
   const noise = 1 + (rng() - 0.5) * k.jitter;
 
   return (value * noise) / plannedCost; // value per $
+}
+
+function scoreNational(state: GameState, sim: Sim, groupId: string, k: Knobs): number {
+  const g = NATIONAL_GROUPS.find((x) => x.id === groupId);
+  if (!g || state.natSecuredBy[groupId]) return -Infinity;
+
+  const startRung = (state.natRungs[groupId]?.[sim.player.id] ?? 0) + (sim.pending[groupId] ?? 0);
+  if (startRung >= g.maxRungs) return -Infinity;
+
+  const cost = calcNationalCost(groupId, startRung, 1, sim.player);
+  if (cost > sim.player.nationalCash) return -Infinity;
+
+  const fit = perkFit(sim.player, groupId);
+  const incomeHorizon = Math.max(2, ELECTION_START_TURN - state.turn + 4);
+  const payout = g.turnBonus * Math.max(0.2, 1 + (sim.player.payoutModifiers[groupId] ?? 0));
+  const progress =
+    startRung >= NATIONAL_BONUS_MIN_RUNGS ? 1.25
+      : startRung + 2 >= NATIONAL_BONUS_MIN_RUNGS ? 1.45
+        : 0.95;
+  const signatureValue = Math.max(0, fit) * 95 * Math.max(0.6, k.perkBonus);
+  const drag = perkDrag(sim.player, groupId) * 120 * Math.max(0.6, k.perkBonus);
+  const value = payout * progress * (incomeHorizon / 5) + signatureValue + startRung * 6 - drag;
+
+  return value / Math.max(1, cost);
 }
 
 // ── Public entry ────────────────────────────────────────────────────────────────
@@ -464,7 +527,7 @@ function planEasy(state: GameState, sim: Sim, moves: BotMove[], rng: () => numbe
   if (rng() < 0.18 && !isPreElectionTurn(state)) {
     const ladders = NATIONAL_GROUPS
       .filter((g) => !state.natSecuredBy[g.id])
-      .sort((a, b) => perkWeight(sim.player, b.id) - perkWeight(sim.player, a.id));
+      .sort((a, b) => perkFit(sim.player, b.id) - perkFit(sim.player, a.id));
     if (rng() < 0.45) shuffle(ladders, rng);
     const mv = ladders[0] ? commitNational(sim, state, ladders[0].id, 1) : null;
     if (mv) moves.push(mv);
@@ -475,7 +538,7 @@ function planEasy(state: GameState, sim: Sim, moves: BotMove[], rng: () => numbe
     .filter((s) => !state.securedBy[s.id])
     .map((s) => ({
       id: s.id,
-      weight: s.electoralVotes + (STATE_GROUPS_BY_STATE[s.id] ?? []).reduce((sum, gid) => sum + perkWeight(sim.player, gid) * 18, 0),
+      weight: s.electoralVotes + (STATE_GROUPS_BY_STATE[s.id] ?? []).reduce((sum, gid) => sum + perkFit(sim.player, gid) * 18, 0),
     }))
     .sort((a, b) => b.weight - a.weight)
     .map((s) => s.id);
@@ -495,23 +558,25 @@ function planEasy(state: GameState, sim: Sim, moves: BotMove[], rng: () => numbe
 function planSmart(state: GameState, sim: Sim, moves: BotMove[], k: Knobs, rng: () => number): void {
   const electionPressure = state.turn >= ELECTION_START_TURN - 1 ? Math.max(0, state.turn - 9) * 0.01 : 0;
   const reserve = totalFunds(sim.player) * Math.max(0, k.reserveFrac - electionPressure);
-  const dominancePressure = dominancePressureByState(state, sim.player.id);
+  const dominancePressure = dominancePressureByState(state, sim.player);
+  const opponentLeader = topOpponentEv(state, sim.player.id);
+  const perkProfiles = Object.fromEntries(ALL_STATES.map((s) => [s.id, statePerkProfile(sim.player, s.id)]));
   const preElection = isPreElectionTurn(state);
 
   // Optional: invest in a national ladder for flexible income, weighted by net
   // payout and candidate perks rather than picking the same ladder every time.
   if (!preElection && rng() < k.nationalChance && state.turn <= ELECTION_START_TURN) {
-    const ladder = [...NATIONAL_GROUPS]
+    const ladders = [...NATIONAL_GROUPS]
       .filter((g) => !state.natSecuredBy[g.id])
-      .map((g) => ({
-        id: g.id,
-        score: (g.turnBonus * (1 + Math.max(0, sim.player.payoutModifiers[g.id] ?? 0)) + perkWeight(sim.player, g.id) * 60)
-          / Math.max(1, calcNationalCost(g.id, state.natRungs[g.id]?.[sim.player.id] ?? 0, 1, sim.player)),
-      }))
-      .sort((a, b) => b.score - a.score)[0];
-    if (ladder) {
+      .map((g) => ({ id: g.id, score: scoreNational(state, sim, g.id, k) }))
+      .filter((g) => g.score !== -Infinity)
+      .sort((a, b) => b.score - a.score);
+    for (const ladder of ladders) {
       const mv = commitNational(sim, state, ladder.id, 2);
-      if (mv) moves.push(mv);
+      if (mv) {
+        moves.push(mv);
+        break;
+      }
     }
   }
 
@@ -521,7 +586,7 @@ function planSmart(state: GameState, sim: Sim, moves: BotMove[], k: Knobs, rng: 
 
     let best: { id: string; score: number } | null = null;
     for (const s of ALL_STATES) {
-      const sc = scoreState(state, sim, s.id, k, dominancePressure, rng);
+      const sc = scoreState(state, sim, s.id, k, dominancePressure, opponentLeader, perkProfiles, rng);
       if (sc === -Infinity) continue;
       if (!best || sc > best.score) best = { id: s.id, score: sc };
     }

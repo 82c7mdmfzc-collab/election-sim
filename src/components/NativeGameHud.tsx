@@ -487,6 +487,7 @@ function NativeResolutionSheet() {
 
 export function NativeGameHud({ timer, highlightedGroupId, onHighlightGroup }: NativeGameHudProps) {
   const phase = useGameStore((s) => s.phase);
+  const isOpeningCampaign = useGameStore((s) => s.isOpeningCampaign);
   const activePlayer = useActivePlayer();
   const [sheet, setSheet] = useState<NativeSheet>(null);
   const [profilePlayerId, setProfilePlayerId] = useState<string | null>(null);
@@ -510,9 +511,11 @@ export function NativeGameHud({ timer, highlightedGroupId, onHighlightGroup }: N
       <NativeTopRibbon timer={timer} onOptions={() => openSheet('options')} />
       {phase === 'PLANNING' && (
         <>
-          <div className="native-coach-banner">
-            <CampaignCoach />
-          </div>
+          {!isOpeningCampaign && (
+            <div className="native-coach-banner">
+              <CampaignCoach />
+            </div>
+          )}
           <NativeActionStack onOpen={openSheet} />
           <NativePlayerTray
             onOpenProfile={setProfilePlayerId}

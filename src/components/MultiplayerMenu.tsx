@@ -80,6 +80,13 @@ const TIME_OPTIONS: { label: string; value: number | null }[] = [
   { label: 'Unlimited', value: null },
 ];
 
+function friendlyJoinError(e: unknown): string {
+  const raw = (e as Error)?.message ?? '';
+  const msg = raw.toLowerCase();
+  if (msg.includes('account already in lobby')) return "You're already in this room.";
+  return raw || 'unknown error';
+}
+
 // ── Waiting-room player list (host + guest share this) ───────────────────
 function WaitingRoomPlayerList({
   hostId,
@@ -95,7 +102,11 @@ function WaitingRoomPlayerList({
       {waitingPlayers.map((p) => {
         const cand = CANDIDATE_MAP[p.candidateId];
         return (
-          <div key={p.id} className="mp-player-row">
+          <div
+            key={p.id}
+            className="mp-player-row"
+            style={cand ? { ['--p-color' as string]: playerColorHex(cand.color) } : undefined}
+          >
             <span className="mp-player-token">
               <Avatar
                 src={cand?.portraitUrl ?? ''}
@@ -128,6 +139,7 @@ interface Props {
 export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   const setMultiplayerMeta = useGameStore((s) => s.setMultiplayerMeta);
   const syncFromPayload    = useGameStore((s) => s.syncFromPayload);
+  const activeLobbyId      = useGameStore((s) => s.lobbyId);
   // Live game entry — flip viewingGame so App.tsx routes to the board now. (Cold-boot
   // reconnect goes through useSessionRestore, which intentionally does NOT, so a
   // refreshed player lands on Home with an explicit Resume instead.)
@@ -321,6 +333,11 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       track('online_match_failed', { reason: 'find_lobby_empty' });
       return;
     }
+    if (data.id === activeLobbyId) {
+      setErrorMsg("You're already in this room.");
+      track('online_match_failed', { reason: 'find_current_lobby' });
+      return;
+    }
 
     AudioManager.play('click');
     setFoundLobby(data);
@@ -352,6 +369,11 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
 
   // ── JOIN: pick a public game from the list ────────────────────────────────
   function openPublicLobby(row: LobbyRow) {
+    if (row.id === activeLobbyId) {
+      setErrorMsg("You're already in this room.");
+      track('online_match_failed', { reason: 'open_current_lobby', visibility: 'public' });
+      return;
+    }
     AudioManager.play('click');
     setErrorMsg(null);
     setFoundLobby(row);
@@ -361,6 +383,11 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   // ── JOIN: claim a slot and enter waiting room ─────────────────────────────
   async function joinRoom() {
     if (!foundLobby || !guestCandidate || !displayName) return;
+    if (foundLobby.id === activeLobbyId) {
+      setErrorMsg("You're already in this room.");
+      track('online_match_failed', { reason: 'join_current_lobby', visibility: foundLobby.is_public ? 'public' : 'private' });
+      return;
+    }
     setLoading(true);
     setErrorMsg(null);
 
@@ -378,7 +405,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       await rpcJoinLobbyPlayer(foundLobby.id, guestPlayer);
     } catch (e) {
       setLoading(false);
-      setErrorMsg(`Could not join: ${(e as Error).message}`);
+      setErrorMsg(`Could not join: ${friendlyJoinError(e)}`);
       track('online_match_failed', { reason: 'join_lobby', visibility: foundLobby.is_public ? 'public' : 'private' });
       return;
     }
@@ -449,6 +476,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   );
 
   const statsCandidate = statsModalId ? CANDIDATE_MAP[statsModalId] ?? null : null;
+  const joinablePublicLobbies = publicLobbies.filter((row) => row.id !== activeLobbyId);
 
   // Stats popup shared by the host (creating) and guest (picking) pickers — same
   // CandidateStatsModal the Solo / Daily / local pickers use, so the action is
@@ -633,7 +661,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
     const botSeats = waitingPlayers.filter((p) => p.isBot);
 
     return (
-      <div className="setup native-screen mp-screen mp-screen--waiting">
+      <div className="setup native-screen mp-screen mp-screen--waiting mp-screen--waiting-host">
         <div className="setup__header">
           <h1 className="setup__title">Waiting for players to join…</h1>
         </div>
@@ -703,10 +731,11 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
             )}
           </div>
           {errorMsg && <p className="mp-error">{errorMsg}</p>}
+        </div>
+        <div className="setup__foot mp-wait-actions">
           <button
             type="button"
             className="setup__start"
-            style={{ marginTop: '1.5rem' }}
             disabled={!canStart || loading}
             onClick={startGame}
           >
@@ -764,13 +793,13 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
               </button>
             </div>
 
-            {publicLobbies.length === 0 ? (
+            {joinablePublicLobbies.length === 0 ? (
               <p className="mp-join__hint">
                 {loadingPublic ? <Spinner label="Looking for games…" /> : 'No public games right now — host one or join with a code.'}
               </p>
             ) : (
               <ul className="mp-public__list">
-                {publicLobbies.map((row) => {
+                {joinablePublicLobbies.map((row) => {
                   const gs = row.game_state as WaitingLobbyState | null;
                   const here = gs?.players?.length ?? 0;
                   const max  = gs?.playerCount ?? 0;
@@ -894,7 +923,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
   if (screen === 'waiting-guest' && lobby) {
     const hostId = (lobby.game_state as WaitingLobbyState)?.hostPlayerId ?? '';
     return (
-      <div className="setup native-screen mp-screen mp-screen--waiting">
+      <div className="setup native-screen mp-screen mp-screen--waiting mp-screen--waiting-guest">
         <div className="setup__header">
           <h1 className="setup__title">Waiting for the host…</h1>
         </div>
@@ -903,9 +932,9 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
           <div className="mp-wait__code">{lobby.room_code}</div>
           <p className="mp-wait__hint">Sit tight — the game starts when the host is ready.</p>
           <WaitingRoomPlayerList hostId={hostId} waitingPlayers={waitingPlayers} playerCount={playerCount} />
-          <button type="button" className="mp-back" style={{ marginTop: '1.5rem' }} onClick={onBack}>
-            ← Leave
-          </button>
+        </div>
+        <div className="setup__foot mp-wait-actions">
+          <button type="button" className="mp-back" onClick={onBack}>← Leave</button>
         </div>
       </div>
     );

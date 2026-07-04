@@ -10,6 +10,8 @@
  */
 
 import { type CandidateDef } from '../game/candidates';
+import { candidateAtMastery, normalizeCandidateMasteryEntry } from '../game/candidateMastery';
+import { useProfile } from '../hooks/useProfile';
 import { playerColorHex } from '../game/playerColors';
 import { ModifierSheet } from './ModifierSheet';
 import { PartyBadge } from './PartyBadge';
@@ -24,6 +26,10 @@ interface Props {
   onClose: () => void;
   /** Optional line under the CTA, e.g. Shop affordability ("Need 1,200 more"). */
   subtext?: string;
+  secondaryActionLabel?: string;
+  secondaryActionDisabled?: boolean;
+  onSecondaryAction?: () => void;
+  secondarySubtext?: string;
 }
 
 export function CandidateStatsModal({
@@ -33,7 +39,15 @@ export function CandidateStatsModal({
   onAction,
   onClose,
   subtext,
+  secondaryActionLabel,
+  secondaryActionDisabled,
+  onSecondaryAction,
+  secondarySubtext,
 }: Props) {
+  const mastery = useProfile((s) => s.profile.candidateMastery);
+  const leveledCandidate = candidateAtMastery(candidate, mastery);
+  const level = normalizeCandidateMasteryEntry(mastery[candidate.id], candidate).level;
+
   return (
     <div
       className="profile-overlay cand-stats-overlay"
@@ -60,7 +74,8 @@ export function CandidateStatsModal({
             {candidate.tagline && <div className="profile-modal__tagline">{candidate.tagline}</div>}
             <div className="cand-stats-modal__meta">
               <PartyBadge party={candidate.party} />
-              <span>${candidate.startingCash}k starting cash</span>
+              <span>Level {level}</span>
+              <span>${leveledCandidate.startingCash}k starting cash</span>
             </div>
           </div>
           <button
@@ -75,8 +90,8 @@ export function CandidateStatsModal({
 
         <div className="profile-modal__section">
           <ModifierSheet
-            affinities={candidate.affinities}
-            payoutModifiers={candidate.payoutModifiers}
+            affinities={leveledCandidate.affinities}
+            payoutModifiers={leveledCandidate.payoutModifiers}
             layout="columns"
           />
         </div>
@@ -90,6 +105,19 @@ export function CandidateStatsModal({
           {actionLabel}
         </button>
         {subtext && <div className="cand-stats-modal__subtext">{subtext}</div>}
+        {secondaryActionLabel && onSecondaryAction && (
+          <>
+            <button
+              type="button"
+              className="cand-stats-modal__secondary"
+              disabled={secondaryActionDisabled}
+              onClick={onSecondaryAction}
+            >
+              {secondaryActionLabel}
+            </button>
+            {secondarySubtext && <div className="cand-stats-modal__subtext">{secondarySubtext}</div>}
+          </>
+        )}
       </div>
     </div>
   );

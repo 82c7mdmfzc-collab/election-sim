@@ -16,6 +16,7 @@ import { AudioManager } from '../utils/audioManager';
 import { UsernameClaim } from './UsernameClaim';
 import { SignInButtons } from './SignInButtons';
 import { ProgressPanel } from './ProgressPanel';
+import { AccountDeletionSection } from './AccountDeletionSection';
 import { fetchLeaderboardRemote } from '../game/leaderboard';
 import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 
@@ -30,10 +31,6 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
   const guest = useProfile((s) => s.guest);
   const displayName = useProfile((s) => s.displayName);
   const signOut = useProfile((s) => s.signOut);
-  const deleteAccount = useProfile((s) => s.deleteAccount);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteErr, setDeleteErr] = useState('');
   const [tab, setTab] = useState<'profile' | 'progress' | 'danger'>('profile');
   const [rank, setRank] = useState<number | null>(null);
 
@@ -55,19 +52,6 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
 
   // Android hardware back closes the panel, same as the ✕ button.
   useAndroidBack(close);
-
-  async function handleDelete() {
-    setDeleting(true);
-    setDeleteErr('');
-    const ok = await deleteAccount();
-    setDeleting(false);
-    if (ok) {
-      AudioManager.play('quit');
-      onClose();
-    } else {
-      setDeleteErr('Could not delete your account. Please try again, or email support@playelector.com.');
-    }
-  }
 
   const { stats } = profile;
   const counters = profile.achievementCounters;
@@ -159,41 +143,7 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
             </div>
 
             <div className={`auth-pane auth-pane--danger${tab === 'danger' ? ' is-active' : ''}`}>
-              {!confirmDelete ? (
-                <button
-                  type="button"
-                  className="auth-gate__delete-link"
-                  onClick={() => { AudioManager.play('click'); setConfirmDelete(true); }}
-                >
-                  Delete account
-                </button>
-              ) : (
-                <div className="auth-gate__delete">
-                  <p className="auth-gate__delete-warn">
-                    Permanently delete your account and all associated data — Campaign Funds,
-                    unlocks, stats, and username? This cannot be undone.
-                  </p>
-                  {deleteErr && <p className="auth-gate__delete-err">{deleteErr}</p>}
-                  <div className="auth-gate__delete-actions">
-                    <button
-                      type="button"
-                      className="auth-gate__delete-confirm"
-                      disabled={deleting}
-                      onClick={handleDelete}
-                    >
-                      {deleting ? 'Deleting…' : 'Delete forever'}
-                    </button>
-                    <button
-                      type="button"
-                      className="tutorial__btn tutorial__btn--ghost"
-                      disabled={deleting}
-                      onClick={() => { AudioManager.play('quit'); setConfirmDelete(false); setDeleteErr(''); }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+              <AccountDeletionSection onDeleted={onClose} />
             </div>
           </>
         )}

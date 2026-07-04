@@ -1,7 +1,7 @@
 import { isNativeRuntime, platformKind } from './platform';
 
-export const AD_REWARD_MIN = 20;
-export const AD_REWARD_MAX = 60;
+export const AD_REWARD_MIN = 10;
+export const AD_REWARD_MAX = 25;
 export const AD_REWARD_LIMIT = 5;
 export const AD_REWARD_WINDOW_HOURS = 12;
 export const AD_REWARD_WINDOW_MS = AD_REWARD_WINDOW_HOURS * 60 * 60 * 1000;

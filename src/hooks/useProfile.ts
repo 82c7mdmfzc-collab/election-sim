@@ -29,6 +29,7 @@ import {
   unlockCharacterRemote,
   claimFreeCharacterRemote,
   unlockCosmeticRemote,
+  trainCandidateMasteryRemote,
   deleteAccountRemote,
   claimLoginBonusRemote,
   type AdRewardClaimRemote,
@@ -42,6 +43,11 @@ import {
   isAchievementComplete,
   normalizeAchievementCounters,
 } from '../game/achievements';
+import { CANDIDATE_MAP } from '../game/candidates';
+import {
+  applyCandidateMasteryResult,
+  type CandidateMasteryAward,
+} from '../game/candidateMastery';
 import { setReferrer } from '../game/referral';
 import {
   getPendingReferralCode,
@@ -91,6 +97,7 @@ export interface ProgressRewardBreakdown extends RewardBreakdown {
   dailyStreakDay: number;
   /** Achievement ids that became complete from this result. Claiming their coins is separate. */
   newlyCompletedAchievements: string[];
+  masteryAward: CandidateMasteryAward;
 }
 
 interface ProfileStore {
@@ -123,6 +130,8 @@ interface ProfileStore {
   unlock(characterId: string): Promise<boolean>;
   /** Server-validated FREE claim (account-only; server owns the "free now" rule). */
   claimFreeCharacter(characterId: string): Promise<boolean>;
+  /** Server-validated candidate mastery training paid with Campaign Funds. */
+  trainCandidate(characterId: string): Promise<boolean>;
   /** Server-validated cosmetic unlock (account-only; server owns the price). */
   unlockCosmetic(cosmeticId: string): Promise<CosmeticUnlockResult>;
   isUnlocked(characterId: string): boolean;
@@ -211,6 +220,7 @@ const EMPTY_REWARD: ProgressRewardBreakdown = {
   dailyStreakBonus: 0,
   dailyStreakDay: 0,
   newlyCompletedAchievements: [],
+  masteryAward: { candidateId: null, xpGained: 0, previousLevel: 1, newLevel: 1, leveledUp: false },
   total: 0,
 };
 
@@ -292,12 +302,27 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       optimisticCounters,
       profile.claimedAchievements,
     );
+    const optimisticMastery = applyCandidateMasteryResult(
+      profile.candidateMastery,
+      result.candidateId ? CANDIDATE_MAP[result.candidateId] ?? null : null,
+      {
+        candidateId: result.candidateId,
+        won: result.won,
+        securedStates: result.securedStates,
+        coalitionsDominated: result.coalitionsDominated,
+        mode: result.mode,
+        botDifficulty: result.botDifficulty,
+        turns: result.turns,
+        electoralVotes: result.electoralVotes,
+      },
+    );
     const optimisticBreakdown: ProgressRewardBreakdown = {
       ...breakdown,
       gameTotal: breakdown.total,
       dailyStreakBonus: 0,
       dailyStreakDay: 0,
       newlyCompletedAchievements,
+      masteryAward: optimisticMastery.award,
       total: breakdown.total,
     };
 
@@ -316,6 +341,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
         campaignFunds: profile.campaignFunds + breakdown.total,
         stats: nextStats,
         achievementCounters: optimisticCounters,
+        candidateMastery: optimisticMastery.mastery,
       },
       lastReward: optimisticBreakdown,
     });
@@ -345,6 +371,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
         dailyStreakBonus: completion.dailyStreakReward,
         dailyStreakDay: completion.dailyStreakDay,
         newlyCompletedAchievements: completion.newlyCompletedAchievements,
+        masteryAward: completion.masteryAward,
         total: completion.gameReward + completion.dailyStreakReward,
       };
       set({
@@ -355,6 +382,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
           achievementCounters: completion.achievementCounters,
           claimedAchievements: completion.claimedAchievements,
           dailyStreak: completion.dailyStreak,
+          candidateMastery: completion.candidateMastery,
         },
         lastReward: serverBreakdown,
       });
@@ -473,6 +501,20 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       return true;
     }
     return false;
+  },
+
+  async trainCandidate(characterId) {
+    if (!get().userId) return false;
+    const result = await trainCandidateMasteryRemote(characterId);
+    if (!result) return false;
+    set({
+      profile: {
+        ...get().profile,
+        campaignFunds: result.balance,
+        candidateMastery: result.candidateMastery,
+      },
+    });
+    return true;
   },
 
   async unlockCosmetic(cosmeticId) {
@@ -694,6 +736,7 @@ async function replayPendingCompletion(userId: string): Promise<void> {
       achievementCounters: completion.achievementCounters,
       claimedAchievements: completion.claimedAchievements,
       dailyStreak: completion.dailyStreak,
+      candidateMastery: completion.candidateMastery,
     },
   });
 }

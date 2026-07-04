@@ -83,6 +83,164 @@ grant  execute on function public.record_daily_result(text, boolean, integer) to
 revoke execute on function public.get_daily_status() from public, anon;
 grant  execute on function public.get_daily_status() to authenticated;
 
+-- ── Daily Race public score board ─────────────────────────────────────────────
+create table if not exists public.daily_scores (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date_key date not null,
+  won boolean not null,
+  ev integer not null,
+  turns integer not null,
+  secured_states integer not null,
+  coalitions integer not null,
+  submitted_at timestamptz not null default now(),
+  primary key (user_id, date_key)
+);
+
+alter table public.daily_scores enable row level security;
+
+drop policy if exists daily_scores_select_own on public.daily_scores;
+create policy daily_scores_select_own on public.daily_scores
+  for select using (auth.uid() = user_id);
+
+create index if not exists daily_scores_rank_idx
+  on public.daily_scores (date_key, won desc, ev desc, turns asc, secured_states desc, coalitions desc, submitted_at asc);
+
+create or replace function public.get_daily_leaderboard(
+  p_date_key text,
+  p_limit integer default 50
+)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_uid uuid := auth.uid();
+  v_date date;
+  v_limit integer := greatest(1, least(coalesce(p_limit, 50), 200));
+  v_rows jsonb;
+  v_me jsonb;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+  begin
+    v_date := p_date_key::date;
+  exception when others then
+    raise exception 'get_daily_leaderboard: invalid date_key %', p_date_key;
+  end;
+
+  with ranked as (
+    select
+      s.user_id,
+      coalesce(p.display_name, 'Candidate') as name,
+      s.won,
+      s.ev,
+      s.turns,
+      s.secured_states,
+      s.coalitions,
+      rank() over (
+        order by s.won desc, s.ev desc, s.turns asc, s.secured_states desc, s.coalitions desc, s.submitted_at asc
+      ) as rnk
+    from public.daily_scores s
+    join public.profiles p on p.id = s.user_id
+    where s.date_key = v_date
+      and coalesce(p.display_name, '') <> 'AppleReview'
+  )
+  select coalesce(
+           jsonb_agg(
+             jsonb_build_object(
+               'rank', rnk,
+               'name', name,
+               'won', won,
+               'ev', ev,
+               'turns', turns,
+               'securedStates', secured_states,
+               'coalitions', coalitions,
+               'isMe', user_id = v_uid
+             )
+             order by rnk
+           ) filter (where rnk <= v_limit),
+           '[]'::jsonb
+         ),
+         (select jsonb_build_object(
+            'rank', rnk,
+            'name', 'You',
+            'won', won,
+            'ev', ev,
+            'turns', turns,
+            'securedStates', secured_states,
+            'coalitions', coalitions,
+            'isMe', true
+          ) from ranked where user_id = v_uid)
+    into v_rows, v_me
+    from ranked;
+
+  return jsonb_build_object('top', coalesce(v_rows, '[]'::jsonb), 'me', v_me);
+end; $$;
+
+create or replace function public.record_daily_score(
+  p_date_key text,
+  p_won boolean,
+  p_ev integer,
+  p_turns integer,
+  p_secured_states integer,
+  p_coalitions integer
+)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  v_uid uuid := auth.uid();
+  v_date date;
+  v_ev integer := greatest(0, least(coalesce(p_ev, 0), 538));
+  v_turns integer := greatest(1, least(coalesce(p_turns, 1), 99));
+  v_secured integer := greatest(0, least(coalesce(p_secured_states, 0), 56));
+  v_coalitions integer := greatest(0, least(coalesce(p_coalitions, 0), 20));
+  cur public.daily_scores;
+  v_should_replace boolean := false;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+  begin
+    v_date := p_date_key::date;
+  exception when others then
+    raise exception 'record_daily_score: invalid date_key %', p_date_key;
+  end;
+
+  select * into cur from public.daily_scores
+    where user_id = v_uid and date_key = v_date
+    for update;
+
+  if cur.user_id is null then
+    v_should_replace := true;
+  elsif p_won <> cur.won then
+    v_should_replace := p_won;
+  elsif v_ev <> cur.ev then
+    v_should_replace := v_ev > cur.ev;
+  elsif v_turns <> cur.turns then
+    v_should_replace := v_turns < cur.turns;
+  elsif v_secured <> cur.secured_states then
+    v_should_replace := v_secured > cur.secured_states;
+  elsif v_coalitions <> cur.coalitions then
+    v_should_replace := v_coalitions > cur.coalitions;
+  end if;
+
+  if v_should_replace then
+    insert into public.daily_scores (
+      user_id, date_key, won, ev, turns, secured_states, coalitions, submitted_at
+    )
+    values (
+      v_uid, v_date, p_won, v_ev, v_turns, v_secured, v_coalitions, now()
+    )
+    on conflict (user_id, date_key) do update
+      set won = excluded.won,
+          ev = excluded.ev,
+          turns = excluded.turns,
+          secured_states = excluded.secured_states,
+          coalitions = excluded.coalitions,
+          submitted_at = excluded.submitted_at;
+  end if;
+
+  return public.get_daily_leaderboard(v_date::text, 50);
+end; $$;
+
+revoke execute on function public.get_daily_leaderboard(text, integer) from public, anon;
+grant  execute on function public.get_daily_leaderboard(text, integer) to authenticated;
+revoke execute on function public.record_daily_score(text, boolean, integer, integer, integer, integer) from public, anon;
+grant  execute on function public.record_daily_score(text, boolean, integer, integer, integer, integer) to authenticated;
+
 -- ── claim_login_bonus: a small Campaign Funds chest, once per UTC day ─────────────
 -- Distinct from the Daily Challenge AND from the finish-streak (rewards.sql): this
 -- rewards simply OPENING the app each day. Idempotent — the second call on the same
