@@ -8022,6 +8022,8 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 }
 .confirm-dialog {
   width: min(380px, 92vw);
+  max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
