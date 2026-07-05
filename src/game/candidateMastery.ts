@@ -233,6 +233,88 @@ export function candidateMasteryTrainingOffer(
   };
 }
 
+// ── Progress + benefit helpers (UI clarity) ───────────────────────────────────
+
+export interface MasteryProgress {
+  level: CandidateLevel;
+  xp: number;
+  /** True once the candidate is level 5 (no further XP band). */
+  isMax: boolean;
+  /** XP total at the start of the current level. */
+  prevThreshold: number;
+  /** XP total that unlocks the next level (== prevThreshold at max). */
+  nextThreshold: number;
+  /** XP earned into the current level band. */
+  xpIntoLevel: number;
+  /** Width of the current level band (0 at max). */
+  xpForSpan: number;
+  /** 0–100 fill within the current level (100 at max). */
+  pct: number;
+}
+
+/** Where a raw XP value sits within a candidate's level bands (respects the paid
+ *  starting-level floor). Drives XP bars on the stats modal + victory reveal. */
+export function masteryProgressForXp(candidate: CandidateDef, xp: number): MasteryProgress {
+  const thresholds: readonly number[] = MASTERY_XP_THRESHOLDS;
+  const floor = candidateStartingLevel(candidate);
+  const safeXp = clampInt(xp, 0, Number.MAX_SAFE_INTEGER);
+  const level = levelForXp(safeXp, floor);
+  const isMax = level >= 5;
+  const prevThreshold = thresholds[level - 1] ?? 0;
+  const nextThreshold = isMax ? prevThreshold : (thresholds[level] ?? prevThreshold);
+  const xpForSpan = Math.max(0, nextThreshold - prevThreshold);
+  const xpIntoLevel = Math.max(0, safeXp - prevThreshold);
+  const pct = isMax ? 100 : Math.max(0, Math.min(100, Math.round((xpIntoLevel / Math.max(1, xpForSpan)) * 100)));
+  return { level, xp: safeXp, isMax, prevThreshold, nextThreshold, xpIntoLevel, xpForSpan, pct };
+}
+
+export function masteryProgress(candidate: CandidateDef, mastery: CandidateMastery): MasteryProgress {
+  const entry = normalizeCandidateMasteryEntry(mastery[candidate.id], candidate);
+  return masteryProgressForXp(candidate, entry.xp);
+}
+
+export interface MasteryStatChange {
+  /** Group id the modifier applies to. */
+  key: string;
+  kind: 'cost' | 'payout';
+  from: number;
+  to: number;
+}
+
+export interface MasteryLevelBenefits {
+  fromLevel: CandidateLevel;
+  toLevel: CandidateLevel;
+  /** Extra starting cash gained at the next level. */
+  cashDelta: number;
+  changes: MasteryStatChange[];
+}
+
+/** What improves when this candidate goes from `level` to `level + 1`, computed by
+ *  diffing candidateAtLevel(). Returns null at max level or for non-scaling kits
+ *  (Washington), so the stats modal can show a clean "already maxed / neutral" note. */
+export function masteryLevelUpPreview(
+  candidate: CandidateDef,
+  level: CandidateLevel,
+): MasteryLevelBenefits | null {
+  if (level >= 5) return null;
+  const toLevel = (level + 1) as CandidateLevel;
+  const before = candidateAtLevel(candidate, level);
+  const after = candidateAtLevel(candidate, toLevel);
+  const changes: MasteryStatChange[] = [];
+  const collect = (kind: 'cost' | 'payout', a: Record<string, number>, b: Record<string, number>) => {
+    for (const key of Object.keys(b)) {
+      const from = a[key] ?? 0;
+      const to = b[key] ?? 0;
+      if (Math.abs(to - from) > 1e-9) changes.push({ key, kind, from, to });
+    }
+  };
+  collect('cost', before.affinities, after.affinities);
+  collect('payout', before.payoutModifiers, after.payoutModifiers);
+  const cashDelta = after.startingCash - before.startingCash;
+  if (cashDelta === 0 && changes.length === 0) return null; // no scaling (e.g. Washington)
+  return { fromLevel: level, toLevel, cashDelta, changes };
+}
+
 export function nextCandidateMasteryTarget(
   mastery: CandidateMastery,
   candidates: readonly CandidateDef[],

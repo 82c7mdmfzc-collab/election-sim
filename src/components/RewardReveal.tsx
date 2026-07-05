@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
 import { ACHIEVEMENT_BY_ID } from '../game/achievements';
 import { CANDIDATE_MAP } from '../game/candidates';
+import { masteryProgressForXp, type CandidateMasteryAward } from '../game/candidateMastery';
 import { AudioManager } from '../utils/audioManager';
 
 export function RewardReveal() {
@@ -70,14 +71,63 @@ export function RewardReveal() {
         </div>
       )}
       {lastReward.masteryAward.xpGained > 0 && (
-        <div className="reward-reveal__mastery">
-          <span>
-            {CANDIDATE_MAP[lastReward.masteryAward.candidateId ?? '']?.name ?? 'Candidate'} mastery
-          </span>
-          <strong>+{lastReward.masteryAward.xpGained} XP</strong>
-          {lastReward.masteryAward.leveledUp && (
-            <em>Level {lastReward.masteryAward.newLevel}</em>
-          )}
+        <MasteryReveal award={lastReward.masteryAward} />
+      )}
+    </div>
+  );
+}
+
+/** Animated per-candidate mastery XP bar + level-up celebration. Fills from where
+ *  the candidate started this game to its new XP within the current level band. */
+function MasteryReveal({ award }: { award: CandidateMasteryAward }) {
+  const mastery = useProfile((s) => s.profile.candidateMastery);
+  const [fill, setFill] = useState(0);
+  const raf = useRef<number | undefined>(undefined);
+
+  const candidate = CANDIDATE_MAP[award.candidateId ?? ''];
+  const entry = candidate ? mastery[candidate.id] : undefined;
+  const newXp = entry?.xp ?? 0;
+  const prog = candidate ? masteryProgressForXp(candidate, newXp) : null;
+  // Fill target within the current level band; if this game crossed a level, the
+  // start clamps to 0 so the bar reads as a fresh band under the "Level up!" banner.
+  const startXp = Math.max(0, newXp - award.xpGained);
+  const startPct = candidate && prog
+    ? (award.leveledUp ? 0 : masteryProgressForXp(candidate, startXp).pct)
+    : 0;
+  const targetPct = prog?.pct ?? 0;
+
+  useEffect(() => {
+    if (!candidate) return;
+    const begin = performance.now();
+    const dur = 900;
+    const from = startPct;
+    const to = award.leveledUp ? 100 : targetPct;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - begin) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setFill(from + (to - from) * eased);
+      if (t < 1) raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+    return () => { if (raf.current) cancelAnimationFrame(raf.current); };
+  }, [candidate, startPct, targetPct, award.leveledUp]);
+
+  if (!candidate || !prog) return null;
+
+  return (
+    <div className={`reward-reveal__mastery${award.leveledUp ? ' is-levelup' : ''}`}>
+      <div className="reward-reveal__mastery-top">
+        <span>{candidate.name} mastery</span>
+        <strong>+{award.xpGained} XP</strong>
+      </div>
+      <div className="reward-reveal__mastery-bar">
+        <div className="reward-reveal__mastery-fill" style={{ width: `${fill}%` }} />
+      </div>
+      {award.leveledUp ? (
+        <div className="reward-reveal__levelup">Level up! Now Level {award.newLevel}</div>
+      ) : (
+        <div className="reward-reveal__mastery-foot">
+          {prog.isMax ? 'Max level' : `Level ${prog.level} · ${prog.xpIntoLevel}/${prog.xpForSpan} XP`}
         </div>
       )}
     </div>

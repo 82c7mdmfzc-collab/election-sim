@@ -15,6 +15,7 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { CandidateStatsModal } from './CandidateStatsModal';
 import { Portrait } from './Portrait';
+import { MasteryBadge } from './MasteryMeter';
 
 const TIME_OPTIONS: { label: string; value: number | null }[] = [
   { label: '60s', value: 60 },
@@ -182,7 +183,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
                   </div>
                 </div>
                 <div className="shop-card__foot">
-                  <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
+                  <MasteryBadge level={normalizeCandidateMasteryEntry(mastery[c.id], c).level} className="shop-card__level" />
                   {locked
                     ? <span className="shop-card__price">🔒 Unlock in Shop</span>
                     : isAssigned

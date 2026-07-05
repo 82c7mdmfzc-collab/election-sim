@@ -8189,17 +8189,68 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 
 .reward-reveal__mastery {
   margin-top: 0.55rem;
-  display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0.45rem;
+  display: flex; flex-direction: column; gap: 0.4rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid rgba(250, 204, 21, 0.28);
   border-radius: var(--r-md);
   background: rgba(250, 204, 21, 0.08);
   font-size: 0.76rem;
 }
-.reward-reveal__mastery strong { color: var(--gold); }
-.reward-reveal__mastery em {
-  font-style: normal; color: var(--green); font-weight: 800;
+.reward-reveal__mastery.is-levelup {
+  border-color: var(--gold); background: rgba(250, 204, 21, 0.16);
+  box-shadow: 0 0 0 1px rgba(250,204,21,0.4);
 }
+.reward-reveal__mastery-top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.reward-reveal__mastery-top strong { color: var(--gold); }
+.reward-reveal__mastery-bar {
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: rgba(255,255,255,0.1);
+}
+.reward-reveal__mastery-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-yellow));
+  transition: width 0.08s linear;
+}
+.reward-reveal__mastery-foot { color: var(--muted); font-size: 0.7rem; }
+.reward-reveal__levelup {
+  color: #2a1402; font-weight: 800; font-size: 0.72rem; text-align: center;
+  background: linear-gradient(180deg, var(--brand-top, var(--brand-yellow)), var(--brand-deep, var(--brand)));
+  border-radius: var(--r-pill); padding: 0.15rem 0.5rem;
+}
+
+/* ── Mastery badge (roster cards) + panel (stats modal) ────────────────────── */
+.mastery-badge { display: inline-flex; align-items: center; gap: 0.32rem; }
+.mastery-badge__lv { font-weight: 800; font-size: 0.66rem; white-space: nowrap; }
+.mastery-badge__pips { display: inline-flex; gap: 2px; }
+.mastery-badge__pip {
+  width: 5px; height: 5px; border-radius: 999px;
+  background: rgba(255,255,255,0.22);
+}
+.mastery-badge__pip.is-on { background: var(--brand-yellow, var(--gold)); }
+/* When the badge doubles as the roster-card level pill, widen the pill for pips. */
+.mastery-badge.shop-card__level { min-width: 5.4rem; gap: 0.35rem; }
+
+.mastery-panel { display: flex; flex-direction: column; gap: 0.45rem; }
+.mastery-panel__head { display: flex; justify-content: space-between; align-items: center; }
+.mastery-panel__xp { font-size: 0.72rem; color: var(--muted); font-weight: 700; }
+.mastery-panel__bar {
+  height: 8px; border-radius: 999px; overflow: hidden; background: rgba(255,255,255,0.1);
+}
+.mastery-panel__fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-yellow));
+  transition: width 0.3s ease;
+}
+.mastery-panel__next-title {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.78rem;
+  color: var(--gold); margin-bottom: 0.2rem;
+}
+.mastery-panel__benefits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.18rem; }
+.mastery-panel__benefits li {
+  display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.74rem; color: var(--muted);
+}
+.mastery-panel__benefits .is-up { color: var(--green); font-weight: 700; }
+.mastery-panel__maxed { font-size: 0.72rem; color: var(--muted); }
 
 .opening-missions {
   position: fixed;
