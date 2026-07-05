@@ -18,6 +18,8 @@ export interface DailyLeaderboardRow {
   turns: number;
   securedStates: number;
   coalitions: number;
+  /** Equipped profile-banner cosmetic id ('' = none). See components/ProfileBanner. */
+  banner: string;
   isMe: boolean;
 }
 
@@ -57,6 +59,7 @@ function parseDailyRow(v: unknown): DailyLeaderboardRow | null {
     turns: num(r.turns),
     securedStates: num(r.securedStates),
     coalitions: num(r.coalitions),
+    banner: typeof r.banner === 'string' ? r.banner : '',
     isMe: r.isMe === true,
   };
 }

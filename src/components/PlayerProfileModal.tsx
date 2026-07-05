@@ -14,6 +14,7 @@ import { useProfile } from '../hooks/useProfile';
 import { blockPlayer, isPlayerBlocked, unblockPlayer } from '../utils/localPrefs';
 import { isNativeRuntime } from '../utils/platform';
 import { Avatar } from './Avatar';
+import { ProfileBanner } from './ProfileBanner';
 
 interface Props {
   playerId: string;
@@ -40,6 +41,9 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
 
   // Online safety (Apple Guideline 1.2): report/block real opponents only.
   const isOnlineOpponent = multiplayerMode === 'online' && !isBot && playerId !== localPlayerId;
+  // Show the signed-in player's equipped banner on their own card (opponents'
+  // banners aren't synced through lobby state, so they simply show none).
+  const isOwn = !isBot && playerId === localPlayerId;
   const blocked = isOnlineOpponent && isPlayerBlocked(player.name);
   const displayName = blocked ? 'Blocked player' : player.name;
   const reportHref =
@@ -69,6 +73,7 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
         style={{ ['--p-color' as string]: color?.hex ?? '#64748b' }}
       >
         {/* Header */}
+        {isOwn && <ProfileBanner bannerId={profile.equippedBanner} variant="strip" className="profile-modal__banner" />}
         <div className="profile-modal__head">
           <div className="profile-modal__portrait">
             <Avatar

@@ -6,8 +6,9 @@
  * color palette (game/playerColors) always reflect the saved preference.
  */
 
-import { isReducedMotion, isColorblindMode } from './localPrefs';
+import { isReducedMotion, isColorblindMode, getSelectedMapTheme } from './localPrefs';
 import { setColorblindPalette } from '../game/playerColors';
+import { setActiveMapTheme, activeMapThemeId, MAP_THEMES, type MapThemeId } from '../game/mapTheme';
 
 export function applyAppearancePrefs(): void {
   if (typeof document === 'undefined') return;
@@ -16,4 +17,13 @@ export function applyAppearancePrefs(): void {
   const cb = isColorblindMode();
   root.classList.toggle('cb-safe', cb);
   setColorblindPalette(cb);
+
+  // Board map theme: set the edge-safe flag (ElectionMap reads it) + toggle the
+  // `map-theme-<id>` html class (App.css themes the board chrome). Clear every
+  // known theme class first so switching themes never stacks stale classes.
+  setActiveMapTheme(getSelectedMapTheme());
+  const active = activeMapThemeId();
+  for (const id of Object.keys(MAP_THEMES) as MapThemeId[]) {
+    root.classList.toggle(`map-theme-${id}`, id === active);
+  }
 }

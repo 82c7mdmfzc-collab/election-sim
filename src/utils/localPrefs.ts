@@ -57,6 +57,11 @@ export interface LocalPrefs {
   selectedVictoryMessage: string;
   /** Equipped share-card frame cosmetic id (see game/cosmetics.ts). */
   selectedShareFrame: string;
+  /** Equipped board map-theme cosmetic id (see game/mapTheme.ts; 'classic' = default). */
+  selectedMapTheme: string;
+  /** Device-local mirror of the account's equipped profile banner ('' = none). Set
+   *  by set_equipped_banner on the server; cached here for instant local render. */
+  equippedBanner: string;
   /** Referral code captured from a ?ref= invite link, pending set_referrer after sign-in. */
   pendingReferralCode: string | null;
   /** Whether the live first-campaign coach has been dismissed on this device. */
@@ -96,6 +101,8 @@ const DEFAULTS: LocalPrefs = {
   lastAwardedGameId: null,
   selectedVictoryMessage: 'classic', // DEFAULT_VICTORY_MESSAGE_ID
   selectedShareFrame: 'midnight', // DEFAULT_SHARE_FRAME_ID
+  selectedMapTheme: 'classic', // DEFAULT_MAP_THEME_ID
+  equippedBanner: '', // none
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
   firstGameplayTipsSeen: false,
@@ -146,6 +153,10 @@ export const getSelectedVictoryMessage = () => getPrefs().selectedVictoryMessage
 export const setSelectedVictoryMessage = (selectedVictoryMessage: string) => setPrefs({ selectedVictoryMessage });
 export const getSelectedShareFrame = () => getPrefs().selectedShareFrame;
 export const setSelectedShareFrame = (selectedShareFrame: string) => setPrefs({ selectedShareFrame });
+export const getSelectedMapTheme = () => getPrefs().selectedMapTheme;
+export const setSelectedMapTheme = (selectedMapTheme: string) => setPrefs({ selectedMapTheme });
+export const getEquippedBanner = () => getPrefs().equippedBanner;
+export const setEquippedBannerLocal = (equippedBanner: string) => setPrefs({ equippedBanner });
 export const getPendingReferralCode = () => getPrefs().pendingReferralCode;
 export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs({ pendingReferralCode });
 export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });

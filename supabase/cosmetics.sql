@@ -12,6 +12,11 @@
 -- Catalog MUST match `unlockCost` for every priced cosmetic in
 -- src/game/cosmetics.ts and src/game/victoryMessages.ts.
 
+-- Equipped profile banner (a `profile_banner` cosmetic id, or '' for none). Unlike
+-- share frames / map themes (device-local), banners are shown to OTHER players on
+-- the leaderboard + profile modal, so the equipped choice must live on the row.
+alter table public.profiles add column if not exists equipped_banner text not null default '';
+
 create or replace function public.unlock_cosmetic(p_cosmetic text)
 returns public.profiles language plpgsql security definer set search_path = public as $$
 declare prof public.profiles; v_cost integer; v_token text;
@@ -28,6 +33,15 @@ begin
     when 'swing_state_slayer' then 3000
     when 'mandate_mode' then 3000
     when 'campaign_receipts' then 3000
+    -- map_theme cosmetics (render surface: game/mapTheme.ts)
+    when 'theme_dusk'   then 800
+    when 'theme_marble' then 1200
+    -- profile_banner cosmetics (render surface: components/ProfileBanner.tsx)
+    when 'banner_laurel' then 500
+    when 'banner_stars'  then 800
+    -- NOTE: season-exclusive ids (theme_midnight_gold, banner_circuit/coalition/
+    -- gilded/s1_champion, campaign_trail) are deliberately absent — they are granted
+    -- only by the Season pass (supabase/season.sql), never bought here.
     else null end;
   if v_cost is null then raise exception 'unlock_cosmetic: unknown cosmetic %', p_cosmetic; end if;
 
@@ -48,3 +62,32 @@ end; $$;
 
 revoke execute on function public.unlock_cosmetic(text) from public, anon;
 grant  execute on function public.unlock_cosmetic(text) to authenticated;
+
+-- ── set_equipped_banner ───────────────────────────────────────────────────────
+-- Equip (or clear, with '') a profile_banner the player already owns. Server
+-- validates ownership so a client can't equip an un-earned banner; '' always
+-- allowed (un-equip). Returns the updated profile row.
+create or replace function public.set_equipped_banner(p_banner text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare prof public.profiles; v_token text;
+begin
+  select * into prof from public.profiles where id = auth.uid() for update;
+  if prof.id is null then raise exception 'set_equipped_banner: no profile'; end if;
+
+  if coalesce(p_banner, '') <> '' then
+    v_token := 'cosmetic:' || p_banner;
+    if not (v_token = any(prof.unlocked_characters)) then
+      raise exception 'set_equipped_banner: banner % not owned', p_banner;
+    end if;
+  end if;
+
+  update public.profiles
+    set equipped_banner = coalesce(p_banner, ''),
+        updated_at      = now()
+    where id = auth.uid()
+    returning * into prof;
+  return prof;
+end; $$;
+
+revoke execute on function public.set_equipped_banner(text) from public, anon;
+grant  execute on function public.set_equipped_banner(text) to authenticated;

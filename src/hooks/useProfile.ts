@@ -29,6 +29,7 @@ import {
   unlockCharacterRemote,
   claimFreeCharacterRemote,
   unlockCosmeticRemote,
+  setEquippedBannerRemote,
   trainCandidateMasteryRemote,
   deleteAccountRemote,
   claimLoginBonusRemote,
@@ -55,6 +56,7 @@ import {
   clearPendingReferralCode,
   getPendingCompletion,
   setPendingCompletion,
+  setEquippedBannerLocal,
 } from '../utils/localPrefs';
 import { clearSession } from '../utils/sessionStore';
 import { onGameFinishedNotifications } from '../utils/notifications';
@@ -134,6 +136,8 @@ interface ProfileStore {
   trainCandidate(characterId: string): Promise<boolean>;
   /** Server-validated cosmetic unlock (account-only; server owns the price). */
   unlockCosmetic(cosmeticId: string): Promise<CosmeticUnlockResult>;
+  /** Equip (or clear with '') an owned profile banner; server validates ownership. */
+  equipBanner(bannerId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
   sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
   verifyEmailCode(email: string, code: string): Promise<{ error?: string }>;
@@ -530,6 +534,25 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       return { ok: true };
     }
     return result;
+  },
+
+  async equipBanner(bannerId) {
+    const { profile, userId } = get();
+    if (!userId) return false;
+    if (profile.equippedBanner === bannerId) return true;
+    // Optimistic: reflect immediately, then reconcile with the server row.
+    set({ profile: { ...profile, equippedBanner: bannerId } });
+    setEquippedBannerLocal(bannerId);
+    const updated = await setEquippedBannerRemote(bannerId);
+    if (updated) {
+      set({ profile: updated });
+      setEquippedBannerLocal(updated.equippedBanner);
+      return true;
+    }
+    // Roll back the optimistic change on failure.
+    set({ profile: { ...get().profile, equippedBanner: profile.equippedBanner } });
+    setEquippedBannerLocal(profile.equippedBanner);
+    return false;
   },
 
   isUnlocked(characterId) {
