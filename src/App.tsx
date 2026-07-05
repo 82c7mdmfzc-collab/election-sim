@@ -32,8 +32,10 @@ import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, S
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
 import { AudioManager } from './utils/audioManager';
 import { applyAppearancePrefs } from './utils/appearance';
-import { notifyInfo } from './utils/toast';
-import { NextChallengeHint, ProgressPanel } from './components/ProgressPanel';
+import { NextChallengeHint } from './components/ProgressPanel';
+import { HomePlayerCard } from './components/HomePlayerCard';
+import { BackButton } from './components/BackButton';
+import { DailyBonusChest } from './components/DailyBonusChest';
 import {
   identifyAccount,
   resetAnalyticsIdentity,
@@ -63,11 +65,11 @@ function dailyBadge(): ReactNode | undefined {
   return d.lastPlayedDate == null ? 'New' : undefined;
 }
 
-const MODES: ModeDef[] = [
-  { mode: 'play',        label: 'Play',       Icon: PlayIcon,     chip: 'orange', primary: true },
-  { mode: 'season',      label: 'Season',     Icon: SeasonIcon,   chip: 'orange' },
-  { mode: 'leaderboard', label: 'Ranks',      Icon: RankingsIcon, chip: 'blue' },
-  { mode: 'shop',        label: 'Store',      Icon: CartIcon,     chip: 'blue' },
+/** The compact hub tiles beside the hero CTA (Play lives in the hero). */
+const HUB_TILES: ModeDef[] = [
+  { mode: 'season',      label: 'Season', Icon: SeasonIcon,   chip: 'orange' },
+  { mode: 'leaderboard', label: 'Ranks',  Icon: RankingsIcon, chip: 'blue' },
+  { mode: 'shop',        label: 'Store',  Icon: CartIcon,     chip: 'blue' },
 ];
 
 const PLAY_MODES: ModeDef[] = [
@@ -93,13 +95,22 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCamp
   const gamesFinished = useProfile((s) => s.profile.achievementCounters.gamesFinished);
   const season = useProfile((s) => s.season);
   const seasonClaimable = season ? claimableCount(season) : 0;
-  const native = isNativeRuntime();
-  const [progressOpen, setProgressOpen] = useState(false);
   // A persisted in-progress game is offered as an explicit Resume on Home, rather
   // than auto-reopening the board on launch (see the viewingGame gate in App).
   const phase = useGameStore((s) => s.phase);
   const resumeGame = useGameStore((s) => s.resumeGame);
   const hasResumableGame = phase === 'PLANNING' || phase === 'RESOLUTION' || phase === 'ELECTION';
+
+  // One hero action per visit: resume a live game > a new player's first
+  // campaign > start playing. Everything else is a subordinate tile.
+  const hero = hasResumableGame
+    ? { label: 'Resume Campaign', onPress: () => { AudioManager.play('confirm'); resumeGame(); } }
+    : signedIn && gamesFinished === 0
+      ? { label: 'Opening Campaign', onPress: () => { AudioManager.play('confirm'); onOpeningCampaign(); } }
+      : { label: 'Play', onPress: () => { AudioManager.play('click'); onSelect('play'); } };
+
+  const daily = getDailyChallengeLocal();
+
   return (
     <div className="home">
       <button
@@ -114,9 +125,13 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCamp
       <button
         type="button"
         className="home__coin gold-pill"
-        onClick={onAccount}
-        title={signedIn ? 'Your account and Campaign Funds' : 'Sign in to your account'}
-        aria-label={signedIn ? `Your account, ${funds.toLocaleString()} Campaign Funds` : 'Sign in to your account'}
+        onClick={() => {
+          AudioManager.play('click');
+          if (signedIn) onSelect('shop');
+          else onAccount();
+        }}
+        title={signedIn ? 'Campaign Funds — open the Store' : 'Sign in to your account'}
+        aria-label={signedIn ? `${funds.toLocaleString()} Campaign Funds — open the Store` : 'Sign in to your account'}
       >
         {signedIn ? (
           <>
@@ -129,80 +144,73 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCamp
         )}
       </button>
 
-      <div className="home__crest">
-        <BrandMark />
+      <div className="home__identity">
+        <div className="home__crest">
+          <BrandMark />
+        </div>
+        <HomePlayerCard onOpen={onAccount} />
       </div>
 
-      {hasResumableGame && (
-        <button
-          type="button"
-          className="home__resume btn-cta"
-          onClick={() => { AudioManager.play('confirm'); resumeGame(); }}
-        >
-          Resume Campaign →
+      <div className="home__actions">
+        <button type="button" className="home__hero btn-cta btn-cta--lg btn-cta--chevron" onClick={hero.onPress}>
+          {hero.label}
         </button>
-      )}
-
-      {signedIn && gamesFinished === 0 && !hasResumableGame && (
-        <button
-          type="button"
-          className="home__resume btn-cta"
-          onClick={() => { AudioManager.play('confirm'); onOpeningCampaign(); }}
-        >
-          Opening Campaign →
-        </button>
-      )}
-
-      <div className="home__modes">
-        {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
-          let b = native && signedIn && mode === 'play' ? undefined : (mode === 'play' ? dailyBadge() : badge);
-          if (mode === 'season' && signedIn && seasonClaimable > 0) b = `${seasonClaimable}`;
-          else if (mode === 'season' && signedIn && season?.season && !season.progress.premium) b = 'New';
-          return (
-            <button
-              key={mode}
-              type="button"
-              className={`menu-btn${primary ? ' menu-btn--primary' : ''}`}
-              onClick={() => { AudioManager.play('click'); onSelect(mode); }}
-            >
-              <span className={`menu-btn__chip menu-btn__chip--${chip}`}><Icon size={24} /></span>
-              <span className="menu-btn__label">{label}</span>
-              {b && <span className="menu-btn__badge">{b}</span>}
-            </button>
-          );
-        })}
+        <div className="home__tiles">
+          {HUB_TILES.map(({ mode, label, Icon, chip }) => {
+            let b: ReactNode;
+            if (mode === 'season' && signedIn && seasonClaimable > 0) b = `${seasonClaimable}`;
+            else if (mode === 'season' && signedIn && season?.season && !season.progress.premium) b = 'New';
+            return (
+              <button
+                key={mode}
+                type="button"
+                className="menu-tile pressable"
+                onClick={() => { AudioManager.play('click'); onSelect(mode); }}
+              >
+                <span className={`menu-tile__chip menu-btn__chip menu-btn__chip--${chip}`}><Icon size={22} /></span>
+                <span className="menu-tile__label">{label}</span>
+                {b && <span className="menu-btn__badge menu-tile__badge">{b}</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {signedIn && (
-        native ? (
-          <div className="home__progress-native">
-            <button
-              type="button"
-              className="home__progress-toggle"
-              aria-expanded={progressOpen}
-              onClick={() => { AudioManager.play('click'); setProgressOpen((o) => !o); }}
-            >
-              Your progress
-              <span className="home__progress-chevron" aria-hidden>{progressOpen ? '▴' : '▾'}</span>
-            </button>
-            {progressOpen && (
-              <div className="home__progress-panel">
-                <ProgressPanel compact showAll={false} />
-                <NextChallengeHint />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="home__progress">
-            <ProgressPanel compact showAll={false} />
-            <NextChallengeHint />
-          </div>
-        )
-      )}
-
-      <button type="button" className="home__link" onClick={onTutorial}>
-        Campaign Guide
-      </button>
+      <div className="home__events">
+        <button
+          type="button"
+          className="event-card event-card--daily pressable"
+          onClick={() => { AudioManager.play('click'); onSelect('daily'); }}
+        >
+          <span className="event-card__icon" aria-hidden><FlameIcon size={18} /></span>
+          <span className="event-card__text">
+            <span className="event-card__title">Daily Race</span>
+            <span className="event-card__sub">Same map, one shot — beat today's field</span>
+          </span>
+          {daily.streak > 0 ? (
+            <span className="event-card__badge"><FlameIcon size={11} /> {daily.streak}</span>
+          ) : daily.lastPlayedDate == null ? (
+            <span className="event-card__badge">New</span>
+          ) : null}
+        </button>
+        {hasResumableGame && (
+          <button
+            type="button"
+            className="event-card event-card--ghost pressable"
+            onClick={() => { AudioManager.play('click'); onSelect('play'); }}
+          >
+            <span className="event-card__icon" aria-hidden><PlayIcon size={18} /></span>
+            <span className="event-card__text">
+              <span className="event-card__title">New Game</span>
+              <span className="event-card__sub">Start a fresh campaign</span>
+            </span>
+          </button>
+        )}
+        {signedIn && <NextChallengeHint />}
+        <button type="button" className="home__link" onClick={onTutorial}>
+          Campaign Guide
+        </button>
+      </div>
     </div>
   );
 }
@@ -239,7 +247,7 @@ function PlayModeSelect({ onSelect, onBack }: {
         })}
       </div>
 
-      <button type="button" className="mp-back" onClick={onBack}>← Back</button>
+      <BackButton onClick={onBack} silent />
     </div>
   );
 }
@@ -253,10 +261,10 @@ function GuestGate({ title, message, onBack, onSignIn }: {
       <div className="setup__header"><h1 className="setup__title">{title}</h1></div>
       <div className="mp-wait">
         <p className="mp-wait__hint">{message}</p>
-        <button type="button" className="setup__start" style={{ marginTop: '1rem' }} onClick={onSignIn}>
+        <button type="button" className="setup__start guest-gate__signin" onClick={onSignIn}>
           Sign In
         </button>
-        <button type="button" className="mp-back" onClick={onBack}>← Back</button>
+        <BackButton onClick={onBack} silent />
       </div>
     </div>
   );
@@ -278,6 +286,7 @@ function App() {
   const startOpeningCampaign = useGameStore((s) => s.startOpeningCampaign);
   const [showAccount, setShowAccount] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [dailyBonus, setDailyBonus] = useState(0);
   const loginBonusClaimed = useRef(false);
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
   // can choose to continue as a guest for the rest of this session.
@@ -303,8 +312,7 @@ function App() {
     loginBonusClaimed.current = true;
     void useProfile.getState().claimDailyLoginBonus().then((amount) => {
       if (amount > 0) {
-        AudioManager.play('income');
-        notifyInfo(`Daily bonus: +${amount} Campaign Funds`);
+        setDailyBonus(amount);
         track('funds_earned', { amount, source: 'login_bonus', claimed: true, game_mode: 'menu' });
       }
     });
@@ -554,7 +562,7 @@ function App() {
       <Leaderboard onBack={() => setAppMode('mode-select')} />
     ) : (
       <GuestGate
-        title="Leaderboard"
+        title="Ranks"
         message="Sign in to see where you rank against players worldwide."
         onBack={() => setAppMode('mode-select')}
         onSignIn={() => openAccount('other')}
@@ -566,7 +574,7 @@ function App() {
       <SeasonPass onBack={() => setAppMode('mode-select')} />
     ) : (
       <GuestGate
-        title="Campaign Trail"
+        title="Season"
         message="Sign in to earn Season XP, claim rewards, and unlock the Campaign Trail."
         onBack={() => setAppMode('mode-select')}
         onSignIn={() => openAccount('other')}
@@ -595,6 +603,9 @@ function App() {
       <ActiveModifierChip />
       {account}
       {settings}
+      {dailyBonus > 0 && screenKey === 'menu' && (
+        <DailyBonusChest amount={dailyBonus} onClose={() => setDailyBonus(0)} />
+      )}
     </>
   );
 }

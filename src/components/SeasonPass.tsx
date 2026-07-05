@@ -27,6 +27,7 @@ import {
   type SeasonObjective,
 } from '../game/season';
 import { AudioManager } from '../utils/audioManager';
+import { BackButton } from './BackButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { track } from '../utils/analytics';
 
@@ -81,7 +82,7 @@ export function SeasonPass({ onBack }: { onBack: () => void }) {
         <div className="setup__header"><h1 className="setup__title">Campaign Trail</h1></div>
         <div className="season-empty">No active season right now — check back soon.</div>
         <div className="setup__foot">
-          <button type="button" className="mp-back" onClick={() => { AudioManager.play('quit'); onBack(); }}>← Back to Menu</button>
+          <BackButton onClick={onBack} label="Back to Menu" />
         </div>
       </div>
     );
@@ -134,7 +135,8 @@ export function SeasonPass({ onBack }: { onBack: () => void }) {
   return (
     <div className="setup native-screen season-screen">
       <div className="setup__header">
-        <h1 className="setup__title">{cat.title}</h1>
+        <h1 className="setup__title">Season</h1>
+        <p className="setup__sub">{cat.title}</p>
         {nowMs > 0 && <span className="season-countdown">{seasonCountdown(cat.endsAt, nowMs)}</span>}
       </div>
 
@@ -218,7 +220,7 @@ export function SeasonPass({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="setup__foot">
-        <button type="button" className="mp-back" onClick={() => { AudioManager.play('quit'); onBack(); }}>← Back to Menu</button>
+        <BackButton onClick={onBack} label="Back to Menu" />
       </div>
 
       {confirmUnlock && (

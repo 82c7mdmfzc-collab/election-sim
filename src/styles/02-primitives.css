@@ -328,3 +328,8 @@ html.native .shop-rail::-webkit-scrollbar {
 
 /* Inline SVG icons inside text pills/labels sit on the text baseline. */
 .menu-btn__badge svg, .daily__chip svg, .streak-strip__head svg { vertical-align: -2px; }
+
+/* Setup/hub back buttons that previously used an inline top margin. */
+.setup__back, .daily__back { margin-top: var(--sp-2); }
+.shop__foot { margin-top: var(--sp-5); }
+.guest-gate__signin { margin-top: var(--sp-4); }

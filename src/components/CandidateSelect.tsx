@@ -13,6 +13,7 @@ import { playerColorHex } from '../game/playerColors';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
+import { BackButton } from './BackButton';
 import { CandidateStatsModal } from './CandidateStatsModal';
 import { Portrait } from './Portrait';
 import { MasteryBadge } from './MasteryMeter';
@@ -207,9 +208,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
           {filled === count ? 'Start Campaign →' : `Assign ${count - filled} more`}
         </button>
         {onBack && (
-          <button type="button" className="mp-back" onClick={onBack} style={{ marginTop: '0.5rem' }}>
-            ← Back
-          </button>
+          <BackButton onClick={onBack} silent className="setup__back" />
         )}
       </div>
 
