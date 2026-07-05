@@ -41,8 +41,6 @@ function phaseLabel(phase: string): string {
 
 function NativeTurnButton() {
   const phase = useGameStore((s) => s.phase);
-  const players = useGameStore((s) => s.players);
-  const activeIndex = useGameStore((s) => s.activePlayerIndex);
   const multiplayerMode = useGameStore((s) => s.multiplayerMode);
   const localPlayerId = useGameStore((s) => s.localPlayerId);
   const submittedPlayers = useGameStore((s) => s.submittedPlayers);
@@ -50,8 +48,6 @@ function NativeTurnButton() {
   const pending = useActivePending();
   const [confirming, setConfirming] = useState(false);
 
-  const active = players.filter((p) => !p.eliminated);
-  const isLast = activeIndex >= active.length - 1;
   const alreadySubmitted =
     multiplayerMode === 'online' &&
     !!localPlayerId &&
@@ -63,11 +59,10 @@ function NativeTurnButton() {
     submitTurn();
   }
 
-  // Guard a fat-finger: confirm only when ending a turn with no moves queued.
+  // Always confirm before ending a turn: press End Turn, then confirm.
   function attempt() {
     if (alreadySubmitted) return;
-    if (pending.length === 0) { setConfirming(true); return; }
-    doSubmit();
+    setConfirming(true);
   }
 
   if (phase === 'RESOLUTION') return null;
@@ -84,7 +79,7 @@ function NativeTurnButton() {
         <span className="native-turn-button__label">
           {multiplayerMode === 'online'
             ? (alreadySubmitted ? 'Wait' : 'End')
-            : (isLast ? 'Resolve' : 'End')}
+            : 'End Turn'}
         </span>
         {pending.length > 0 && (
           <span className="native-turn-button__count" aria-label={`${pending.length} moves queued`}>
@@ -94,7 +89,9 @@ function NativeTurnButton() {
       </button>
       {confirming && (
         <ConfirmDialog
-          message="End your turn without campaigning? You still have funds to spend."
+          message={pending.length === 0
+            ? 'End your turn without campaigning? You still have funds to spend.'
+            : 'Lock in your moves and end your turn?'}
           confirmLabel="End turn"
           cancelLabel="Keep planning"
           onConfirm={doSubmit}

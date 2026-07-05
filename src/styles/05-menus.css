@@ -700,6 +700,7 @@
 }
 .auth-gate__delete-warn { margin: 0 0 0.6rem; font-size: 0.8rem; line-height: 1.45; color: var(--text); }
 .auth-gate__delete-err { margin: 0 0 0.6rem; font-size: 0.75rem; color: var(--danger-red); }
+.auth-gate__delete .auth-gate__row { margin-bottom: 0.6rem; }
 .auth-gate__delete-actions { display: flex; gap: 0.5rem; }
 .auth-gate__delete-confirm {
   flex: 1; padding: 0.55rem 1rem; border: none; border-radius: var(--r-sm); cursor: pointer;

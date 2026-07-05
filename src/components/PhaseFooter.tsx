@@ -216,8 +216,6 @@ function ResolutionView() {
 }
 
 function PlanningControls() {
-  const players          = useGameStore((s) => s.players);
-  const activeIndex      = useGameStore((s) => s.activePlayerIndex);
   const submitTurn       = useGameStore((s) => s.submitTurn);
   const cancelAllocation = useGameStore((s) => s.cancelAllocation);
   const multiplayerMode  = useGameStore((s) => s.multiplayerMode);
@@ -227,10 +225,6 @@ function PlanningControls() {
   const pending          = useActivePending();
   const cash             = useActiveNationalCash();
   const [confirming, setConfirming] = useState(false);
-
-  const active = players.filter((p) => !p.eliminated);
-  const isLast = activeIndex >= active.length - 1;
-  const nextPlayer = !isLast ? active[activeIndex + 1] : null;
 
   // Online mode: disable submit once this player has already submitted this turn
   const alreadySubmitted =
@@ -289,19 +283,19 @@ function PlanningControls() {
         disabled={alreadySubmitted}
         onClick={() => {
           if (alreadySubmitted) return;
-          if (pending.length === 0) { setConfirming(true); return; }
-          AudioManager.play('confirm');
-          submitTurn();
+          setConfirming(true);
         }}
       >
         {multiplayerMode === 'online'
           ? (alreadySubmitted ? 'Waiting for others…' : 'Submit Plan →')
-          : (nextPlayer ? `Hand to ${nextPlayer.name} →` : 'Resolve Turn →')}
+          : 'End Turn'}
       </button>
 
       {confirming && (
         <ConfirmDialog
-          message="End your turn without campaigning? You still have funds to spend."
+          message={pending.length === 0
+            ? 'End your turn without campaigning? You still have funds to spend.'
+            : 'Lock in your moves and end your turn?'}
           confirmLabel="End turn"
           cancelLabel="Keep planning"
           onConfirm={() => { setConfirming(false); AudioManager.play('confirm'); submitTurn(); }}
