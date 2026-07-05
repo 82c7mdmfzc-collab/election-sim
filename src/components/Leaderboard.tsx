@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
 import { Spinner } from './Spinner';
 import { ProfileBanner } from './ProfileBanner';
+import { MedalIcon } from './icons';
 import {
   fetchLeaderboardRemote,
   BOARD_META,
@@ -25,7 +26,16 @@ import { track } from '../utils/analytics';
 type Board = LeaderboardBoard | 'daily_today';
 
 const BOARDS: Board[] = ['daily_today', 'wins_all', 'wins_month', 'wins_week', 'streak'];
-const MEDALS = ['🥇', '🥈', '🥉'];
+
+/** Podium medal for ranks 1-3 (gold/silver/bronze via CSS), '#N' otherwise. */
+function RankBadge({ rank }: { rank: number }) {
+  if (rank > 3) return <>{`#${rank}`}</>;
+  return (
+    <span className={`lb-medal lb-medal--${rank}`}>
+      <MedalIcon rank={rank as 1 | 2 | 3} size={18} />
+    </span>
+  );
+}
 const DAILY_META = { label: 'Today', sub: 'Daily Race ranking', unit: 'EV' };
 
 export function Leaderboard({ onBack }: { onBack: () => void }) {
@@ -106,7 +116,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
             dailyData.rows.map((r) => (
               <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}${r.banner ? ' lb-row--bannered' : ''}`}>
                 <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
-                <span className="lb-row__rank">{r.rank <= 3 ? MEDALS[r.rank - 1] : `#${r.rank}`}</span>
+                <span className="lb-row__rank"><RankBadge rank={r.rank} /></span>
                 <span className="lb-row__name">
                   {r.name}
                   {r.isMe && <em className="lb-row__you"> · You</em>}
@@ -121,7 +131,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
           data.rows.map((r) => (
             <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}${r.banner ? ' lb-row--bannered' : ''}`}>
               <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
-              <span className="lb-row__rank">{r.rank <= 3 ? MEDALS[r.rank - 1] : `#${r.rank}`}</span>
+              <span className="lb-row__rank"><RankBadge rank={r.rank} /></span>
               <span className="lb-row__name">
                 {r.name}
                 {r.isMe && <em className="lb-row__you"> · You</em>}

@@ -22,6 +22,7 @@ import { ResolutionRecap } from './PhaseFooter';
 import { Sidebar } from './Sidebar';
 import { WalletDrawer } from './WalletDrawer';
 import { CloseIcon } from './icons';
+import { Sheet } from './ui/Sheet';
 
 type NativeSheet = 'national' | 'state' | 'options' | 'wallet' | null;
 
@@ -414,15 +415,19 @@ function NativeGameSheet({
   }[sheet];
 
   return (
-    <>
-      <div className="native-game-sheet-backdrop" onClick={onClose} />
-      <section className={`native-game-sheet native-game-sheet--${sheet}`} aria-label={title}>
-        <div className="native-game-sheet__header">
-          <h2>{title}</h2>
-          <button type="button" className="native-game-sheet__close" onClick={onClose} aria-label="Close">
-            <CloseIcon size={18} />
-          </button>
-        </div>
+    <Sheet
+      side="bottom"
+      onClose={onClose}
+      label={title}
+      className={`native-game-sheet native-game-sheet--${sheet}`}
+      backdropClassName="native-game-sheet-backdrop"
+    >
+      <div className="native-game-sheet__header">
+        <h2>{title}</h2>
+        <button type="button" className="native-game-sheet__close" onClick={onClose} aria-label="Close">
+          <CloseIcon size={18} />
+        </button>
+      </div>
 
         {sheet === 'national' && (
           <div className="native-game-sheet__body">
@@ -464,8 +469,7 @@ function NativeGameSheet({
             </div>
           </div>
         )}
-      </section>
-    </>
+    </Sheet>
   );
 }
 

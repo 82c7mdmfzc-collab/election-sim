@@ -35,6 +35,7 @@ import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/local
 import { Portrait } from './Portrait';
 import { MasteryBadge } from './MasteryMeter';
 import { CandidateStatsModal } from './CandidateStatsModal';
+import { FlameIcon } from './icons';
 
 interface DailyChallengeProps {
   onBack: () => void;
@@ -135,7 +136,7 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
         <div className="daily__scenario">
           <div className="daily__chips">
             {streak > 0 && (
-              <span className="daily__chip daily__chip--streak">🔥 {streak}-day streak</span>
+              <span className="daily__chip daily__chip--streak"><FlameIcon size={13} /> {streak}-day streak</span>
             )}
             <span className="daily__chip">
               {config.opponentCount} opponent{config.opponentCount === 1 ? '' : 's'}

@@ -28,7 +28,7 @@ import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
 import { useAndroidBack } from './hooks/useAndroidBack';
-import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon, SeasonIcon } from './components/icons';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon, SeasonIcon, FlameIcon } from './components/icons';
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
 import { AudioManager } from './utils/audioManager';
 import { applyAppearancePrefs } from './utils/appearance';
@@ -57,9 +57,9 @@ interface ModeDef {
 }
 
 /** The Daily tile's live badge: the active streak, or "New" until first played. */
-function dailyBadge(): string | undefined {
+function dailyBadge(): ReactNode | undefined {
   const d = getDailyChallengeLocal();
-  if (d.streak > 0) return `🔥 ${d.streak}`;
+  if (d.streak > 0) return <><FlameIcon size={12} /> {d.streak}</>;
   return d.lastPlayedDate == null ? 'New' : undefined;
 }
 

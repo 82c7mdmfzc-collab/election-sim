@@ -144,3 +144,121 @@ export const SettingsIcon = (p: IconProps) => (
     <circle cx="7" cy="17" r="2.4" />
   </svg>
 );
+
+/** Ribbon medal; pass rank to engrave 1/2/3 (color it via CSS on the parent). */
+export const MedalIcon = ({ rank, ...p }: IconProps & { rank?: 1 | 2 | 3 }) => (
+  <svg {...base(p)}>
+    <path d="M8.2 9.6 5.4 3h4l1.6 4M15.8 9.6 18.6 3h-4l-1.6 4" />
+    <circle cx="12" cy="15" r="6" />
+    {rank ? (
+      <text
+        x="12" y="15" textAnchor="middle" dominantBaseline="central"
+        fontSize="8" fontWeight="700" fontFamily="inherit"
+        fill="currentColor" stroke="none"
+      >
+        {rank}
+      </text>
+    ) : (
+      <path d="M12 12.4v5.2" />
+    )}
+  </svg>
+);
+
+export const FlameIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 2.5c.4 2.6 1.8 4.8 3.8 6.5 1.9 1.6 3.2 3.6 3.2 6a7 7 0 1 1-14 0c0-1.2.4-2.4 1-3.4.4 1 1.3 1.9 2.5 1.9A2.5 2.5 0 0 0 11 11c0-1.4-.6-2-1-3-.9-2 .1-4 2-5.5z" />
+  </svg>
+);
+
+export const DiceIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+    <circle cx="8.2" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="15.8" cy="8.2" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="8.2" cy="15.8" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="15.8" cy="15.8" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+/** Ballot dropping into a box — election moments. */
+export const BallotIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="m9 11 2 2 4-4" />
+    <path d="M5 8c0-1.1.9-2 2-2h10a2 2 0 0 1 2 2v11H5V8z" />
+    <path d="M22 19H2" />
+  </svg>
+);
+
+export const BoltIcon = (p: IconProps) => (
+  <svg {...base(p)}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+);
+
+export const FlagIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+    <path d="M4 22v-7" />
+  </svg>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M20 6 9 17l-5-5" /></svg>
+);
+
+export const UndoIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M9 14 4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+  </svg>
+);
+
+/** Circular arrow — reset / play again. */
+export const RestartIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 12a9 9 0 1 0 2.64-6.36L3 8" />
+    <path d="M3 3v5h5" />
+  </svg>
+);
+
+export const ChevronLeftIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="m15 18-6-6 6-6" /></svg>
+);
+
+export const ChevronRightIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="m9 18 6-6-6-6" /></svg>
+);
+
+export const ChevronUpIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="m18 15-6-6-6 6" /></svg>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="m6 9 6 6 6-6" /></svg>
+);
+
+export const PlusIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M5 12h14M12 5v14" /></svg>
+);
+
+export const MinusIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M5 12h14" /></svg>
+);
+
+export const StarIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26" />
+  </svg>
+);
+
+/** Gift box — daily bonus / rewards. */
+export const GiftIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="8" width="18" height="4" rx="1" />
+    <path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+    <path d="M7.5 8a2.5 2.5 0 0 1 0-5C9.5 3 11 5 12 8c1-3 2.5-5 4.5-5a2.5 2.5 0 0 1 0 5" />
+  </svg>
+);
+
+export const ArrowRightIcon = (p: IconProps) => (
+  <svg {...base(p)}><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+);

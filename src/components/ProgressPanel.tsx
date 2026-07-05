@@ -13,6 +13,7 @@ import { nextCandidateMasteryTarget } from '../game/candidateMastery';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { track } from '../utils/analytics';
+import { FlameIcon } from './icons';
 
 interface ProgressPanelProps {
   compact?: boolean;
@@ -40,7 +41,7 @@ export function DailyStreakStrip({ compact = false, onStart }: { compact?: boole
     <div className={`streak-strip${compact ? ' streak-strip--compact' : ''}`}>
       <div className="streak-strip__head">
         <span className="streak-strip__title">Daily Race</span>
-        <strong>{completedToday ? `🔥 Day ${Math.max(streak.count, 1)}` : `Next +${nextReward}`}</strong>
+        <strong>{completedToday ? <><FlameIcon size={12} /> Day {Math.max(streak.count, 1)}</> : `Next +${nextReward}`}</strong>
       </div>
       <p className="streak-strip__blurb">
         {completedToday

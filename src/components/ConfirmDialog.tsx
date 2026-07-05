@@ -3,10 +3,11 @@
  *
  * Used for the "end your turn without campaigning?" guard (PhaseFooter +
  * NativeGameHud). Overlay click and the cancel button both dismiss. Sized to fit
- * the landscape / short-viewport native layout (App.css .confirm-dialog).
+ * the landscape / short-viewport native layout (styles: .confirm-dialog).
  */
 
 import { AudioManager } from '../utils/audioManager';
+import { Modal } from './ui/Modal';
 
 export function ConfirmDialog({
   message,
@@ -22,31 +23,29 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   return (
-    <div
+    <Modal
+      label={message}
       className="confirm-overlay"
-      role="dialog"
-      aria-modal="true"
-      onClick={() => { AudioManager.play('quit'); onCancel(); }}
+      panelClassName="confirm-dialog"
+      onClose={() => { AudioManager.play('quit'); onCancel(); }}
     >
-      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-        <p className="confirm-dialog__msg">{message}</p>
-        <div className="confirm-dialog__actions">
-          <button
-            type="button"
-            className="btn-ghost confirm-dialog__btn"
-            onClick={() => { AudioManager.play('quit'); onCancel(); }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className="btn-cta confirm-dialog__btn"
-            onClick={() => { AudioManager.play('confirm'); onConfirm(); }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
+      <p className="confirm-dialog__msg">{message}</p>
+      <div className="confirm-dialog__actions">
+        <button
+          type="button"
+          className="btn-ghost confirm-dialog__btn"
+          onClick={() => { AudioManager.play('quit'); onCancel(); }}
+        >
+          {cancelLabel}
+        </button>
+        <button
+          type="button"
+          className="btn-cta confirm-dialog__btn"
+          onClick={() => { AudioManager.play('confirm'); onConfirm(); }}
+        >
+          {confirmLabel}
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -61,9 +61,10 @@
     <meta name="twitter:image" content="https://www.playelector.com/assets/brand/og-image.png" />
 
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Fonts are self-hosted (src/index.css @font-face + public/fonts/) so the
+         native app renders its type offline. Preload the two above-the-fold faces. -->
+    <link rel="preload" href="/fonts/saira-condensed-800.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
 
     <!--
       iOS 14.0–15.3 WKWebView polyfill shim. Our IPHONEOS_DEPLOYMENT_TARGET is 14.0,
