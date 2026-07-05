@@ -33,11 +33,14 @@ export function CampaignCoach() {
   const securedBy = useGameStore((s) => s.securedBy);
   const dominance = useGameStore((s) => s.stateGroupDominance);
   const natRungs = useGameStore((s) => s.natRungs);
+  const isOpeningCampaign = useGameStore((s) => s.isOpeningCampaign);
   const activePlayer = useActivePlayer();
   const pending = useActivePending();
   const result = useElectoralResult();
 
-  if (dismissed || phase !== 'PLANNING' || !activePlayer) return null;
+  // The Opening Campaign has its own interactive guide (OnboardingDriver); the
+  // live coach would double up, so it stands down there and returns afterward.
+  if (dismissed || isOpeningCampaign || phase !== 'PLANNING' || !activePlayer) return null;
 
   const pendingRungs = pending.reduce((sum, p) => sum + p.rungs, 0);
   const projectedEV = result.evByPlayer[activePlayer.id] ?? 0;

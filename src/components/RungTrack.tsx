@@ -190,6 +190,7 @@ export function RungTrack({
           <button
             type="button"
             className="rung-buy__build btn-cta"
+            data-tut="build"
             onClick={build}
             aria-label={nextCost != null ? `Build Campaign Influence for $${nextCost}k` : 'Build Campaign Influence'}
           >
