@@ -14,6 +14,7 @@ import { candidateAtMastery, normalizeCandidateMasteryEntry } from '../game/cand
 import { useProfile } from '../hooks/useProfile';
 import { playerColorHex } from '../game/playerColors';
 import { ModifierSheet } from './ModifierSheet';
+import { MasteryPanel } from './MasteryMeter';
 import { PartyBadge } from './PartyBadge';
 import { Portrait } from './Portrait';
 
@@ -86,6 +87,10 @@ export function CandidateStatsModal({
           >
             ×
           </button>
+        </div>
+
+        <div className="profile-modal__section">
+          <MasteryPanel candidate={candidate} />
         </div>
 
         <div className="profile-modal__section">

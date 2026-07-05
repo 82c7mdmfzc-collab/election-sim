@@ -33,6 +33,7 @@ import {
 import { normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/localPrefs';
 import { Portrait } from './Portrait';
+import { MasteryBadge } from './MasteryMeter';
 import { CandidateStatsModal } from './CandidateStatsModal';
 
 interface DailyChallengeProps {
@@ -203,7 +204,7 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
                   </div>
                 </div>
                 <div className="shop-card__foot">
-                  <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
+                  <MasteryBadge level={normalizeCandidateMasteryEntry(mastery[c.id], c).level} className="shop-card__level" />
                   {chosen && <div className="shop-card__owned">Your pick ✓</div>}
                   <span className="shop-card__stats-hint">View stats ›</span>
                 </div>
