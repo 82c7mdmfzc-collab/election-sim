@@ -1,11 +1,13 @@
 /**
- * Tutorial script — the ordered steps of the first-run walkthrough.
+ * Tutorial script — a short 3-card primer shown once before a new player's
+ * first game. The full rulebook lives in HOW_TO_PLAY (tips.ts, reachable from
+ * the Home "Campaign Guide"); the mechanics are taught hands-on by the guided
+ * first game (components/onboarding). This primer only sets the goal and the
+ * two core ideas so the guided game has context.
  *
- * Kept as data (not JSX) so the flow is easy to reorder/extend and could later
- * be reused for a localized or voiced version. Tutorial.tsx renders these.
- *
- * `art` is a compact display badge rendered by Tutorial.tsx. `cta` (last step)
- * flips the primary button to "start a game".
+ * Kept as data (not JSX) so the flow is easy to reorder and could later be
+ * localized. Tutorial.tsx renders these. `art` is a compact display badge;
+ * `cta` (last step) flips the primary button to "start a game".
  */
 
 export interface TutorialStep {
@@ -21,56 +23,20 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'goal',
     art: '270',
-    title: 'Win 270 Electoral Votes',
-    body: 'States decide the election. Lead a state when Election Night fires and its EV goes to you. Your job is to build enough map influence to reach 270.',
+    title: 'Race to 270',
+    body: 'States decide the election. Lead a state on Election Night and its electoral votes are yours. Win 270 and you win the presidency.',
   },
   {
     id: 'rungs',
     art: 'IL',
-    title: 'Build Influence On The Map',
-    body: 'Click a state to build Campaign Influence. More Campaign Influence means a stronger lead — and reaching full influence alone CALLS that state permanently.',
-  },
-  {
-    id: 'coalitions',
-    art: 'EV',
-    title: 'Coalitions Build Engines',
-    body: 'States belong to Coalitions like Swing States, High Tech, and Agriculture. Lead enough EV inside a Coalition to control it and earn that Coalition\'s Reserve every turn.',
-  },
-  {
-    id: 'national',
-    art: '$',
-    title: 'National Networks Pay Flexible Cash',
-    body: 'The national network tracks are side battles. Lead networks like Gun Lobby, Youth Vote, or Women\'s Vote with 4+ Campaign Influence to earn War Chest funds that spend anywhere.',
+    title: 'Campaign in States',
+    body: 'Tap a state to spend funds and build Campaign Influence there. The more you build, the stronger your lead — reach full influence alone and that state is CALLED for good.',
   },
   {
     id: 'wallets',
     art: '$',
-    title: 'Two Kinds of Money',
-    body: 'Coalition Reserves are earmarked and only spend inside that Coalition\'s states. Your National War Chest is flexible. Strong campaigns use both: Coalition Reserves for lanes, War Chest for pivots.',
-  },
-  {
-    id: 'clash',
-    art: '!',
-    title: 'Campaign Collisions',
-    body: 'Everyone submits their operation plan secretly and at the same time. If two campaigns land on the exact same Campaign Influence in a state, BOTH campaigns burn that Campaign Influence AND the spend. Read your opponent — a collision is the costliest mistake in the game.',
-  },
-  {
-    id: 'election',
-    art: '270',
-    title: 'Election Night',
-    body: 'From Turn 10 on, a round can be marked for Election Night. You always get one full round of warning; then EV is tallied, 270 wins, and last place is eliminated if nobody has a majority in a bigger field.',
-  },
-  {
-    id: 'beyond',
-    art: '★',
-    title: 'Beyond Your First Race',
-    body: 'Winning earns Campaign Funds — spend them in the Shop to recruit legendary candidates. Take on the Daily Challenge for a fresh rival every day, and climb the global Leaderboard from the main menu.',
-  },
-  {
-    id: 'go',
-    art: 'GO',
-    title: "You're Ready, Candidate",
-    body: 'Your first campaign will coach the next move live: establish a foothold in a state, claim Coalition backing and network funds, then convert that engine into 270.',
+    title: 'Fund Your Campaign',
+    body: 'Leading Coalitions and National networks pays you every turn. That income buys more influence. Your first game will walk you through it — let\'s go.',
     cta: true,
   },
 ];

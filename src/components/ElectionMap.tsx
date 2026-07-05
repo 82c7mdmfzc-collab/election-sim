@@ -636,6 +636,7 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
     <div className="election-map-wrap">
       <div
         className="election-map-container"
+        data-tut="map"
         onTouchEnd={guardDoubleTap}
         onDoubleClick={(e) => {
           if (!nativeLook) return;

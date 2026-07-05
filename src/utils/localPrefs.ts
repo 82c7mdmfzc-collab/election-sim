@@ -68,6 +68,8 @@ export interface LocalPrefs {
   firstRunCoachDismissed: boolean;
   /** Whether the one-time first-gameplay tips overlay has been dismissed. */
   firstGameplayTipsSeen: boolean;
+  /** Whether the interactive guided first game (spotlight coach-marks) is complete. */
+  guidedOnboardingDone: boolean;
   /** Normalized usernames the player has blocked online (Apple Guideline 1.2). */
   blockedPlayers: string[];
   /** Whether we've already shown the OS notification-permission prompt once. */
@@ -106,6 +108,7 @@ const DEFAULTS: LocalPrefs = {
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
   firstGameplayTipsSeen: false,
+  guidedOnboardingDone: false,
   blockedPlayers: [],
   notifPermissionAsked: false,
   dailyChallenge: { ...DEFAULT_DAILY_CHALLENGE },
@@ -164,6 +167,8 @@ export const isFirstRunCoachDismissed = () => getPrefs().firstRunCoachDismissed;
 export const markFirstRunCoachDismissed = () => setPrefs({ firstRunCoachDismissed: true });
 export const isFirstGameplayTipsSeen = () => getPrefs().firstGameplayTipsSeen;
 export const markFirstGameplayTipsSeen = () => setPrefs({ firstGameplayTipsSeen: true });
+export const isGuidedOnboardingDone = () => getPrefs().guidedOnboardingDone;
+export const markGuidedOnboardingDone = () => setPrefs({ guidedOnboardingDone: true });
 
 // ── Accessibility & feel toggles (Settings screen) ────────────────────────────
 export const isHapticsEnabled = () => getPrefs().hapticsEnabled;

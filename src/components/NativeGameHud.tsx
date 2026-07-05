@@ -77,6 +77,7 @@ function NativeTurnButton() {
       <button
         type="button"
         className={`native-turn-button${pending.length > 0 ? ' native-turn-button--armed' : ''}`}
+        data-tut="end-turn"
         disabled={alreadySubmitted}
         onClick={attempt}
       >
@@ -172,7 +173,7 @@ function NativeTopRibbon({ timer, onOptions }: {
 
 function NativeActionStack({ onOpen }: { onOpen: (sheet: NativeSheet) => void }) {
   return (
-    <div className="native-action-stack" aria-label="Game menus">
+    <div className="native-action-stack" data-tut="explore" aria-label="Game menus">
       <button type="button" className="native-round-action" onClick={() => onOpen('national')}>
         <span>National</span>
       </button>

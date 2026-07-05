@@ -1523,3 +1523,74 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+
+/* ══ Guided first game — spotlight coach-marks ═════════════════════════════ */
+/* The scrim + cutout never block input (advancement is state-driven); only the
+   tip card is interactive. */
+.tut-overlay {
+  position: fixed; inset: 0; z-index: var(--z-onboard);
+  pointer-events: none;
+}
+.tut-scrim { position: absolute; inset: 0; }
+
+/* Glowing ring tracing the anchor cutout. */
+.tut-ring {
+  position: absolute; border-radius: 16px;
+  border: 2px solid var(--brand-yellow);
+  box-shadow: 0 0 0 2px rgba(245, 144, 34, 0.35), 0 0 22px rgba(245, 144, 34, 0.5);
+  pointer-events: none;
+}
+.tut-ring--pulse { animation: tut-ring-pulse 1.4s var(--ease-out) infinite; }
+@keyframes tut-ring-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(245, 144, 34, 0.3), 0 0 18px rgba(245, 144, 34, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(245, 144, 34, 0.5), 0 0 30px rgba(245, 144, 34, 0.7); }
+}
+
+/* Tip card — the only interactive part of the overlay. */
+.tut-card {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: min(440px, 84vw); pointer-events: auto;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: linear-gradient(180deg, rgba(27, 50, 88, 0.98), rgba(15, 29, 56, 0.99));
+  border: 1px solid var(--border); border-top: 3px solid var(--brand);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  animation: tut-card-in var(--dur-med) var(--ease-pop);
+}
+.tut-card--center { top: 50%; transform: translate(-50%, -50%); }
+.tut-card--bottom { bottom: calc(env(safe-area-inset-bottom) + var(--sp-3)); }
+.tut-card--top { top: calc(env(safe-area-inset-top) + var(--sp-3)); }
+@keyframes tut-card-in { from { opacity: 0; transform: translateX(-50%) translateY(8px); } }
+.tut-card--center { animation: none; }
+
+.tut-card__dots { display: flex; gap: 5px; }
+.tut-card__dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+}
+.tut-card__dot.is-active { background: var(--brand); width: 16px; border-radius: var(--r-pill); }
+.tut-card__dot.is-done { background: var(--brand-deep); }
+.tut-card__title {
+  margin: 0; font-family: var(--font-display); font-weight: 800;
+  font-size: var(--fs-lg); text-transform: uppercase; letter-spacing: 0.02em;
+  color: var(--text);
+}
+.tut-card__body { margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.45; }
+.tut-card__actions {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.tut-card__skip {
+  background: none; border: none; cursor: pointer;
+  color: var(--faint); font-size: var(--fs-xs); font-weight: 600;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) { .tut-card__skip:hover { color: var(--muted); } }
+.tut-card__cta { margin-left: auto; min-height: 44px; }
+
+/* Short landscape: tighten the card so it never eats the whole viewport. */
+@media (orientation: landscape) and (max-height: 430px) {
+  .tut-card { padding: var(--sp-3); gap: var(--sp-1); width: min(400px, 78vw); }
+  .tut-card__body { font-size: var(--fs-xs); }
+}

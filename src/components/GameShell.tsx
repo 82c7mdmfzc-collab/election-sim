@@ -24,8 +24,10 @@ import { RoundResolution } from './RoundResolution';
 import { ElectionApproachBanner } from './ElectionApproachBanner';
 import { SecuredToast } from './SecuredToast';
 import { WaitingOnPlayers } from './WaitingOnPlayers';
-import { FirstGameplayTips } from './FirstGameplayTips';
 import { OpeningCampaignMissions } from './OpeningCampaignMissions';
+import { OnboardingDriver } from './onboarding/OnboardingDriver';
+import { isGuidedOnboardingDone } from '../utils/localPrefs';
+import { isNativeRuntime } from '../utils/platform';
 import { useActivePlayer, useGameStore } from '../game/store';
 import { useTurnTimer } from '../game/useTurnTimer';
 import { useMultiplayerSync } from '../hooks/useMultiplayerSync';
@@ -60,6 +62,9 @@ export function GameShell() {
   const multiplayerMode = useGameStore((s) => s.multiplayerMode);
   const isOpeningCampaign = useGameStore((s) => s.isOpeningCampaign);
   const activePlayer = useActivePlayer();
+  // The interactive guided first game replaces the old tips overlay; it runs on
+  // native during the Opening Campaign until the player completes or skips it.
+  const showGuide = isOpeningCampaign && isNativeRuntime() && !isGuidedOnboardingDone();
   const timer = useTurnTimer();
   useBotDriver();
   const stageKey = `${phase}:${activePlayer?.id ?? 'none'}`;
@@ -141,7 +146,7 @@ export function GameShell() {
       <SecuredToast />
       <HandoffCurtain />
       <OpeningCampaignMissions />
-      {!isOpeningCampaign && <FirstGameplayTips />}
+      {showGuide && <OnboardingDriver />}
     </div>
   );
 }
