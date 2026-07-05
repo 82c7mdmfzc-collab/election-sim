@@ -27,6 +27,13 @@ export const PlayIcon = (p: IconProps) => (
   <svg {...base(p)}><polygon points="6 4 20 12 6 20 6 4" /></svg>
 );
 
+export const SeasonIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M5 3v18" />
+    <path d="M5 4h11l-2 3 2 3H5" />
+  </svg>
+);
+
 export const BotIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <rect x="4" y="8" width="16" height="11" rx="2" />

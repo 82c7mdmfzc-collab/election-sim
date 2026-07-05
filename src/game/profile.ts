@@ -33,6 +33,7 @@ import {
   type DailyLeaderboardResult,
 } from './dailyRankings';
 import type { BotDifficulty } from './types';
+import { parseSeasonStatus, type SeasonStatus } from './season';
 
 export interface ProfileStats {
   gamesPlayed: number;
@@ -201,6 +202,8 @@ export interface CompleteGameResultRemote {
   claimedAchievements: string[];
   candidateMastery: CandidateMastery;
   masteryAward: CandidateMasteryAward;
+  /** Season XP granted by this game (0 if no active season / replayed). */
+  seasonXp: number;
 }
 
 function jsonNumber(obj: Record<string, unknown>, key: string): number {
@@ -230,6 +233,10 @@ function parseCompleteGameResult(data: unknown, fallbackClaimed: string[]): Comp
       : fallbackClaimed,
     candidateMastery: normalizeCandidateMastery(row.candidateMastery, CANDIDATES),
     masteryAward: parseMasteryAward(row.masteryAward),
+    seasonXp: (() => {
+      const s = row.season;
+      return s && typeof s === 'object' ? jsonNumber(s as Record<string, unknown>, 'gained') : 0;
+    })(),
   };
 }
 
@@ -521,6 +528,61 @@ export async function unlockCosmeticRemote(cosmeticId: string): Promise<UnlockCo
     return { ok: false, reason: 'unknown', message: 'Could not unlock cosmetic. Please try again.' };
   }
   return { ok: true, profile: rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) };
+}
+
+// ── Season pass (see supabase/season.sql) ─────────────────────────────────────
+// All four RPCs return the get_season_status jsonb; parseSeasonStatus normalizes it.
+
+export async function getSeasonStatusRemote(): Promise<SeasonStatus | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('get_season_status');
+  if (error) { console.warn('getSeasonStatusRemote failed:', error.message); return null; }
+  return parseSeasonStatus(data);
+}
+
+export interface SeasonActionResult {
+  ok: boolean;
+  status?: SeasonStatus;
+  message?: string;
+}
+
+function classifySeasonError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('insufficient funds')) return 'Not enough Campaign Funds.';
+  if (m.includes('already claimed')) return 'Already claimed.';
+  if (m.includes('premium track locked')) return 'Unlock the premium track first.';
+  if (m.includes('not reached') || m.includes('not met')) return 'Not unlocked yet.';
+  if (m.includes('not owned')) return 'You don’t own that candidate.';
+  if (m.includes('needs a candidate')) return 'Pick a candidate for this tome.';
+  if (m.includes('season ended')) return 'The season has ended.';
+  return 'Something went wrong. Try again.';
+}
+
+export async function unlockSeasonPassRemote(): Promise<SeasonActionResult> {
+  if (!isSupabaseConfigured) return { ok: false, message: 'Not available in this build.' };
+  const { data, error } = await supabase.rpc('unlock_season_pass');
+  if (error) return { ok: false, message: classifySeasonError(error.message) };
+  return { ok: true, status: parseSeasonStatus(data) };
+}
+
+export async function claimSeasonTierRemote(
+  tier: number,
+  track: 'free' | 'premium',
+  candidate?: string | null,
+): Promise<SeasonActionResult> {
+  if (!isSupabaseConfigured) return { ok: false, message: 'Not available in this build.' };
+  const { data, error } = await supabase.rpc('claim_season_tier', {
+    p_tier: tier, p_track: track, p_candidate: candidate ?? null,
+  });
+  if (error) return { ok: false, message: classifySeasonError(error.message) };
+  return { ok: true, status: parseSeasonStatus(data) };
+}
+
+export async function claimSeasonObjectiveRemote(objectiveId: string): Promise<SeasonActionResult> {
+  if (!isSupabaseConfigured) return { ok: false, message: 'Not available in this build.' };
+  const { data, error } = await supabase.rpc('claim_season_objective', { p_objective: objectiveId });
+  if (error) return { ok: false, message: classifySeasonError(error.message) };
+  return { ok: true, status: parseSeasonStatus(data) };
 }
 
 /** Equip (or clear, with '') an owned profile banner. Server validates ownership.

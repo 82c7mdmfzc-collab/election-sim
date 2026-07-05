@@ -73,6 +73,12 @@ export function RewardReveal() {
       {lastReward.masteryAward.xpGained > 0 && (
         <MasteryReveal award={lastReward.masteryAward} />
       )}
+      {lastReward.seasonXp > 0 && (
+        <div className="reward-reveal__season">
+          <span>Campaign Trail</span>
+          <strong>+{lastReward.seasonXp} Season XP</strong>
+        </div>
+      )}
     </div>
   );
 }

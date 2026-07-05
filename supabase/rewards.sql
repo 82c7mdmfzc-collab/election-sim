@@ -40,6 +40,9 @@ alter table public.game_rewards add column if not exists turns integer;
 alter table public.game_rewards add column if not exists electoral_votes integer;
 alter table public.game_rewards add column if not exists candidate_id text;
 alter table public.game_rewards add column if not exists opponent_count integer;
+-- Season XP earned on this game (drives the rolling 24h season-XP cap). Defined here
+-- because season.sql runs BEFORE rewards.sql, so game_rewards doesn't exist there yet.
+alter table public.game_rewards add column if not exists season_xp integer not null default 0;
 
 alter table public.game_rewards enable row level security;
 
@@ -284,6 +287,16 @@ declare
   v_mastery_prev_level integer;
   v_mastery_new_level integer;
   v_mastery_award jsonb;
+  -- Season pass (guarded; requires season.sql to have been applied)
+  v_season_id text;
+  v_season_xp integer := 0;
+  v_season_base integer := 0;
+  v_season_roster integer := 0;
+  v_season_today integer := 0;
+  v_season_prev_xp integer := 0;
+  v_season_premium boolean := false;
+  v_season_cands text[] := '{}';
+  v_season jsonb := null;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
   if p_game_id is null or length(p_game_id) < 1 or length(p_game_id) > 64 then
@@ -339,7 +352,8 @@ begin
         'previousLevel', 1,
         'newLevel', 1,
         'leveledUp', false
-      )
+      ),
+      'season', null
     );
   end if;
 
@@ -493,6 +507,58 @@ begin
     'leveledUp', v_mastery_new_level > v_mastery_prev_level
   );
 
+  -- ── Season pass XP (guarded — only runs once season.sql is applied) ──────────
+  if to_regclass('public.seasons') is not null then
+    select id into v_season_id from public.seasons
+      where now() >= starts_at and now() < ends_at
+      order by starts_at desc limit 1;
+    if v_season_id is not null then
+      -- Base XP from the already-clamped outcome inputs.
+      v_season_base := 20
+        + case when p_won then 20 else 0 end
+        + least(v_secured, 10)
+        + least(v_coalitions, 5) * 2
+        + case when v_mode in ('daily', 'weekly') then 10
+               when v_mode = 'online' then 15 else 0 end;
+      -- Rolling 24h cap of 350 (this game's season_xp is still 0 at this point).
+      select coalesce(sum(season_xp), 0) into v_season_today
+        from public.game_rewards
+        where user_id = v_uid and created_at > now() - interval '24 hours' and game_id <> p_game_id;
+      v_season_base := greatest(0, least(v_season_base, 350 - v_season_today));
+
+      -- Load progress (init blank), apply the roster-variety bonus.
+      select xp, premium, candidates_won
+        into v_season_prev_xp, v_season_premium, v_season_cands
+        from public.season_progress where user_id = v_uid and season_id = v_season_id;
+      v_season_prev_xp := coalesce(v_season_prev_xp, 0);
+      v_season_premium := coalesce(v_season_premium, false);
+      v_season_cands := coalesce(v_season_cands, '{}');
+      if p_won and v_candidate_id is not null and not (v_candidate_id = any(v_season_cands)) then
+        v_season_cands := array_append(v_season_cands, v_candidate_id);
+        v_season_roster := 50;
+      end if;
+
+      v_season_xp := v_season_base + v_season_roster;
+      update public.game_rewards set season_xp = v_season_xp
+        where user_id = v_uid and game_id = p_game_id;
+
+      insert into public.season_progress (user_id, season_id, xp, candidates_won, updated_at)
+        values (v_uid, v_season_id, v_season_prev_xp + v_season_xp, v_season_cands, now())
+        on conflict (user_id, season_id) do update
+          set xp = season_progress.xp + v_season_xp,
+              candidates_won = v_season_cands,
+              updated_at = now();
+
+      v_season := jsonb_build_object(
+        'seasonId', v_season_id,
+        'gained', v_season_xp,
+        'xp', v_season_prev_xp + v_season_xp,
+        'premium', v_season_premium,
+        'candidatesWon', to_jsonb(v_season_cands)
+      );
+    end if;
+  end if;
+
   update public.profiles
     set campaign_funds = campaign_funds + v_reward + v_daily_reward,
         stats = v_stats,
@@ -543,7 +609,8 @@ begin
     'newlyCompletedAchievements', to_jsonb(v_claimable),
     'claimedAchievements', to_jsonb(coalesce(v_claimed, '{}')),
     'candidateMastery', v_candidate_mastery,
-    'masteryAward', v_mastery_award
+    'masteryAward', v_mastery_award,
+    'season', v_season
   );
 end; $$;
 
