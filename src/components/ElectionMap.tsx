@@ -31,12 +31,20 @@ import {
 import type { StateId, US_State } from '../game/types';
 import { AudioManager } from '../utils/audioManager';
 import { notifyOnce } from '../utils/toast';
+import { isNativeRuntime } from '../utils/platform';
 import { friendlyAllocError } from '../game/allocErrors';
 import { RungTrack } from './RungTrack';
 
 // ── Module-level stable lookups ───────────────────────────────────────────────
 
 const STATES_BY_ID = new Map<StateId, US_State>(ALL_STATES.map((s) => [s.id, s]));
+
+// Small / densely-packed states whose SVG polygon is a sub-44pt tap target at
+// zoom 1. We overlay a modest invisible tap disc at each centroid so a fingertip
+// near the state still selects it; zooming in (44pt zoom buttons) remains the
+// precise path. Kept small (r≈8 SVG units) so adjacent NE discs don't swamp
+// each other — the later-rendered disc wins any overlap.
+const SMALL_STATES = new Set<StateId>(['RI', 'DE', 'DC', 'NH', 'VT', 'CT', 'NJ', 'MD', 'MA', 'HI']);
 
 const FIPS_TO_STATE: Record<string, StateId> = {
   '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
@@ -293,14 +301,18 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
     return () => window.removeEventListener('keydown', onKey);
   }, [interactive, onClose]);
 
-  // Position the card fully on-screen: clamp to the viewport minus the device
-  // safe-area insets (notch / home indicator), using the card's measured size.
-  // useLayoutEffect runs before paint so it never flashes off-screen / behind the notch.
+  // On native the pinned card docks to the right edge as a full-height sheet (CSS)
+  // so it never overflows a ~375px landscape viewport or occludes the whole map.
+  // On web/pointer it's a popover positioned at the tap point, clamped on-screen
+  // to the viewport minus safe-area insets (useLayoutEffect runs before paint so
+  // it never flashes off-screen / behind the notch).
+  const docked = interactive && isNativeRuntime();
   const cardRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ left: number; top: number }>(
     () => ({ left: x + 16, top: Math.max(y - 20, 8) }),
   );
   useLayoutEffect(() => {
+    if (docked) return; // CSS positions the docked sheet
     const insets = safeAreaInsets();
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
@@ -317,7 +329,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
       Math.max(insets.top + M, vh - h - insets.bottom - M),
     );
     setCoords({ left, top });
-  }, [x, y, stateId]);
+  }, [x, y, stateId, docked]);
 
   if (!usState) return null;
 
@@ -349,8 +361,8 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
       {interactive && <div className="popover-backdrop" onClick={onClose} />}
       <div
         ref={cardRef}
-        className={`state-card${interactive ? ' state-card--pinned' : ''}`}
-        style={{ left: coords.left, top: coords.top }}
+        className={`state-card${interactive ? ' state-card--pinned' : ''}${docked ? ' state-card--docked' : ''}`}
+        style={docked ? undefined : { left: coords.left, top: coords.top }}
       >
         <div className="state-card__header">
           <span className="state-card__name">{usState.name}</span>
@@ -372,10 +384,6 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
               : 'Balanced — a 12-step ladder between cheap and contested.'}
         </div>
 
-        {securedName && (
-          <div className="state-card__locked">🔒 Called for {securedName}</div>
-        )}
-
         <RungTrack
           maxRungs={maxRungs}
           settledByPlayer={rungs}
@@ -383,8 +391,11 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
           activePlayerId={activePlayer?.id ?? null}
           colors={colors}
           securedBy={securedById}
+          securedName={securedName}
           onBuyNext={canBuy ? tryBuy : undefined}
           onRetractLast={canBuy && pendingRungs > 0 ? () => retractLastAllocation('state', stateId) : undefined}
+          nextCost={canBuy ? Math.round(nextRungCost) : undefined}
+          discount={discount}
           unlockAt={securedById ? undefined : minRungs}
           unlockLabel="bank this state's EV"
         />
@@ -432,35 +443,6 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
             );
           })}
         </div>
-
-        {canBuy && (
-          <div className="state-card__buy">
-            <span>
-              Next: <strong>${nextRungCost.toFixed(0)}k</strong>
-              {discount > 0 && <span className="state-card__disc"> (−{Math.round(discount * 100)}%)</span>}
-              {discount < 0 && <span className="state-card__pen"> (+{Math.round(-discount * 100)}% penalty)</span>}
-            </span>
-            <div className="state-card__buy-actions">
-              {pendingRungs > 0 && (
-                <button
-                  type="button"
-                  className="state-card__undo-btn"
-                  onClick={() => { AudioManager.play('quit'); retractLastAllocation('state', stateId); }}
-                  title="Undo the last Campaign Influence queued this turn"
-                >
-                  ↩ Undo
-                </button>
-              )}
-              <button
-                type="button"
-                className="state-card__buy-btn"
-                onClick={() => { if (!tryBuy()) AudioManager.play('clash'); else AudioManager.play('buy'); }}
-              >
-                Buy Campaign Influence →
-              </button>
-            </div>
-          </div>
-        )}
 
         <div className="state-card__groups">
           {(STATE_GROUPS_BY_STATE[stateId] ?? []).map((g) => {
@@ -685,6 +667,7 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
               {({ geographies, path }) => {
                 const stateNodes: React.ReactNode[] = [];
                 const pipNodes: React.ReactNode[] = [];
+                const tapNodes: React.ReactNode[] = [];
                 for (const geo of geographies) {
                   const fips = String((geo as Record<string, unknown>).id ?? '').padStart(2, '0');
                   const stateId = FIPS_TO_STATE[fips];
@@ -723,8 +706,25 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
                       );
                     }
                   }
+                  // Enlarged tap disc for tiny states (only near zoom 1 — zooming
+                  // in gives a precise target and the disc would drift oversized).
+                  if (isInteractive && SMALL_STATES.has(stateId) && position.zoom <= 1.05) {
+                    const [cx, cy] = path.centroid(geo);
+                    if (Number.isFinite(cx) && Number.isFinite(cy)) {
+                      tapNodes.push(
+                        <circle
+                          key={`tap-${stateId}`}
+                          className="state-taparea"
+                          cx={cx}
+                          cy={cy}
+                          r={8}
+                          onClick={(e: React.MouseEvent) => handleSelect(stateId, e.clientX, e.clientY)}
+                        />,
+                      );
+                    }
+                  }
                 }
-                return [...stateNodes, ...pipNodes];
+                return [...stateNodes, ...pipNodes, ...tapNodes];
               }}
             </Geographies>
           </ZoomableGroup>

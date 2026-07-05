@@ -76,13 +76,20 @@ function NativeTurnButton() {
     <>
       <button
         type="button"
-        className="native-turn-button"
+        className={`native-turn-button${pending.length > 0 ? ' native-turn-button--armed' : ''}`}
         disabled={alreadySubmitted}
         onClick={attempt}
       >
-        {multiplayerMode === 'online'
-          ? (alreadySubmitted ? 'Wait' : 'End')
-          : (isLast ? 'Resolve' : 'End')}
+        <span className="native-turn-button__label">
+          {multiplayerMode === 'online'
+            ? (alreadySubmitted ? 'Wait' : 'End')
+            : (isLast ? 'Resolve' : 'End')}
+        </span>
+        {pending.length > 0 && (
+          <span className="native-turn-button__count" aria-label={`${pending.length} moves queued`}>
+            {pending.length}
+          </span>
+        )}
       </button>
       {confirming && (
         <ConfirmDialog
@@ -108,9 +115,13 @@ function NativeTopRibbon({ timer, onOptions }: {
   const tickerDone = useGameStore((s) => s.resolutionTickerDone);
   const abortGame = useGameStore((s) => s.abortGame);
   const result = useElectoralResult();
+  const pending = useActivePending();
 
   const leaderEV = Math.max(0, ...Object.values(result.evByPlayer));
-  const showInstruction = phase === 'PLANNING' || (phase === 'RESOLUTION' && !tickerDone);
+  // The "tap a state" prompt guides only until the first move is queued; after
+  // that the queued chips in the dock carry the state, so drop the extra layer.
+  const showInstruction =
+    (phase === 'PLANNING' && pending.length === 0) || (phase === 'RESOLUTION' && !tickerDone);
   const instruction =
     phase === 'RESOLUTION'
       ? 'Reviewing moves'

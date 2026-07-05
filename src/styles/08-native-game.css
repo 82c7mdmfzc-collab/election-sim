@@ -116,8 +116,8 @@ html.native .map-zoom-controls {
 }
 
 html.native .map-zoom-btn {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.82);
   background: rgba(62, 76, 88, 0.5);
@@ -254,6 +254,22 @@ html.native .native-turn-button {
 html.native .native-turn-button:disabled {
   opacity: 0.58;
   cursor: progress;
+}
+html.native .native-turn-button__label { display: block; }
+/* Armed = at least one move queued: warm the button so ending reads as "commit". */
+html.native .native-turn-button--armed {
+  border-color: var(--brand-yellow);
+  background: radial-gradient(circle at 35% 22%, var(--brand-top), var(--brand-deep) 78%);
+  box-shadow: 0 4px 16px rgba(245, 144, 34, 0.5), 0 0 0 2px rgba(245, 144, 34, 0.4);
+}
+/* Queued-move count so an empty end-turn is visibly different from a committed one. */
+html.native .native-turn-button__count {
+  position: absolute; top: -2px; right: -2px;
+  min-width: 24px; height: 24px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.82rem; font-weight: 800; line-height: 1;
+  color: var(--brand-deep); background: #fff;
+  border-radius: var(--r-pill); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
 
 html.native .native-game-instruction {
@@ -668,22 +684,28 @@ html.native .state-card:not(.state-card--pinned) {
   display: none;
 }
 
+/* Right-docked, full-height sheet: clears the top ribbon and bottom dock, and
+   scrolls internally so a tall card (megastate ladder + stepper) never clips or
+   overflows a ~375px landscape viewport. The map stays visible to the left. */
 html.native .state-card--pinned {
   left: auto !important;
-  top: auto !important;
+  top: calc(env(safe-area-inset-top) + 4.6rem) !important;
+  bottom: calc(env(safe-area-inset-bottom) + 0.6rem) !important;
   right: calc(0.65rem + env(safe-area-inset-right)) !important;
-  bottom: calc(clamp(96px, 22dvh, 136px) + env(safe-area-inset-bottom)) !important;
-  width: min(300px, 34vw) !important;
-  max-height: calc(100dvh - clamp(154px, 38dvh, 210px) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  padding: 0.55rem;
-  border-radius: 12px;
+  width: clamp(280px, 36vw, 340px) !important;
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.6rem;
+  border-radius: 14px;
   border: 1px solid rgba(148,163,184,0.45);
   border-top: 3px solid var(--brand);
-  border-left: 1px solid rgba(148,163,184,0.45);
-  background: rgba(255,255,255,0.94);
+  background: rgba(255,255,255,0.96);
   color: #111827;
-  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.24);
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.3);
 }
+html.native .state-card--pinned::-webkit-scrollbar { width: 0; }
 
 html.native .state-card__name {
   color: #111827;
@@ -821,8 +843,8 @@ html.native .auth-gate__input {
   html.native .native-alloc-rail { max-height: 32px; }
 
   html.native .state-card--pinned {
-    width: min(270px, 32vw) !important;
-    max-height: calc(100dvh - 150px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    width: clamp(260px, 34vw, 320px) !important;
+    top: calc(env(safe-area-inset-top) + 4rem) !important;
   }
 
   html.native .native-game-sheet {

@@ -6,15 +6,20 @@
  *   • settled pips  → solid in the active player's color (authoritative)
  *   • pending pips  → dashed + pulsing in the active player's color (this turn,
  *                     strictly local — see the hidden-planning isolation in the store)
- *   • next pip      → clickable to buy one more rung (click-to-buy)
  *   • opponents     → small ticks beneath the pip they've reached, in their color
+ *
+ * The pips are a display-only meter. Buying is done through the built-in stepper
+ * row (UNDO / BUILD) — a single thumb-sized verb that works identically for
+ * states and national ladders — rendered whenever `onBuyNext` is supplied.
  *
  * Pending visuals come only from the caller's `pendingRungs` (the active player's
  * own pending), so an opponent's pending is never shown.
  */
 
+import type { ReactNode } from 'react';
 import type { ResolvedColor } from '../game/colors';
 import { AudioManager } from '../utils/audioManager';
+import { PlusIcon, UndoIcon, FlagIcon, CheckIcon, LockIcon } from './icons';
 
 interface RungTrackProps {
   maxRungs: number;
@@ -26,6 +31,12 @@ interface RungTrackProps {
   onBuyNext?: () => boolean | void;
   /** Retract the most-recently queued (top pending) rung. */
   onRetractLast?: () => void;
+  /** Cost of the next rung in $k, shown on the BUILD button. */
+  nextCost?: number;
+  /** Affinity applied to the next rung (>0 discount, <0 penalty) — shown as a badge. */
+  discount?: number;
+  /** Name of the player who has called/secured this track (renders a status chip). */
+  securedName?: string | null;
   clashing?: boolean;
   size?: 'sm' | 'md';
   /**
@@ -48,6 +59,9 @@ export function RungTrack({
   securedBy = null,
   onBuyNext,
   onRetractLast,
+  nextCost,
+  discount = 0,
+  securedName = null,
   clashing = false,
   size = 'md',
   unlockAt,
@@ -57,8 +71,8 @@ export function RungTrack({
   const activeColor = activePlayerId ? colors[activePlayerId]?.hex : undefined;
   const nextIndex = activeSettled + pendingRungs + 1;
   const canBuy = !!onBuyNext && !securedBy && nextIndex <= maxRungs;
-  // The topmost pending pip is click-to-retract (rung-by-rung undo).
-  const topPendingIndex = pendingRungs > 0 ? activeSettled + pendingRungs : -1;
+  const maxed = !securedBy && nextIndex > maxRungs;
+  const canRetract = !!onRetractLast && pendingRungs > 0;
 
   // Unlock-threshold flag: marks the pip that earns this track's reward.
   const showUnlock = unlockAt != null && unlockAt >= 1 && unlockAt <= maxRungs;
@@ -67,6 +81,19 @@ export function RungTrack({
   const opponents = Object.entries(settledByPlayer)
     .filter(([id, r]) => id !== activePlayerId && r > 0)
     .map(([id, r]) => ({ id, r, hex: colors[id]?.hex ?? '#94a3b8' }));
+
+  function build() {
+    const ok = onBuyNext?.();
+    AudioManager.play(ok === false ? 'clash' : 'buy');
+  }
+  function undo() {
+    AudioManager.play('quit');
+    onRetractLast?.();
+  }
+
+  let costBadge: ReactNode = null;
+  if (discount > 0) costBadge = <span className="rung-buy__disc">−{Math.round(discount * 100)}%</span>;
+  else if (discount < 0) costBadge = <span className="rung-buy__pen">+{Math.round(-discount * 100)}%</span>;
 
   return (
     <div
@@ -88,30 +115,19 @@ export function RungTrack({
           else if (idx === nextIndex && canBuy) state = 'next';
 
           const isSecuredPip = !!securedBy && securedBy === activePlayerId && idx <= activeSettled;
-          const isRetractable = !!onRetractLast && idx === topPendingIndex;
-
-          const handleClick = state === 'next'
-            ? () => { const ok = onBuyNext?.(); if (ok === false) AudioManager.play('clash'); else AudioManager.play('buy'); }
-            : isRetractable
-              ? () => { AudioManager.play('quit'); onRetractLast?.(); }
-              : undefined;
 
           return (
-            <button
+            <span
               key={idx}
-              type="button"
+              role="img"
               className={[
                 'rung-pip',
                 `rung-pip--${state}`,
                 isSecuredPip ? 'rung-pip--secured' : '',
-                isRetractable ? 'rung-pip--retract' : '',
                 showUnlock && idx === unlockAt ? 'rung-pip--threshold' : '',
                 showUnlock && idx === unlockAt && reachedUnlock ? 'rung-pip--threshold-met' : '',
               ].filter(Boolean).join(' ')}
-              disabled={!handleClick}
-              onClick={handleClick}
-              title={state === 'next' ? `Build Campaign Influence ${idx}` : isRetractable ? `Undo Campaign Influence ${idx}` : `Campaign Influence ${idx}`}
-              aria-label={state === 'next' ? `Build Campaign Influence ${idx} of ${maxRungs}` : isRetractable ? `Undo Campaign Influence ${idx}` : `Campaign Influence ${idx} of ${maxRungs}`}
+              aria-label={`Campaign Influence ${idx} of ${maxRungs}${state === 'settled' ? ' — held' : state === 'pending' ? ' — queued' : ''}`}
             />
           );
         })}
@@ -127,7 +143,9 @@ export function RungTrack({
               : `Reach Campaign Influence ${unlockAt}${unlockLabel ? ` to ${unlockLabel}` : ''}`
           }
         >
-          <span className="rung-track__flag-glyph" aria-hidden="true">{reachedUnlock ? '✓' : '⚑'}</span>
+          <span className="rung-track__flag-glyph" aria-hidden="true">
+            {reachedUnlock ? <CheckIcon size={13} /> : <FlagIcon size={13} />}
+          </span>
         </div>
       )}
 
@@ -146,6 +164,43 @@ export function RungTrack({
           ))}
         </div>
       )}
+
+      {/* Buy stepper — the one purchase verb, ≥44pt. Renders whenever this track
+          is buyable in principle (active player's turn); collapses to a status
+          chip when the track is called or fully climbed. */}
+      {onBuyNext && (securedBy ? (
+        <div className="rung-buy rung-buy--status rung-buy--called">
+          <LockIcon size={15} /> Called{securedName ? ` for ${securedName}` : ''}
+        </div>
+      ) : maxed ? (
+        <div className="rung-buy rung-buy--status rung-buy--max">
+          <CheckIcon size={15} /> Maxed out
+        </div>
+      ) : (
+        <div className="rung-buy">
+          <button
+            type="button"
+            className="rung-buy__undo"
+            disabled={!canRetract}
+            onClick={undo}
+            aria-label="Undo the last Campaign Influence queued this turn"
+          >
+            <UndoIcon size={16} /> Undo
+          </button>
+          <button
+            type="button"
+            className="rung-buy__build btn-cta"
+            onClick={build}
+            aria-label={nextCost != null ? `Build Campaign Influence for $${nextCost}k` : 'Build Campaign Influence'}
+          >
+            <PlusIcon size={16} />
+            <span className="rung-buy__label">Build</span>
+            {nextCost != null && (
+              <span className="rung-buy__cost">${nextCost}k{costBadge}</span>
+            )}
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
