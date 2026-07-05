@@ -58,11 +58,11 @@ function greedyBuy(
     if (!us || view.securedBy[stateId]) return false;
     const startRung = view.rungs[stateId]?.[playerId] ?? 0;
     const pending = bought[stateId] ?? 0;
-    const cap = maxBuyableThisTurn(startRung, us.maxRungs);
+    const cap = maxBuyableThisTurn(startRung, us.maxRungs, view.modifiers);
     const room = Math.min(cap - pending, us.maxRungs - startRung - pending);
     if (room <= 0) return false;
     const discount = bestAffinityForState(working, stateId);
-    const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, 1, discount);
+    const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, 1, discount, view.modifiers);
     const split = computeWalletSplit(working, stateId, cost);
     if (!split) return false;
     for (const d of split.walletDraw) {

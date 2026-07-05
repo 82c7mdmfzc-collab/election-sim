@@ -78,7 +78,7 @@ export function buildPendingSubmission(
       rungsToBuy: intent.rungs,
       startRung,
       pendingRungs,
-    });
+    }, state.modifiers);
     if (invalid) return { pending: [], error: invalid.reason };
 
     let cost: number;
@@ -94,6 +94,7 @@ export function buildPendingSubmission(
         startRung + pendingRungs,
         intent.rungs,
         discount,
+        state.modifiers,
       );
       const split = computeWalletSplit(working, intent.targetId, cost);
       if (!split) return { pending: [], error: 'insufficient funds' };

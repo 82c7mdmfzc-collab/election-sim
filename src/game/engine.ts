@@ -32,6 +32,7 @@ import { CANDIDATE_MAP } from './candidates';
 import { ALL_STATES } from './statesData';
 import type {
   ElectoralResult,
+  GameModifiers,
   GameState,
   NatRungMap,
   NatReachSeq,
@@ -103,11 +104,12 @@ export function calcStateCost(
   startRung: number,
   rungsToBuy: number,
   affinityDiscount: number,
+  modifiers?: GameModifiers,
 ): number {
   let total = 0;
   for (let i = 1; i <= rungsToBuy; i++) {
     const rungIndex = startRung + i; // 1-based
-    total += rungCostFor(stateId, baseCampaignCost, rungIndex, affinityDiscount);
+    total += rungCostFor(stateId, baseCampaignCost, rungIndex, affinityDiscount, modifiers);
   }
   return total;
 }
@@ -132,9 +134,10 @@ export function calcNationalCost(
 // ── Entry gatekeeper ──────────────────────────────────────────────────────────
 
 /** Max rungs purchasable in a target this turn given start-of-turn count. */
-export function maxBuyableThisTurn(startRung: number, maxRungs: number): number {
-  if (startRung >= 1) return maxRungs - startRung; // uncapped sprint
-  return maxRungs === 16 ? 3 : 2;                  // entry cap
+export function maxBuyableThisTurn(startRung: number, maxRungs: number, modifiers?: GameModifiers): number {
+  if (startRung >= 1) return maxRungs - startRung;            // uncapped sprint
+  if (modifiers?.entryCapLifted) return maxRungs - startRung; // Ground Game: no entry cap
+  return maxRungs === 16 ? 3 : 2;                             // entry cap
 }
 
 // ── Wallet split ──────────────────────────────────────────────────────────────
@@ -207,6 +210,7 @@ export function validatePurchase(
     startRung: number;      // snapshot from start of turn
     pendingRungs: number;   // rungs already allocated to this target this turn
   },
+  modifiers?: GameModifiers,
 ): ValidationError | null {
   const { kind, targetId, rungsToBuy, startRung, pendingRungs } = params;
 
@@ -216,7 +220,7 @@ export function validatePurchase(
     const usState = ALL_STATES.find((s) => s.id === targetId);
     if (!usState) return { reason: `Unknown state: ${targetId}` };
     const maxRungs = usState.maxRungs;
-    const cap = maxBuyableThisTurn(startRung, maxRungs);
+    const cap = maxBuyableThisTurn(startRung, maxRungs, modifiers);
     const totalAfterBuy = pendingRungs + rungsToBuy;
     if (totalAfterBuy > cap) {
       return { reason: `Entry gatekeeper: can only buy ${cap} rung(s) this turn (already queued ${pendingRungs}).` };
@@ -225,7 +229,7 @@ export function validatePurchase(
       return { reason: `Exceeds max rungs (${maxRungs}).` };
     }
     const discount = bestAffinityForState(player, targetId);
-    const cost = calcStateCost(targetId, usState.baseCampaignCost, startRung + pendingRungs, rungsToBuy, discount);
+    const cost = calcStateCost(targetId, usState.baseCampaignCost, startRung + pendingRungs, rungsToBuy, discount, modifiers);
     const totalCash = player.nationalCash + Object.values(player.groupWallets).reduce((a, b) => a + b, 0);
     if (pendingCostTotal + cost > totalCash) {
       return { reason: 'Insufficient funds.' };
@@ -234,7 +238,7 @@ export function validatePurchase(
     const g = NATIONAL_GROUP_MAP[targetId];
     if (!g) return { reason: `Unknown national group: ${targetId}` };
     const maxRungs = g.maxRungs;
-    const cap = maxBuyableThisTurn(startRung, maxRungs);
+    const cap = maxBuyableThisTurn(startRung, maxRungs, modifiers);
     const totalAfterBuy = pendingRungs + rungsToBuy;
     if (totalAfterBuy > cap) {
       return { reason: `Entry gatekeeper: can only buy ${cap} rung(s) this turn.` };
@@ -365,11 +369,16 @@ export function payTurnIncome(
   dominance: Record<string, string | null>,
   natRungs: NatRungMap,
   natReachSeq: NatReachSeq,
+  modifiers?: GameModifiers,
 ): void {
   const activePlayers = players.filter((p) => !p.eliminated);
+  const incomeMult = modifiers?.incomeMult ?? 1;         // High Turnout
+  const coalitionMult = modifiers?.coalitionPayoutMult ?? 1; // Coalition Windfall
+  const nationalMult = modifiers?.nationalBonusMult ?? 1;    // Lobby Frenzy
 
   for (const p of activePlayers) {
-    p.nationalCash += p.baseIncome ?? CANDIDATE_MAP[p.candidateId]?.baseIncome ?? NATIONAL_INCOME;
+    const base = p.baseIncome ?? CANDIDATE_MAP[p.candidateId]?.baseIncome ?? NATIONAL_INCOME;
+    p.nationalCash += Math.round(base * incomeMult);
   }
 
   // State group wallet bonuses (scaled by the player's profit modifier)
@@ -378,7 +387,7 @@ export function payTurnIncome(
     if (!dom) continue;
     const player = players.find((p) => p.id === dom);
     if (player && !player.eliminated) {
-      const payout = Math.round(g.bonusPayout * (1 + (player.payoutModifiers[g.id] ?? 0)));
+      const payout = Math.round(g.bonusPayout * coalitionMult * (1 + (player.payoutModifiers[g.id] ?? 0)));
       player.groupWallets[g.id] = (player.groupWallets[g.id] ?? 0) + payout;
     }
   }
@@ -403,7 +412,7 @@ export function payTurnIncome(
     if (leader) {
       const player = players.find((p) => p.id === leader);
       if (player) {
-        const payout = Math.round(g.turnBonus * (1 + (player.payoutModifiers[g.id] ?? 0)));
+        const payout = Math.round(g.turnBonus * nationalMult * (1 + (player.payoutModifiers[g.id] ?? 0)));
         player.nationalCash += payout;
       }
     }
@@ -457,9 +466,10 @@ export function tallyElectoralVotes(state: GameState): ElectoralResult {
     if (leader) evByPlayer[leader] = (evByPlayer[leader] ?? 0) + usState.electoralVotes;
   }
 
+  const threshold = state.modifiers?.winThreshold ?? WIN_THRESHOLD; // Landslide Line
   let winner: string | null = null;
   for (const p of activePlayers) {
-    if ((evByPlayer[p.id] ?? 0) >= WIN_THRESHOLD) {
+    if ((evByPlayer[p.id] ?? 0) >= threshold) {
       winner = p.id;
       break;
     }
@@ -611,6 +621,13 @@ export function resolveTurn(
     }
   }
 
+  // ── October Surprise modifier: knock a rung off the tightest unsecured state ─
+  // Runs on the settled board (post purchases/clash/secure) but before dominance +
+  // income, so the knockdown can flip who dominates and gets paid this turn.
+  if (state.modifiers?.octoberSurprise && state.turn >= 3) {
+    applyOctoberSurprise(nextRungs, nextReachSeq, nextSecured, nextPlayers);
+  }
+
   // ── Step 3: Recompute dominance (with evaporation) ────────────────────────
   const nextDominance = recomputeDominance(
     nextRungs,
@@ -627,7 +644,7 @@ export function resolveTurn(
   );
 
   // ── Step 4: Pay turn income ───────────────────────────────────────────────
-  payTurnIncome(nextPlayers, nextDominance, nextNatRungs, nextNatReachSeq);
+  payTurnIncome(nextPlayers, nextDominance, nextNatRungs, nextNatReachSeq, state.modifiers);
 
   const incomeByPlayer: Record<string, number> = {};
   for (const p of nextPlayers) {
@@ -660,8 +677,62 @@ export function resolveTurn(
  * Pass rng = Math.random in production; deterministic fn in tests.
  */
 export function rollElection(state: GameState, rng: () => number = Math.random): boolean {
-  const prob = electionProbability(state.turn, state.hungColleges);
+  const prob = electionProbability(state.turn, state.hungColleges, state.modifiers?.electionStartTurn);
   return prob > 0 && rng() < prob;
+}
+
+/**
+ * October Surprise modifier: the single tightest-contested unsecured state's
+ * current leader loses 1 rung. DETERMINISTIC (order: smallest margin → lowest EV →
+ * lowest state id) so host, guests, and the edge fn resolve identically — no rng.
+ * Mutates `rungs` in place.
+ */
+function applyOctoberSurprise(
+  rungs: RungMap,
+  reachSeq: ReachSeq,
+  secured: Record<string, string | null>,
+  players: PlayerState[],
+): void {
+  const active = new Set(players.filter((p) => !p.eliminated).map((p) => p.id));
+  let best: { sid: string; leader: string } | null = null;
+  let bestKey: [number, number, string] | null = null; // [margin, ev, id]
+
+  for (const st of ALL_STATES) {
+    const sid = st.id;
+    if (secured[sid]) continue;
+    let leader: string | null = null;
+    let lead = 0;
+    let leadSeq = Infinity;
+    let second = 0;
+    for (const pid of Object.keys(rungs[sid] ?? {})) {
+      if (!active.has(pid)) continue;
+      const r = rungs[sid][pid] ?? 0;
+      const seq = reachSeq[sid]?.[pid] ?? 0;
+      if (r > lead || (r === lead && r > 0 && seq < leadSeq)) {
+        second = lead;
+        leader = pid;
+        lead = r;
+        leadSeq = seq;
+      } else if (r > second) {
+        second = r;
+      }
+    }
+    if (!leader || lead <= 0) continue;
+    const key: [number, number, string] = [lead - second, st.electoralVotes, sid];
+    const better =
+      !bestKey ||
+      key[0] < bestKey[0] ||
+      (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])));
+    if (better) {
+      bestKey = key;
+      best = { sid, leader };
+    }
+  }
+
+  if (best) {
+    const cur = rungs[best.sid][best.leader] ?? 0;
+    rungs[best.sid][best.leader] = Math.max(0, cur - 1);
+  }
 }
 
 export interface ElectionOutcome {

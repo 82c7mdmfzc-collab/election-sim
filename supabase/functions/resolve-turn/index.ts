@@ -29,6 +29,7 @@ import {
   normalizeTurnTimeLimit,
 } from './_engine/lobbySecurity.ts';
 import type { LobbyGameState, WaitingLobbyState } from './_engine/types.ts';
+import { rollHitsChance, rollModifierIds, applyRolledModifiers, isCrazyModeAvailable } from './_engine/modifiers.ts';
 import { pushToLobby } from '../_shared/apns.ts';
 
 // Restrict cross-origin callers to our own surfaces (defense-in-depth; the JWT
@@ -119,7 +120,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: row, error: rowErr } = await admin
       .from('lobbies')
-      .select('game_state, status, host_uid')
+      .select('game_state, status, host_uid, crazy_mode')
       .eq('id', lobbyId)
       .single();
     if (rowErr || !row?.game_state) return json({ error: 'lobby not found' }, 404, cors);
@@ -135,6 +136,16 @@ Deno.serve(async (req: Request) => {
         normalizeTurnTimeLimit(turnTimeLimitSec),
       );
       if (!next) return json({ error: 'invalid waiting lobby' }, 400, cors);
+
+      // ── Modifier roll (server-authoritative so all seats get the same twist) ──
+      // Crazy Mode (opt-in, until Aug 20) guarantees 2 distinct modifiers; every
+      // other online game has the standard 40% chance of one. Cutoff enforced here,
+      // not just by hiding the client toggle.
+      const crazy = row.crazy_mode === true && isCrazyModeAvailable(Date.now());
+      const modifierIds = crazy
+        ? rollModifierIds(2, [], Math.random)
+        : (rollHitsChance(Math.random) ? rollModifierIds(1, [], Math.random) : []);
+      applyRolledModifiers(next, modifierIds);
 
       const { data: updated, error: updErr } = await admin
         .from('lobbies')

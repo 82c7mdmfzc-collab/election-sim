@@ -37,6 +37,7 @@ import {
 import { createInitialGameState, createInitialGameStateFromPlayers, ALL_STATES } from './statesData';
 import { STATE_GROUPS } from './config';
 import { dailyDateKey, getDailyChallengeConfig, resolveDailyOpponents } from './dailyChallenge';
+import { rollHitsChance, rollModifierIds, applyRolledModifiers, dailyModifierId } from './modifiers';
 import { recordDailyResultRemote } from './profile';
 import {
   candidateAtLevel,
@@ -90,6 +91,10 @@ interface GameStore extends GameState {
   hasSubmittedLocalTurn: boolean;
   /** True right after a game starts, until the VS matchup intro is dismissed. */
   versusPending: boolean;
+  /** True when a modifier-roll reveal should play before the board (transient UI). */
+  modifierRevealPending: boolean;
+  /** Dismiss the modifier-roll reveal (called by ModifierRoll when the animation ends). */
+  clearModifierReveal(): void;
   /** True while the current game is today's Daily Challenge (drives local streak + analytics). */
   isDailyChallenge: boolean;
   /** True while a first-run guided campaign is active. */
@@ -138,6 +143,7 @@ interface GameStore extends GameState {
     chosen: CandidateDef[],
     turnTimeLimit?: number | null,
     botSeats?: Record<string, BotDifficulty>,
+    opts?: { modifierIds?: string[] },
   ): void;
   /**
    * Start today's Daily Challenge: the player brings their own candidate, and the
@@ -364,6 +370,7 @@ export const useGameStore = create<GameStore>()(
         resolutionTickerDone: false,
         hasSubmittedLocalTurn: false,
         versusPending: false,
+        modifierRevealPending: false,
         isDailyChallenge: false,
         isOpeningCampaign: false,
         viewingGame: false,
@@ -379,7 +386,7 @@ export const useGameStore = create<GameStore>()(
         electionAlertOpen: false,
 
         // ── startGame ─────────────────────────────────────────────────────────
-        startGame(chosen, turnTimeLimit, botSeats) {
+        startGame(chosen, turnTimeLimit, botSeats, opts) {
           const mastery = useProfile.getState().profile.candidateMastery;
           const leveledChosen = chosen.map((candidate) => (
             botSeats?.[candidate.id]
@@ -387,6 +394,12 @@ export const useGameStore = create<GameStore>()(
               : candidateAtMastery(candidate, mastery)
           ));
           const fresh = createInitialGameState(leveledChosen);
+          // Modifier roll: caller-supplied ids (Daily → deterministic) override; else
+          // every game has a 40% chance of one random modifier. applyRolledModifiers
+          // stamps fresh.modifiers/activeModifierIds and applies any War Chest cash.
+          const modifierIds = opts?.modifierIds
+            ?? (rollHitsChance(Math.random) ? rollModifierIds(1, [], Math.random) : []);
+          applyRolledModifiers(fresh, modifierIds);
           const gameId = newGameId();
           // Tag computer-controlled seats (Solo). Player ids equal candidate ids
           // here, and every other map keys by id, so this is a safe overlay.
@@ -419,6 +432,7 @@ export const useGameStore = create<GameStore>()(
             turnDeadline: null,
             handoffAckKey: '1:0',
             versusPending: true,
+            modifierRevealPending: modifierIds.length > 0,
             isDailyChallenge: false,
             isOpeningCampaign: false,
             viewingGame: true,
@@ -432,7 +446,8 @@ export const useGameStore = create<GameStore>()(
           const chosen = [playerCandidate, ...opponents];
           const botSeats = Object.fromEntries(opponents.map((o) => [o.id, cfg.difficulty]));
           // Reuse the standard solo start path (sets isDailyChallenge:false), then flag it.
-          get().startGame(chosen, cfg.turnTimeLimit, botSeats);
+          // The Daily always gets ONE deterministic modifier (same for everyone that day).
+          get().startGame(chosen, cfg.turnTimeLimit, botSeats, { modifierIds: [dailyModifierId(dateKey)] });
           set({ isDailyChallenge: true });
         },
 
@@ -440,7 +455,8 @@ export const useGameStore = create<GameStore>()(
         startOpeningCampaign() {
           const human = CANDIDATE_MAP.tooley;
           const opponent = CANDIDATE_MAP.trump;
-          get().startGame([human, opponent], null, { [opponent.id]: 'easy' });
+          // No modifier on the guided first mission — keep onboarding clean.
+          get().startGame([human, opponent], null, { [opponent.id]: 'easy' }, { modifierIds: [] });
           track('first_mission_started', { candidate_id: human.id, opponent_id: opponent.id });
           set({ isOpeningCampaign: true });
         },
@@ -448,6 +464,10 @@ export const useGameStore = create<GameStore>()(
         // ── clearVersus ───────────────────────────────────────────────────────
         clearVersus() {
           set({ versusPending: false });
+        },
+
+        clearModifierReveal() {
+          set({ modifierRevealPending: false });
         },
 
         // ── resumeGame ────────────────────────────────────────────────────────
@@ -502,7 +522,7 @@ export const useGameStore = create<GameStore>()(
             rungsToBuy: rungs,
             startRung,
             pendingRungs,
-          });
+          }, snap.modifiers);
           if (err) {
             console.warn('allocate rejected:', err.reason);
             return { ok: false, reason: err.reason };
@@ -514,7 +534,7 @@ export const useGameStore = create<GameStore>()(
           if (kind === 'state') {
             const usState = ALL_STATES.find((s) => s.id === targetId)!;
             const discount = bestAffinityForState(playerProxy, targetId);
-            cost = calcStateCost(targetId, usState.baseCampaignCost, startRung + pendingRungs, rungs, discount);
+            cost = calcStateCost(targetId, usState.baseCampaignCost, startRung + pendingRungs, rungs, discount, snap.modifiers);
             const split = computeWalletSplit(playerProxy, targetId, cost);
             if (!split) return { ok: false, reason: 'Insufficient funds.' };
             walletDraw = split.walletDraw;
@@ -939,6 +959,9 @@ export const useGameStore = create<GameStore>()(
           ) {
             return;
           }
+          // The reveal fires once, when a fresh online game (turn 1) first arrives.
+          const startingOnlineGame =
+            cur.phase !== 'PLANNING' && payload.phase === 'PLANNING' && payload.turn === 1;
           set((s) => ({
             // Core GameState
             turn: payload.turn,
@@ -953,6 +976,12 @@ export const useGameStore = create<GameStore>()(
             stateGroupDominance: payload.stateGroupDominance,
             hungColleges: payload.hungColleges,
             electionScheduled: payload.electionScheduled ?? false,
+            // Rolled modifiers ride on the synced state so all seats resolve alike.
+            modifiers: payload.modifiers,
+            activeModifierIds: payload.activeModifierIds,
+            modifierRevealPending: startingOnlineGame
+              ? (payload.activeModifierIds?.length ?? 0) > 0
+              : s.modifierRevealPending,
             // Phase / UI fields
             phase: payload.phase,
             activePlayerIndex: payload.activePlayerIndex,
@@ -1078,6 +1107,7 @@ export const useGameStore = create<GameStore>()(
               k !== 'resolutionTickerDone' &&
               k !== 'hasSubmittedLocalTurn' &&
               k !== 'versusPending' &&
+              k !== 'modifierRevealPending' &&
               k !== 'viewingGame' &&
               k !== 'phase' &&
               k !== 'localPlayerId' &&

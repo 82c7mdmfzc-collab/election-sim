@@ -330,6 +330,11 @@ end;
 $$;
 
 -- ── RPC: create_lobby — caller becomes the host ───────────────────────────────
+-- LTM "Crazy Mode" opt-in (host-set, read by the resolve-turn edge fn at startGame
+-- to guarantee 2 modifiers). Carried in the WaitingLobbyState jsonb so create_lobby
+-- keeps its 4-arg signature (no overload ambiguity).
+alter table public.lobbies add column if not exists crazy_mode boolean not null default false;
+
 create or replace function public.create_lobby(
   p_room_code    text,
   p_is_public    boolean,
@@ -347,6 +352,7 @@ declare
   v_host      jsonb;
   v_host_pid  text;
   v_state     jsonb;
+  v_crazy     boolean;
   v_row       public.lobbies;
 begin
   if v_uid is null then
@@ -386,8 +392,12 @@ begin
     'players', jsonb_build_array(v_host)
   );
 
-  insert into public.lobbies (room_code, is_public, player_count, status, game_state, host_uid)
-  values (p_room_code, coalesce(p_is_public, false), v_cap, 'waiting', v_state, v_uid)
+  -- Crazy Mode only honored before the Aug-20 cutoff (server-enforced).
+  v_crazy := coalesce((p_game_state->>'crazyMode')::boolean, false)
+             and now() < timestamptz '2026-08-21 00:00:00+00';
+
+  insert into public.lobbies (room_code, is_public, player_count, status, game_state, host_uid, crazy_mode)
+  values (p_room_code, coalesce(p_is_public, false), v_cap, 'waiting', v_state, v_uid, v_crazy)
   returning * into v_row;
 
   insert into public.lobby_participants (lobby_id, auth_uid, player_id)

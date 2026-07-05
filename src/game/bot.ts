@@ -186,13 +186,13 @@ function commitState(sim: Sim, state: GameState, stateId: string, wantRungs: num
 
   const startRung = state.rungs[stateId]?.[sim.player.id] ?? 0;
   const pending = sim.pending[stateId] ?? 0;
-  const cap = maxBuyableThisTurn(startRung, us.maxRungs);
+  const cap = maxBuyableThisTurn(startRung, us.maxRungs, state.modifiers);
   const room = Math.min(cap - pending, us.maxRungs - startRung - pending);
   const rungs = Math.min(wantRungs, room);
   if (rungs <= 0) return null;
 
   const discount = bestAffinityForState(sim.player, stateId);
-  const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, rungs, discount);
+  const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, rungs, discount, state.modifiers);
   const split = computeWalletSplit(sim.player, stateId, cost);
   if (!split) return null; // unaffordable
 
@@ -211,7 +211,7 @@ function commitNational(sim: Sim, state: GameState, groupId: string, wantRungs: 
 
   const startRung = state.natRungs[groupId]?.[sim.player.id] ?? 0;
   const pending = sim.pending[groupId] ?? 0;
-  const cap = maxBuyableThisTurn(startRung, g.maxRungs);
+  const cap = maxBuyableThisTurn(startRung, g.maxRungs, state.modifiers);
   const room = Math.min(cap - pending, g.maxRungs - startRung - pending);
   const rungs = Math.min(wantRungs, room);
   if (rungs <= 0) return null;
@@ -229,7 +229,7 @@ function chooseStateRungs(state: GameState, sim: Sim, stateId: string, preferred
   const startRung = state.rungs[stateId]?.[sim.player.id] ?? 0;
   const pending = sim.pending[stateId] ?? 0;
   const room = Math.min(
-    maxBuyableThisTurn(startRung, us.maxRungs) - pending,
+    maxBuyableThisTurn(startRung, us.maxRungs, state.modifiers) - pending,
     us.maxRungs - startRung - pending,
   );
   if (room <= 0) return 0;
@@ -254,7 +254,7 @@ function affordableStateRungs(state: GameState, sim: Sim, stateId: string, prefe
   const pending = sim.pending[stateId] ?? 0;
   const discount = bestAffinityForState(sim.player, stateId);
   for (let r = chooseStateRungs(state, sim, stateId, preferred); r >= 1; r--) {
-    const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, r, discount);
+    const cost = calcStateCost(stateId, us.baseCampaignCost, startRung + pending, r, discount, state.modifiers);
     if (computeWalletSplit(sim.player, stateId, cost)) return r;
   }
   return 0;
@@ -408,7 +408,7 @@ function scoreState(
   const plannedRungs = affordableStateRungs(state, sim, stateId, k.depth);
   if (plannedRungs <= 0) return -Infinity;
   const endRung = myRungs + plannedRungs;
-  const plannedCost = calcStateCost(stateId, us.baseCampaignCost, myRungs, plannedRungs, discount) || 1;
+  const plannedCost = calcStateCost(stateId, us.baseCampaignCost, myRungs, plannedRungs, discount, state.modifiers) || 1;
 
   const preElection = isPreElectionTurn(state);
   const leaderPressure = opponentLeader.ev >= WIN_THRESHOLD - 80 ? 1.45 : opponentLeader.ev >= WIN_THRESHOLD - 130 ? 1.2 : 1;
