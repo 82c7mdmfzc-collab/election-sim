@@ -21,6 +21,7 @@ import {
   type CandidateDef,
 } from '../game/candidates';
 import { playerColorHex } from '../game/playerColors';
+import { DiceIcon } from './icons';
 import { isCrazyModeAvailable } from '../game/modifiers';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
@@ -604,7 +605,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
                 onClick={() => { AudioManager.play('click'); setCrazyMode((v) => !v); }}
                 aria-pressed={crazyMode}
               >
-                <span className="crazy-toggle__icon" aria-hidden>🎲</span>
+                <span className="crazy-toggle__icon" aria-hidden><DiceIcon size={18} /></span>
                 <span className="crazy-toggle__label">Crazy Mode</span>
                 <span className="crazy-toggle__sub">{crazyMode ? '2 wild modifiers ON' : '2 wild modifiers'}</span>
               </button>

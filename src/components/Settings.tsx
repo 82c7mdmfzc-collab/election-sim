@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useProfile, selectFunds, selectIsSignedIn } from '../hooks/useProfile';
+import { CloseIcon } from './icons';
 import { useAndroidBack } from '../hooks/useAndroidBack';
 import { AudioManager } from '../utils/audioManager';
 import { isNativeRuntime } from '../utils/platform';
@@ -118,7 +119,7 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
       <div className="help-overlay__panel settings-panel" onClick={(e) => e.stopPropagation()}>
         <div className="howto__head">
           <h2 className="howto__title">Settings</h2>
-          <button type="button" className="howto__close" onClick={close} aria-label="Close">✕</button>
+          <button type="button" className="howto__close" onClick={close} aria-label="Close"><CloseIcon size={18} /></button>
         </div>
 
         <div className="settings-section settings-section--account">

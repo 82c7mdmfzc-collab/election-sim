@@ -5,6 +5,7 @@
 
 import { useEffect } from 'react';
 import { ALL_STATES } from '../game/statesData';
+import { LockIcon } from './icons';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { AudioManager } from '../utils/audioManager';
 
@@ -47,7 +48,7 @@ export function SecuredToast() {
               animationDelay: `${i * 0.3}s`,
             }}
           >
-            🔒 {player?.name ?? e.playerId} called {target}!
+            <LockIcon size={14} /> {player?.name ?? e.playerId} called {target}!
           </div>
         );
       })}

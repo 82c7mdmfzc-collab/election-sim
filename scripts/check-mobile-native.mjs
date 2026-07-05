@@ -1,5 +1,43 @@
 import { spawn } from 'node:child_process';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import puppeteer from 'puppeteer';
+
+// ── Emoji-as-icon guard ──────────────────────────────────────────────────────
+// Pictographic/colored emoji read as "AI-made" in a polished mobile game; the
+// app uses the SVG set in components/icons.tsx instead. This static scan fails
+// the build if a guarded emoji reappears in a .tsx source. Scoped to genuinely
+// pictographic ranges (🔒 🎲 🗳️ 🔥 🏆 🥇 …) plus the two lightning/block symbols
+// — NOT typographic marks like ✓ ✕ → ‹ which are legitimate in labels.
+// Allowlist: the share-card PNG (baked-in emoji is fine), its test, and the
+// web-only HeaderHud (hidden on native; the app-first surface is NativeGameHud).
+const GUARDED_EMOJI = /[\u{1F300}-\u{1FAFF}\u{1F000}-\u{1F2FF}⚡⬛🔥]/u;
+const EMOJI_ALLOWLIST = new Set(['ShareCard.tsx', 'ShareCard.test.tsx', 'HeaderHud.tsx']);
+
+function scanForEmoji(dir) {
+  const hits = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) { hits.push(...scanForEmoji(full)); continue; }
+    if (!entry.endsWith('.tsx') || EMOJI_ALLOWLIST.has(entry)) continue;
+    const lines = readFileSync(full, 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      // Skip comment lines (docblocks / trailing //) — those aren't rendered.
+      const trimmed = line.trim();
+      if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+      if (GUARDED_EMOJI.test(line)) hits.push(`${full}:${i + 1}  ${trimmed.slice(0, 80)}`);
+    });
+  }
+  return hits;
+}
+
+const emojiHits = scanForEmoji('src');
+if (emojiHits.length > 0) {
+  console.error('Emoji-as-icon found in JSX (use components/icons.tsx instead):');
+  for (const h of emojiHits) console.error(`  ${h}`);
+  process.exit(1);
+}
+console.log('Emoji-icon guard passed (no guarded emoji in .tsx sources).');
 
 const PORT = 4177;
 const URL = `http://127.0.0.1:${PORT}/`;

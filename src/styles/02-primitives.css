@@ -333,3 +333,11 @@ html.native .shop-rail::-webkit-scrollbar {
 .setup__back, .daily__back { margin-top: var(--sp-2); }
 .shop__foot { margin-top: var(--sp-5); }
 .guest-gate__signin { margin-top: var(--sp-4); }
+
+/* Inline SVG icons that replaced emoji/glyphs — keep them centered on the text
+   baseline in their small label/chip holders. */
+.season-lane__lock svg, .season-lane__done svg, .native-alloc-chip__x svg,
+.modchip__icon svg, .sg-progress__crown svg, .shop-card__owned svg,
+.shop-card__price svg, .howto__close svg, .profile-modal__close svg,
+.app-toast__close svg, .tutorial__skip svg, .lb-row__rank svg { vertical-align: middle; }
+.shop-card__owned, .shop-card__price { display: inline-flex; align-items: center; gap: 0.25rem; }

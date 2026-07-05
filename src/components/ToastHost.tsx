@@ -5,6 +5,7 @@
  */
 
 import { useToastStore } from '../utils/toast';
+import { CloseIcon } from './icons';
 
 export function ToastHost() {
   const toasts = useToastStore((s) => s.toasts);
@@ -23,7 +24,7 @@ export function ToastHost() {
             aria-label="Dismiss"
             onClick={() => dismiss(t.id)}
           >
-            ×
+            <CloseIcon size={16} />
           </button>
         </div>
       ))}

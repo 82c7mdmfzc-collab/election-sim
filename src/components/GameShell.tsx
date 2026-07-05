@@ -26,6 +26,7 @@ import { SecuredToast } from './SecuredToast';
 import { WaitingOnPlayers } from './WaitingOnPlayers';
 import { OpeningCampaignMissions } from './OpeningCampaignMissions';
 import { OnboardingDriver } from './onboarding/OnboardingDriver';
+import { RestartIcon } from './icons';
 import { isGuidedOnboardingDone } from '../utils/localPrefs';
 import { isNativeRuntime } from '../utils/platform';
 import { useActivePlayer, useGameStore } from '../game/store';
@@ -136,8 +137,9 @@ export function GameShell() {
         className="shell__reset"
         onClick={() => { AudioManager.play('click'); reset(); }}
         title="New game"
+        aria-label="New game"
       >
-        ⟲
+        <RestartIcon size={18} />
       </button>
 
       <WaitingOnPlayers />

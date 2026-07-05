@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PREMIUM_CANDIDATES } from '../game/candidates';
+import { CheckIcon } from './icons';
 import { candidateMasteryTrainingOffer, normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { playerColorHex } from '../game/playerColors';
 import { isCandidateFreeClaimAvailable } from '../game/promos';
@@ -643,7 +644,7 @@ export function Shop({ source = 'menu', onBack, onSignIn, onOpenSeason }: ShopPr
     let secondarySubtext: string | undefined;
 
     if (owned) {
-      actionLabel = 'Owned ✓';
+      actionLabel = 'Owned';
       actionDisabled = true;
       if (trainingOffer) {
         secondaryActionLabel = trainingWorking
@@ -822,7 +823,7 @@ export function Shop({ source = 'menu', onBack, onSignIn, onOpenSeason }: ShopPr
                   <div className="shop-card__foot">
                     <span className="shop-card__level">Level {normalizeCandidateMasteryEntry(mastery[c.id], c).level}</span>
                     {owned ? (
-                      <div className="shop-card__owned">Owned ✓</div>
+                      <div className="shop-card__owned"><CheckIcon size={13} /> Owned</div>
                     ) : freeClaim ? (
                       <span className="shop-card__price shop-card__price--free">Free in July</span>
                     ) : (

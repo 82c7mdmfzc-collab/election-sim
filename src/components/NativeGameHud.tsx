@@ -174,10 +174,10 @@ function NativeTopRibbon({ timer, onOptions }: {
 function NativeActionStack({ onOpen }: { onOpen: (sheet: NativeSheet) => void }) {
   return (
     <div className="native-action-stack" data-tut="explore" aria-label="Game menus">
-      <button type="button" className="native-round-action" onClick={() => onOpen('national')}>
+      <button type="button" className="native-round-action" onClick={() => { AudioManager.play('click'); onOpen('national'); }}>
         <span>National</span>
       </button>
-      <button type="button" className="native-round-action" onClick={() => onOpen('state')}>
+      <button type="button" className="native-round-action" onClick={() => { AudioManager.play('click'); onOpen('state'); }}>
         <span>Coalitions</span>
       </button>
     </div>
@@ -306,7 +306,7 @@ function NativePlayerTray({
               onClick={() => { AudioManager.play('quit'); cancelAllocation(item.kind, tid); }}
               title={`Tap to clear ${tid}`}
             >
-              <span className="native-alloc-chip__x" aria-hidden>×</span>
+              <span className="native-alloc-chip__x" aria-hidden><CloseIcon size={13} /></span>
               {tid} +{item.rungs} · ${item.cost.toFixed(0)}k
             </button>
           ))

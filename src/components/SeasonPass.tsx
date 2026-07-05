@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useProfile } from '../hooks/useProfile';
+import { CheckIcon, LockIcon } from './icons';
 import { CANDIDATES, CANDIDATE_MAP } from '../game/candidates';
 import { COSMETIC_MAP } from '../game/cosmetics';
 import {
@@ -275,9 +276,9 @@ function TierLane({ reward, track, tier, status, busy, locked, onClaim }: {
         ))}
       </div>
       {claimed ? (
-        <span className="season-lane__done">✓</span>
+        <span className="season-lane__done"><CheckIcon size={14} /></span>
       ) : locked ? (
-        <span className="season-lane__lock">🔒</span>
+        <span className="season-lane__lock"><LockIcon size={14} /></span>
       ) : (
         <button type="button" className="season-claim-btn" disabled={!claimable || busy === busyKey} onClick={onClaim}>
           {claimable ? (busy === busyKey ? '…' : 'Claim') : 'Locked'}
