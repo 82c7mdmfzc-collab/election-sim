@@ -1,0 +1,261 @@
+/* ══ Shared "premium presidential" primitives ══════════════════════════════
+   Reusable building blocks for the overhaul. Components opt in by adding these
+   classes; everything else still inherits the dark look from the :root tokens. */
+
+/* Display heading helper — bold condensed uppercase. */
+.h-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* Primary CTA — beveled glowing orange. */
+.btn-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 1.05rem; letter-spacing: 0.05em; text-transform: uppercase;
+  color: #fff6ea;
+  text-shadow: 0 1px 1px rgba(120, 60, 0, 0.5);
+  padding: 0.85rem 1.5rem;
+  border: none; border-radius: var(--r-md);
+  cursor: pointer;
+  background: linear-gradient(180deg, var(--brand-top) 0%, var(--brand) 48%, var(--brand-deep) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(120, 55, 0, 0.55),
+    0 4px 14px rgba(245, 144, 34, 0.32),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-cta:hover {
+    filter: brightness(1.06); transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -2px 0 rgba(120, 55, 0, 0.55),
+      0 6px 22px rgba(245, 144, 34, 0.5),
+      0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+}
+.btn-cta:active { transform: translateY(1px); filter: brightness(0.97); }
+.btn-cta:disabled, .btn-cta[aria-disabled="true"] {
+  filter: grayscale(0.55) brightness(0.65); cursor: default; transform: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.btn-cta--lg { font-size: 1.2rem; padding: 1rem 1.8rem; }
+.btn-cta--block { width: 100%; }
+/* Trailing chevron (markup may also include a › glyph). */
+.btn-cta--chevron { padding-right: 1.7rem; }
+.btn-cta--chevron::after { content: '›'; font-size: 1.4em; line-height: 0; margin-left: 0.1em; }
+
+/* Secondary / ghost button — navy with a gold hairline + optional left icon chip. */
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 0.7rem;
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text);
+  padding: 0.8rem 1.2rem;
+  background: linear-gradient(180deg, rgba(31, 58, 99, 0.92), rgba(18, 36, 64, 0.96));
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover {
+    border-color: var(--gold); transform: translateY(-1px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 184, 80, 0.25);
+  }
+}
+.btn-ghost:active { transform: scale(0.97); }
+.btn-ghost:disabled { opacity: 0.5; cursor: default; }
+/* Icon chip that sits at the left of a ghost button. */
+.btn-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: var(--r-sm);
+  background: var(--brand-soft); color: var(--brand);
+}
+.btn-chip--blue { background: rgba(61, 130, 240, 0.18); color: var(--dem); }
+.btn-chip--solid { background: linear-gradient(180deg, var(--brand-top), var(--brand-deep)); color: #fff6ea; }
+
+/* Navy gold-bordered panel/card. */
+.panel-card {
+  background: linear-gradient(180deg, rgba(27, 50, 88, 0.6), rgba(18, 36, 64, 0.78));
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), var(--shadow-md);
+}
+
+/* Gold coin pill (funds counter). */
+.gold-pill {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  font-family: var(--font-display); font-weight: 700; letter-spacing: 0.02em;
+  color: var(--text);
+  padding: 0.35rem 0.55rem 0.35rem 0.7rem;
+  background: linear-gradient(180deg, rgba(31, 58, 99, 0.95), rgba(15, 29, 56, 0.95));
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.gold-pill__coin {
+  width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--brand-yellow), var(--gold-deep) 75%);
+  box-shadow: inset 0 0 0 1.5px rgba(120, 75, 0, 0.6);
+}
+.coin-inline {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  border-radius: 50%;
+  vertical-align: -0.12em;
+  background: radial-gradient(circle at 35% 30%, var(--brand-yellow), var(--gold-deep) 76%);
+  box-shadow: inset 0 0 0 1.5px rgba(120, 75, 0, 0.62), 0 1px 4px rgba(0, 0, 0, 0.22);
+}
+.coin-inline--large { width: 1.05em; height: 1.05em; }
+
+/* ══ Native single-viewport primitives ═════════════════════════════════════
+   These classes are inert on the website unless explicitly used by existing
+   layouts. The native rules below turn major screens into app-like stages:
+   fixed viewport, compact chrome, in-screen rails/panes, and pinned actions. */
+.native-only { display: none; }
+
+html.native .native-only { display: initial; }
+
+html.native .native-screen,
+html.native .home,
+html.native .landing,
+html.native .setup,
+html.native .shop {
+  width: 100vw;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-width: none;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.native .native-screen,
+html.native .setup,
+html.native .shop {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding:
+    calc(0.65rem + env(safe-area-inset-top))
+    calc(0.85rem + env(safe-area-inset-right))
+    calc(0.65rem + env(safe-area-inset-bottom))
+    calc(0.85rem + env(safe-area-inset-left));
+}
+
+html.native .screen-transition {
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+html.native .native-topbar,
+html.native .setup__header,
+html.native .shop__header {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+}
+
+html.native .native-actionbar,
+html.native .setup__foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  margin: 0;
+  padding-top: 0.45rem;
+  min-height: 58px;
+}
+
+html.native .setup__title,
+html.native .shop__title {
+  font-size: clamp(1rem, 4.2dvh, 1.45rem);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+html.native .setup__count {
+  flex: 0 0 auto;
+  gap: 0.22rem;
+  padding: 0.18rem;
+  border: 1px solid rgba(240, 184, 80, 0.18);
+  border-radius: var(--r-pill);
+  background: rgba(10, 22, 42, 0.56);
+}
+
+html.native .setup__count span {
+  padding: 0 0.35rem;
+  font-size: 0.56rem;
+  white-space: nowrap;
+}
+
+html.native .setup__count-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 0.46rem;
+  border-radius: var(--r-pill);
+  font-size: 0.76rem;
+}
+
+html.native .setup__sub,
+html.native .next-challenge--solo {
+  display: none;
+}
+
+html.native .setup__start {
+  min-width: min(260px, 38vw);
+  min-height: 44px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.98rem;
+}
+
+html.native .mp-back {
+  min-height: 40px;
+  margin: 0;
+  padding: 0 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: rgba(10, 22, 42, 0.48);
+  color: var(--text);
+}
+
+html.native .mp-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+html.native .candidate-rail,
+html.native .setup__roster,
+html.native .shop-rail {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+}
+
+html.native .candidate-rail::-webkit-scrollbar,
+html.native .setup__roster::-webkit-scrollbar,
+html.native .shop-rail::-webkit-scrollbar {
+  display: none;
+}
+

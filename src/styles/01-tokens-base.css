@@ -1,0 +1,97 @@
+/* Barebones, webview-safe styling. Standard CSS only — no preprocessor, no
+   browser-specific APIs, no JS animation libs — so it renders identically across
+   browser, mobile webview, and desktop (Tauri) webview. All motion is pure CSS. */
+
+:root {
+  /* ── Elector theme — "premium presidential": deep navy + warm orange/gold. ──
+     Beveled glowing orange CTAs, gold-bordered navy panels, gold emblems, a
+     bold condensed display font. Almost everything keys off these tokens, so
+     the dark look propagates app-wide from here. */
+
+  /* Brand / accent */
+  --brand:        #f59022;   /* primary CTA / brand */
+  --brand-top:    #f7a83a;   /* CTA gradient top highlight */
+  --brand-deep:   #d9740f;   /* pressed lip / hover-dark */
+  --brand-soft:   rgba(245, 144, 34, 0.16);  /* tints, selected rows, icon chips */
+  --brand-yellow: #ffc23d;   /* sunny highlight / gradient top */
+
+  /* Surfaces — deep navy, layered */
+  --bg:      #0b1426;   /* base (index.css paints the gradient + motif) */
+  --panel:   #15284a;   /* cards / panels */
+  --panel-2: #1d3a63;   /* raised / hover rows */
+  --panel-3: #0c182f;   /* sunken / inset (map stage) */
+
+  /* Typography */
+  --text:  #f4ead2;   /* cream */
+  --muted: #9fb0c8;   /* slate */
+  --faint: #6b7d99;
+
+  /* Lines + elevation. NB: --shadow stays a COLOR — many rules use it as
+     `box-shadow: 0 Xpx Ypx var(--shadow)`. The --shadow-* tokens are full
+     box-shadow values for the refined rules. */
+  --border:    rgba(240, 184, 80, 0.22);   /* gold hairline */
+  --shadow:    rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 44px rgba(0, 0, 0, 0.55);
+
+  /* Party colors: Republican red · Democrat blue · Independent green
+     (slightly brightened so they read on navy) */
+  --rep: #e23b4e;  --dem: #3d82f0;  --ind: #2bbd6b;
+
+  /* Player-seat palette (distinct from each other AND the orange brand) */
+  --p-red: #e23b4e;  --p-blue: #3d82f0;  --p-green: #2bbd6b;  --p-purple: #9b6cf0;
+
+  /* Semantic + legacy aliases — keep the existing selectors compiling */
+  --red: #e23b4e;  --red-deep: #b3192c;
+  --blue: #3d82f0; --blue-deep: #1d4ed8;
+  --green: #4ccb6b;
+  --gold: #f0b850; --amber: #f0b850; --yellow: #f0b850; --gold-deep: #c77f0a;
+  --teal: #2fd0c8; --purple: #9b6cf0;
+  --danger-red: #e23b4e;
+  --accent-warm: var(--brand);
+
+  /* Radius scale */
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+
+  /* Display font — bold condensed, uppercase, matches the campaign-poster feel */
+  --font-display: 'Saira Condensed', 'Outfit', system-ui, sans-serif;
+
+  font-family: 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 720px at 50% -6%, #16305a 0%, rgba(12, 24, 47, 0) 55%),
+    radial-gradient(900px 620px at 50% 112%, #102246 0%, rgba(11, 20, 38, 0) 55%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+/* ── Mobile/touch baseline ──────────────────────────────────────────────────
+   Removes the blue tap flash, stops double-tap zoom on controls, and gives
+   every interactive element a keyboard-visible focus ring to match :hover. */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
