@@ -654,6 +654,77 @@
 .auth-gate__funds-label {
   font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
 }
+
+/* ── Account identity header (tappable avatar + username) ───────────────────── */
+.auth-gate__identity {
+  display: flex; align-items: center; gap: 0.7rem;
+  margin: 0.2rem 0 0.7rem;
+}
+.auth-gate__avatar-btn {
+  position: relative; flex: 0 0 auto;
+  width: 56px; height: 56px;
+  padding: 0; border: none; background: none; cursor: pointer;
+  border-radius: 50%;
+}
+.auth-gate__avatar { width: 100%; height: 100%; }
+.auth-gate__avatar-token { border-radius: 50%; border: 2px solid var(--border); box-sizing: border-box; }
+.auth-gate__avatar-edit {
+  position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  padding: 0.05rem 0.4rem; border-radius: var(--r-pill);
+  background: var(--brand); color: #fff6ea;
+  font-size: 0.56rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ── Avatar picker (modal) ──────────────────────────────────────────────────── */
+.avatar-picker__panel {
+  width: min(560px, 92vw); max-height: min(86vh, 640px);
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.avatar-picker__current {
+  display: flex; align-items: center; gap: 0.8rem;
+  padding: 0.6rem 0.7rem; border-radius: var(--r-md);
+  border: 1px solid var(--border); background: rgba(10,22,42,0.5);
+}
+.avatar-picker__current-av { width: 60px; height: 60px; flex: 0 0 auto; }
+.avatar-picker__current-token { border-radius: 50%; border: 2px solid var(--gold); box-sizing: border-box; }
+.avatar-picker__current-info { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+.avatar-picker__current-info strong { font-size: 1rem; color: var(--text); }
+.avatar-picker__clear {
+  padding: 0.28rem 0.7rem; border-radius: var(--r-pill); cursor: pointer;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+  color: var(--muted); font-weight: 700; font-size: 0.72rem;
+}
+.avatar-picker__clear:disabled { opacity: 0.45; cursor: default; }
+.avatar-picker__tabs {
+  display: flex; gap: 0.3rem; justify-content: center; flex-wrap: wrap;
+  padding: 0.2rem; border: 1px solid rgba(240,184,80,0.18);
+  border-radius: var(--r-pill); background: rgba(10,22,42,0.56);
+}
+.avatar-picker__tab {
+  min-height: 40px; padding: 0 1rem; border: none; border-radius: var(--r-pill);
+  background: transparent; color: var(--muted); font-weight: 800; cursor: pointer;
+}
+.avatar-picker__tab.is-active { background: var(--brand); color: #fff6ea; }
+.avatar-picker__grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.55rem; padding: 0.2rem 0.15rem 0.4rem;
+}
+.avatar-picker__tile {
+  display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+  padding: 0.5rem 0.3rem; border-radius: var(--r-md); cursor: pointer;
+  border: 1.5px solid var(--border); background: rgba(255,255,255,0.03);
+}
+.avatar-picker__tile.is-equipped { border-color: var(--gold); background: var(--brand-soft); }
+.avatar-picker__tile:disabled { opacity: 0.6; cursor: progress; }
+.avatar-picker__tile-av { width: 48px; height: 48px; flex: 0 0 auto; }
+.avatar-picker__tile-token { border-radius: 50%; }
+.avatar-picker__tile-label {
+  font-size: 0.64rem; font-weight: 600; color: var(--muted);
+  text-align: center; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
 /* Sign out — kept near the top so it's reachable without scrolling past the
    achievements list below. Clear secondary button (not a buried ghost link). */
 .auth-gate__signout {
@@ -843,7 +914,7 @@
   width: 100%; height: 100%;
   line-height: 0;
 }
-.avatar__token { width: 100%; height: 100%; display: block; }
+.avatar__token { width: 100%; height: 100%; display: block; object-fit: cover; }
 .avatar__frame {
   position: absolute;
   inset: 0;

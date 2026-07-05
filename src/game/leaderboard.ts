@@ -17,6 +17,8 @@ export interface LeaderboardRow {
   value: number;
   /** Equipped profile-banner cosmetic id ('' = none). See components/ProfileBanner. */
   banner: string;
+  /** Chosen avatar preset id ('' = initials). See game/avatars.ts. */
+  avatar: string;
   /** True for the signed-in caller's own row (highlighted in the list). */
   isMe: boolean;
 }
@@ -43,7 +45,14 @@ function parseRow(v: unknown): LeaderboardRow | null {
   const r = v as Record<string, unknown>;
   const name = typeof r.name === 'string' ? r.name : null;
   if (!name) return null;
-  return { rank: num(r.rank), name, value: num(r.value), banner: typeof r.banner === 'string' ? r.banner : '', isMe: r.isMe === true };
+  return {
+    rank: num(r.rank),
+    name,
+    value: num(r.value),
+    banner: typeof r.banner === 'string' ? r.banner : '',
+    avatar: typeof r.avatar === 'string' ? r.avatar : '',
+    isMe: r.isMe === true,
+  };
 }
 
 function parseResult(data: unknown): LeaderboardResult {

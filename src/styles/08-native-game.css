@@ -2318,7 +2318,11 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 .lb-medal--1 { color: var(--brand-yellow); }
 .lb-medal--2 { color: #c7d3e3; }
 .lb-medal--3 { color: #d08a4e; }
-.lb-row__name { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-row__name { font-weight: 600; color: var(--text); min-width: 0; display: flex; align-items: center; gap: 0.5rem; }
+/* The name cell now hosts a small avatar + the (ellipsised) name text. */
+.lb-row__av { width: 1.75rem; height: 1.75rem; flex: 0 0 auto; }
+.lb-row__av-token { border-radius: 50%; }
+.lb-row__name-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lb-row__you { color: var(--brand); font-style: normal; font-weight: 700; }
 .lb-row__value { font-family: var(--font-display); font-weight: 800; color: var(--text); white-space: nowrap; }
 .lb-row__value small { color: var(--faint); font-weight: 600; }

@@ -52,6 +52,7 @@ begin
       p.id,
       p.display_name as name,
       coalesce(p.equipped_banner, '') as banner,
+      coalesce(p.avatar, '') as avatar,
       case p_board
         when 'streak'   then coalesce((p.stats->>'bestWinStreak')::integer, 0)
         when 'wins_all' then coalesce((p.stats->>'gamesWon')::integer, 0)
@@ -70,13 +71,13 @@ begin
       and p.display_name <> 'AppleReview'
   ),
   withrank as (
-    select id, name, banner, value, rank() over (order by value desc) as rnk
+    select id, name, banner, avatar, value, rank() over (order by value desc) as rnk
     from ranked
     where value > 0
   )
   select coalesce(
            jsonb_agg(
-             jsonb_build_object('rank', rnk, 'name', name, 'banner', banner, 'value', value, 'isMe', id = v_uid)
+             jsonb_build_object('rank', rnk, 'name', name, 'banner', banner, 'avatar', avatar, 'value', value, 'isMe', id = v_uid)
              order by rnk
            ) filter (where rnk <= v_limit),
            '[]'::jsonb
