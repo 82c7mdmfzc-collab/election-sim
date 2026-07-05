@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
 import { Spinner } from './Spinner';
+import { ProfileBanner } from './ProfileBanner';
 import {
   fetchLeaderboardRemote,
   BOARD_META,
@@ -103,7 +104,8 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
             <div className="lb-state">No Daily Race scores yet. Run today’s race to set the pace!</div>
           ) : (
             dailyData.rows.map((r) => (
-              <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}`}>
+              <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}${r.banner ? ' lb-row--bannered' : ''}`}>
+                <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
                 <span className="lb-row__rank">{r.rank <= 3 ? MEDALS[r.rank - 1] : `#${r.rank}`}</span>
                 <span className="lb-row__name">
                   {r.name}
@@ -117,7 +119,8 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
           <div className="lb-state">No ranked players yet. Win a game to claim a spot!</div>
         ) : (
           data.rows.map((r) => (
-            <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}`}>
+            <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}${r.banner ? ' lb-row--bannered' : ''}`}>
+              <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
               <span className="lb-row__rank">{r.rank <= 3 ? MEDALS[r.rank - 1] : `#${r.rank}`}</span>
               <span className="lb-row__name">
                 {r.name}

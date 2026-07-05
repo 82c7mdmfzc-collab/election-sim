@@ -18,8 +18,10 @@ import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { FUNDS_BUNDLES, displayFundsPrice, getFundsPrices, iapPlatform, nativeIapAvailable, purchase, recoverAndroidPurchases, type PurchaseResult } from '../utils/iap';
-import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame } from '../utils/localPrefs';
-import { cosmeticsByCategory, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
+import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame, getSelectedMapTheme, setSelectedMapTheme } from '../utils/localPrefs';
+import { cosmeticsByCategory, purchasableCosmetics, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
+import { applyAppearancePrefs } from '../utils/appearance';
+import { ProfileBanner } from './ProfileBanner';
 import {
   AD_REWARD_LIMIT,
   AD_REWARD_MAX,
@@ -303,6 +305,8 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
   const claimFreeCharacter = useProfile((s) => s.claimFreeCharacter);
   const trainCandidate = useProfile((s) => s.trainCandidate);
   const unlockCosmetic = useProfile((s) => s.unlockCosmetic);
+  const equipBanner = useProfile((s) => s.equipBanner);
+  const equippedBanner = useProfile((s) => s.profile.equippedBanner);
   const guest = useProfile((s) => s.guest);
   const refresh = useProfile((s) => s.refresh);
   const [busy, setBusy] = useState<string | null>(null);
@@ -312,6 +316,7 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
   const [cosmeticMsg, setCosmeticMsg] = useState<string | null>(null);
   const [equippedVM, setEquippedVM] = useState(getSelectedVictoryMessage);
   const [equippedFrame, setEquippedFrame] = useState(getSelectedShareFrame);
+  const [equippedTheme, setEquippedTheme] = useState(getSelectedMapTheme);
   const [messageFilter, setMessageFilter] = useState<MessageToneFilter>('all');
   const [purchaseMsg, setPurchaseMsg] = useState<string | null>(null);
   const [recruitMsg, setRecruitMsg] = useState<string | null>(null);
@@ -426,6 +431,69 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
       setEquippedVM(m.id);
       setCosmeticMsg(`Unlocked ${m.label} — equipped.`);
       track('cosmetic_unlocked', { cosmetic_id: m.id, category: 'victory_message', price_funds: m.unlockCost });
+    } else {
+      setCosmeticMsg(result.message);
+    }
+    setCosmeticBusy(null);
+  }
+
+  function equipMapTheme(id: string) {
+    AudioManager.play('click');
+    setSelectedMapTheme(id);
+    setEquippedTheme(id);
+    applyAppearancePrefs(); // recolor the board immediately
+    setCosmeticMsg(null);
+    track('cosmetic_previewed', { cosmetic_id: id, category: 'map_theme' });
+  }
+
+  async function unlockOrEquipMapTheme(c: CosmeticDef) {
+    if (isCosmeticAvailable(c.id, unlocked)) { equipMapTheme(c.id); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); onSignIn?.(); return; }
+    if (funds < c.unlockCost) {
+      setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Campaign Funds to unlock ${c.name}.`);
+      return;
+    }
+    setCosmeticBusy(c.id);
+    setCosmeticMsg(null);
+    AudioManager.play('click');
+    const result = await unlockCosmetic(c.id);
+    if (result.ok) {
+      AudioManager.play('victory');
+      equipMapTheme(c.id);
+      setCosmeticMsg(`Unlocked ${c.name} — equipped.`);
+      track('cosmetic_unlocked', { cosmetic_id: c.id, category: c.category, price_funds: c.unlockCost });
+    } else {
+      setCosmeticMsg(result.message);
+    }
+    setCosmeticBusy(null);
+  }
+
+  async function equipProfileBanner(id: string) {
+    // Toggle off if the equipped banner is tapped again.
+    const next = equippedBanner === id ? '' : id;
+    AudioManager.play('click');
+    setCosmeticMsg(null);
+    const ok = await equipBanner(next);
+    if (!ok && !guest) setCosmeticMsg('Could not update your banner. Try again.');
+    else track('cosmetic_previewed', { cosmetic_id: next || 'none', category: 'profile_banner' });
+  }
+
+  async function unlockOrEquipBanner(c: CosmeticDef) {
+    if (isCosmeticAvailable(c.id, unlocked)) { void equipProfileBanner(c.id); return; }
+    if (guest) { setCosmeticMsg('Sign in to unlock cosmetics.'); onSignIn?.(); return; }
+    if (funds < c.unlockCost) {
+      setCosmeticMsg(`Earn ${(c.unlockCost - funds).toLocaleString()} more Campaign Funds to unlock ${c.name}.`);
+      return;
+    }
+    setCosmeticBusy(c.id);
+    setCosmeticMsg(null);
+    AudioManager.play('click');
+    const result = await unlockCosmetic(c.id);
+    if (result.ok) {
+      AudioManager.play('victory');
+      await equipBanner(c.id);
+      setCosmeticMsg(`Unlocked ${c.name} — equipped.`);
+      track('cosmetic_unlocked', { cosmetic_id: c.id, category: c.category, price_funds: c.unlockCost });
     } else {
       setCosmeticMsg(result.message);
     }
@@ -866,21 +934,73 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
             })}
           </div>
 
-          <h2 className="shop__section">More Cosmetics</h2>
-          <p className="shop__sub">Map themes and profile banners are on the way.</p>
+          <h2 className="shop__section">Board Map Themes</h2>
+          <p className="shop__sub">Recolor your election map. Only you see your board — purely cosmetic.</p>
           <div className="shop__cosmetics shop-rail">
-            {[...cosmeticsByCategory('map_theme'), ...cosmeticsByCategory('profile_banner')].map((c) => (
-              <div key={c.id} className="cosmetic-card is-soon">
-                <span className="cosmetic-card__name">{c.name}</span>
-                <span className="cosmetic-card__desc">{c.description}</span>
-                <span className="cosmetic-card__foot">Coming soon</span>
-              </div>
-            ))}
+            {purchasableCosmetics('map_theme').map((c) => {
+              const owned = isCosmeticAvailable(c.id, unlocked);
+              const equipped = equippedTheme === c.id;
+              const affordable = funds >= c.unlockCost;
+              const foot = owned
+                ? (equipped ? 'Equipped' : 'Equip')
+                : cosmeticBusy === c.id
+                  ? 'Unlocking…'
+                  : guest
+                    ? 'Sign in to unlock'
+                    : `Unlock — ${c.unlockCost.toLocaleString()} Campaign Funds`;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`cosmetic-card cosmetic-card--theme cosmetic-card--${c.id}${equipped ? ' is-equipped' : ''}${owned ? '' : ' is-locked'}`}
+                  disabled={cosmeticBusy !== null}
+                  onClick={() => unlockOrEquipMapTheme(c)}
+                >
+                  <span className="cosmetic-card__swatch" aria-hidden="true" />
+                  <span className="cosmetic-card__name">
+                    {c.name}
+                    {equipped && <span className="cosmetic-card__badge">Equipped</span>}
+                  </span>
+                  <span className="cosmetic-card__desc">{c.description}</span>
+                  <span className={`cosmetic-card__foot${!owned && !affordable && !guest ? ' is-dim' : ''}`}>{foot}</span>
+                </button>
+              );
+            })}
           </div>
-          {/* Priced share-frame unlocks are now server-validated via the `unlock_cosmetic` RPC
-              (supabase/cosmetics.sql), which grants a `cosmetic:<id>` token. The map_theme /
-              profile_banner categories above remain `comingSoon` placeholders until their render
-              surfaces exist; extend the cosmetics.sql price catalog when they ship. */}
+
+          <h2 className="shop__section">Profile Banners</h2>
+          <p className="shop__sub">Show your colors on the leaderboard and your profile. Tap again to remove.</p>
+          <div className="shop__cosmetics shop-rail">
+            {purchasableCosmetics('profile_banner').map((c) => {
+              const owned = isCosmeticAvailable(c.id, unlocked);
+              const equipped = equippedBanner === c.id;
+              const affordable = funds >= c.unlockCost;
+              const foot = owned
+                ? (equipped ? 'Equipped — tap to remove' : 'Equip')
+                : cosmeticBusy === c.id
+                  ? 'Unlocking…'
+                  : guest
+                    ? 'Sign in to unlock'
+                    : `Unlock — ${c.unlockCost.toLocaleString()} Campaign Funds`;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`cosmetic-card cosmetic-card--banner${equipped ? ' is-equipped' : ''}${owned ? '' : ' is-locked'}`}
+                  disabled={cosmeticBusy !== null}
+                  onClick={() => unlockOrEquipBanner(c)}
+                >
+                  <ProfileBanner bannerId={c.id} variant="strip" className="cosmetic-card__banner-preview" />
+                  <span className="cosmetic-card__name">
+                    {c.name}
+                    {equipped && <span className="cosmetic-card__badge">Equipped</span>}
+                  </span>
+                  <span className="cosmetic-card__desc">{c.description}</span>
+                  <span className={`cosmetic-card__foot${!owned && !affordable && !guest ? ' is-dim' : ''}`}>{foot}</span>
+                </button>
+              );
+            })}
+          </div>
         </section>
       </div>
 

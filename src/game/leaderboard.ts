@@ -15,6 +15,8 @@ export interface LeaderboardRow {
   rank: number;
   name: string;
   value: number;
+  /** Equipped profile-banner cosmetic id ('' = none). See components/ProfileBanner. */
+  banner: string;
   /** True for the signed-in caller's own row (highlighted in the list). */
   isMe: boolean;
 }
@@ -41,7 +43,7 @@ function parseRow(v: unknown): LeaderboardRow | null {
   const r = v as Record<string, unknown>;
   const name = typeof r.name === 'string' ? r.name : null;
   if (!name) return null;
-  return { rank: num(r.rank), name, value: num(r.value), isMe: r.isMe === true };
+  return { rank: num(r.rank), name, value: num(r.value), banner: typeof r.banner === 'string' ? r.banner : '', isMe: r.isMe === true };
 }
 
 function parseResult(data: unknown): LeaderboardResult {

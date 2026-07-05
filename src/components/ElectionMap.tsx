@@ -21,6 +21,7 @@ import { WIN_THRESHOLD, calcStateCost, bestAffinityForState } from '../game/engi
 import { ALL_STATES } from '../game/statesData';
 import { STATE_GROUPS_BY_STATE, minRungsForDominance } from '../game/config';
 import { NEUTRAL_RGB, lerp, rgbStr, type ResolvedColor } from '../game/colors';
+import { mapThemeNeutral } from '../game/mapTheme';
 import {
   useGameStore,
   usePendingRungs,
@@ -62,7 +63,7 @@ function stateColor(
 ): string {
   if (securedById && colors[securedById]) return colors[securedById].hex;
 
-  const neutral = nativeLook ? ([246, 248, 250] as [number, number, number]) : NEUTRAL_RGB;
+  const neutral = mapThemeNeutral(nativeLook);
   let leader: string | null = null;
   let lead = 0;
   let second = 0;

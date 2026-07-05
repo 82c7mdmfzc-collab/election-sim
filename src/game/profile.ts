@@ -47,6 +47,8 @@ export interface Profile {
   unlockedCharacters: string[];
   /** Cosmetic avatar frame id (see src/game/borders.ts). Local-only for now. */
   selectedBorder: string;
+  /** Equipped profile-banner cosmetic id ('' = none). Server-owned (others see it). */
+  equippedBanner: string;
   stats: ProfileStats;
   achievementCounters: AchievementCounters;
   claimedAchievements: string[];
@@ -66,6 +68,7 @@ export const DEFAULT_PROFILE: Profile = {
   campaignFunds: 0,
   unlockedCharacters: [],
   selectedBorder: 'classic',
+  equippedBanner: '',
   stats: { ...DEFAULT_STATS },
   achievementCounters: normalizeAchievementCounters(null),
   claimedAchievements: [],
@@ -83,6 +86,7 @@ interface ProfileRow {
   daily_streak?: Partial<DailyStreakState> | null;
   candidate_mastery?: unknown;
   display_name?: string | null;
+  equipped_banner?: string | null;
 }
 
 function rowToProfile(row: ProfileRow, claimedAchievements: string[] = []): Profile {
@@ -98,6 +102,7 @@ function rowToProfile(row: ProfileRow, claimedAchievements: string[] = []): Prof
     campaignFunds: row.campaign_funds ?? 0,
     unlockedCharacters,
     selectedBorder: 'classic', // no DB column yet — border is a cosmetic default
+    equippedBanner: row.equipped_banner ?? '',
     stats: { ...DEFAULT_STATS, ...(row.stats ?? {}) },
     achievementCounters: counters,
     claimedAchievements,
@@ -117,7 +122,7 @@ export async function fetchRemoteAccount(userId: string): Promise<RemoteAccount 
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('profiles')
-    .select('campaign_funds, unlocked_characters, stats, achievement_counters, daily_streak, candidate_mastery, display_name')
+    .select('campaign_funds, unlocked_characters, stats, achievement_counters, daily_streak, candidate_mastery, display_name, equipped_banner')
     .eq('id', userId)
     .maybeSingle();
 
@@ -516,6 +521,18 @@ export async function unlockCosmeticRemote(cosmeticId: string): Promise<UnlockCo
     return { ok: false, reason: 'unknown', message: 'Could not unlock cosmetic. Please try again.' };
   }
   return { ok: true, profile: rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) };
+}
+
+/** Equip (or clear, with '') an owned profile banner. Server validates ownership.
+ *  Returns the updated profile, or null on failure. See supabase/cosmetics.sql. */
+export async function setEquippedBannerRemote(bannerId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('set_equipped_banner', { p_banner: bannerId });
+  if (error) {
+    console.warn('setEquippedBannerRemote failed:', error.message);
+    return null;
+  }
+  return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
 }
 
 // ── Daily Challenge cross-device sync (see supabase/daily.sql) ─────────────────

@@ -4767,6 +4767,10 @@ html.native .cand-select-body { min-height: 0; height: 100%; overflow: hidden; }
   animation: drawer-open 0.18s ease-out;
 }
 
+.profile-modal__banner {
+  height: 26px; margin: -0.4rem -0.4rem 0.7rem; border-radius: var(--r-sm);
+}
+
 .profile-modal__head {
   display: flex;
   gap: 0.7rem;
@@ -5751,6 +5755,30 @@ html.native .election-map-container::before {
   background-size: 76px 76px;
   opacity: 0.48;
   z-index: 0;
+}
+
+/* ── Map-theme board chrome (the "water" behind the states) ────────────────── */
+/* State fills are themed in JS (game/mapTheme.mapThemeNeutral); these class hooks
+   retint the board background to match. `map-theme-classic` = default (no rule). */
+html.native.map-theme-theme_dusk .election-map-container {
+  background:
+    linear-gradient(90deg, rgba(120,95,124,0.95), rgba(211,196,205,0.72) 20%, rgba(211,196,205,0.72) 80%, rgba(120,95,124,0.95)),
+    #cdbcc6;
+}
+html.native.map-theme-theme_marble .election-map-container {
+  background:
+    linear-gradient(90deg, rgba(203,200,190,0.95), rgba(233,230,220,0.75) 20%, rgba(233,230,220,0.75) 80%, rgba(203,200,190,0.95)),
+    #e4e0d4;
+}
+html.native.map-theme-theme_midnight_gold .election-map-container {
+  background:
+    linear-gradient(90deg, rgba(11,18,32,0.98), rgba(20,30,52,0.9) 20%, rgba(20,30,52,0.9) 80%, rgba(11,18,32,0.98)),
+    #0b1220;
+}
+html.native.map-theme-theme_midnight_gold .election-map-container::before {
+  background:
+    linear-gradient(90deg, rgba(245,196,81,0.10) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(245,196,81,0.09) 1px, transparent 1px);
 }
 
 html.native .election-map-container svg {
@@ -7303,6 +7331,56 @@ html.native .shop__cosmetics {
 .cosmetic-card__desc { font-size: 0.74rem; color: var(--muted); line-height: 1.35; }
 .cosmetic-card__foot { font-size: 0.72rem; font-weight: 700; color: var(--gold); margin-top: 0.1rem; }
 
+/* Map-theme swatch: a mini board-color preview chip. */
+.cosmetic-card__swatch {
+  height: 34px; border-radius: var(--r-sm); border: 1px solid var(--border);
+  background: var(--swatch, linear-gradient(120deg, #64748b, #f6f8fa));
+}
+.cosmetic-card--theme_dusk .cosmetic-card__swatch    { --swatch: linear-gradient(120deg, #3a2740, #f4e9ec); }
+.cosmetic-card--theme_marble .cosmetic-card__swatch  { background: linear-gradient(120deg, #cdd2dc, #f0eee6); }
+.cosmetic-card--theme_midnight_gold .cosmetic-card__swatch { --swatch: linear-gradient(120deg, #0b1220, #2a344a); box-shadow: inset 0 0 0 1px rgba(245,196,81,0.5); }
+
+/* Banner preview strip inside a shop card. */
+.cosmetic-card__banner-preview { height: 26px; border-radius: var(--r-sm); }
+
+/* ── Profile banners (equippable identity strips) ─────────────────────────── */
+/* Base recipes keyed by cosmetic id; a strip is a full-width header, a chip is a
+   compact leaderboard-row cue. Every banner is CSS-only (no image assets). */
+.profile-banner { position: relative; overflow: hidden; border-radius: var(--r-sm); }
+.profile-banner--strip { width: 100%; height: 30px; }
+.profile-banner--chip { position: absolute; inset: 0; border-radius: inherit; opacity: 0.16; pointer-events: none; }
+
+.profile-banner--banner_laurel {
+  background:
+    radial-gradient(circle at 12% 50%, rgba(245,196,81,0.5) 0 12%, transparent 13%),
+    radial-gradient(circle at 88% 50%, rgba(245,196,81,0.5) 0 12%, transparent 13%),
+    linear-gradient(120deg, #16391f, #1f6b38);
+}
+.profile-banner--banner_stars {
+  background:
+    repeating-linear-gradient(90deg, #b31942 0 14px, #ffffff 14px 28px),
+    linear-gradient(#0a3161, #0a3161);
+  background-blend-mode: multiply;
+}
+.profile-banner--banner_circuit {
+  background:
+    repeating-linear-gradient(45deg, rgba(245,144,34,0.35) 0 6px, transparent 6px 12px),
+    linear-gradient(120deg, #12243f, #1d3a63);
+}
+.profile-banner--banner_coalition {
+  background: linear-gradient(90deg, #d8233c 0 33%, #1fa85b 33% 66%, #2563eb 66% 100%);
+}
+.profile-banner--banner_gilded {
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.25), transparent 40%),
+    linear-gradient(120deg, #6b5312, #f5c451 50%, #6b5312);
+}
+.profile-banner--banner_s1_champion {
+  background:
+    radial-gradient(circle at 50% -40%, rgba(255,255,255,0.4), transparent 60%),
+    linear-gradient(120deg, #3a1d5e, #f5c451 55%, #3a1d5e);
+}
+
 /* ── Resolution recap ("what just happened") ──────────────────────────────── */
 .round-resolution__summary {
   list-style: none; margin: 0 0 0.6rem; padding: 0.5rem 0.7rem;
@@ -7935,6 +8013,9 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 .lb-row__value small { color: var(--faint); font-weight: 600; }
 .lb-row--me { border-color: var(--gold); background: var(--brand-soft); }
 .lb-row--pinned { max-width: 560px; width: 100%; margin: 0.5rem auto 0; }
+/* Equipped banner tints the row background behind the content. */
+.lb-row--bannered { position: relative; overflow: hidden; }
+.lb-row--bannered > :not(.lb-row__banner) { position: relative; z-index: 1; }
 
 /* ── Settings panel ───────────────────────────────────────────────────────── */
 .settings-panel {
