@@ -78,8 +78,8 @@ insert into public.seasons (id, title, starts_at, ends_at, premium_cost, tiers, 
 values (
   'season_1',
   'Road to the White House',
-  '2026-07-06T00:00:00Z',
-  '2026-08-31T00:00:00Z',
+  '2026-07-05T00:00:00Z',
+  '2026-08-10T00:00:00Z',
   4000,
   $json$[
     {"tier":1,"cumXp":100,"free":{"funds":25},"premium":{"funds":150,"cosmetic":"banner_gilded"}},
