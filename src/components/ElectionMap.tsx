@@ -281,6 +281,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
   const allocate = useGameStore((s) => s.allocate);
   const retractLastAllocation = useGameStore((s) => s.retractLastAllocation);
   const phase = useGameStore((s) => s.phase);
+  const modifiers = useGameStore((s) => s.modifiers);
   const activePlayer = useActivePlayer();
   const colors = usePlayerColors();
   const pendingRungs = usePendingRungs('state', stateId);
@@ -336,7 +337,7 @@ function StateHoverCard({ stateId, x, y, interactive, onClose }: StateHoverCardP
   const myRungs = settled + (activePlayer ? pendingRungs : 0);
   const unlockMet = myRungs >= minRungs;
   const nextRungCost = activePlayer
-    ? calcStateCost(stateId, usState.baseCampaignCost, settled + pendingRungs, 1, discount)
+    ? calcStateCost(stateId, usState.baseCampaignCost, settled + pendingRungs, 1, discount, modifiers)
     : usState.baseCampaignCost;
 
   const securedName = securedById

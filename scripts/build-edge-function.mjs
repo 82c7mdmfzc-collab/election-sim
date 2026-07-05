@@ -30,6 +30,8 @@ const FILES = [
   'lobbySecurity.ts',
   'resolveLobbyTurn.ts',
   'advanceLobbyPhase.ts',
+  'dailyChallenge.ts', // modifiers.ts depends on seededRng from here
+  'modifiers.ts',      // server-side online modifier roll (edge startGame)
 ];
 
 const srcDir = join(root, 'src', 'game');

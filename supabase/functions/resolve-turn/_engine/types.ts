@@ -97,6 +97,39 @@ export interface GameState {
   hungColleges: number;
   /** True when the current planning round has warned players an election fires after resolution. */
   electionScheduled: boolean;
+  /** Rolled rule modifiers in effect for this game (absent = standard rules). Every
+   *  engine read is `?? base`, so an absent object reproduces today's behavior. */
+  modifiers?: GameModifiers;
+  /** Ids of the modifiers rolled at game start (drives the reveal + HUD chip). */
+  activeModifierIds?: string[];
+}
+
+/**
+ * Rule-twist effects applied for a whole game (see game/modifiers.ts for the
+ * catalog + rolling). Every field is optional; the engine treats absent fields as
+ * the base rule. Clamped by config.normalizeModifiers before it reaches the engine.
+ */
+export interface GameModifiers {
+  /** State-group coalition `bonusPayout` multiplier (Coalition Windfall). */
+  coalitionPayoutMult?: number;
+  /** National-ladder `turnBonus` multiplier (Lobby Frenzy). */
+  nationalBonusMult?: number;
+  /** Flat per-turn campaign income multiplier (High Turnout). */
+  incomeMult?: number;
+  /** Megastate (CA/FL/TX/NY) rung-cost multiplier (Megastate Fire Sale). */
+  megastateCostMult?: number;
+  /** Non-megastate rung-cost multiplier (Grassroots). */
+  nonMegastateCostMult?: number;
+  /** Extra starting cash added to every seat (War Chest). */
+  startingCashBonus?: number;
+  /** Turn the election window opens (Snap Election); default ELECTION_START_TURN. */
+  electionStartTurn?: number;
+  /** EV needed to win; default WIN_THRESHOLD (Landslide Line). */
+  winThreshold?: number;
+  /** Lift the first-entry rung cap — buy as many as affordable (Ground Game). */
+  entryCapLifted?: boolean;
+  /** End each resolution by knocking a rung off the tightest state (October Surprise). */
+  octoberSurprise?: boolean;
 }
 
 // ── Pending allocation (per player, hidden until resolution) ──────────────────
@@ -213,4 +246,6 @@ export interface WaitingLobbyState {
   playerCount: number;
   hostPlayerId: string;
   players: WaitingPlayer[];
+  /** Host opted into "Crazy Mode" (2 guaranteed modifiers). Read by create_lobby. */
+  crazyMode?: boolean;
 }

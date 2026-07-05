@@ -843,3 +843,42 @@ describe('groupDominanceProgress', () => {
     expect(evByPlayer.p1).toBe(0);
   });
 });
+
+describe('October Surprise modifier', () => {
+  it('knocks one rung off the tightest-contested unsecured state, deterministically', () => {
+    const base = Object.fromEntries(ALL_STATES.map((s) => [s.id, { p1: 0, p2: 0 }]));
+    const seq = Object.fromEntries(ALL_STATES.map((s) => [s.id, { p1: 0, p2: 0 }]));
+    const state = makeState({
+      turn: 3,
+      modifiers: { octoberSurprise: true },
+      players: [makePlayer('p1', { nationalCash: 0 }), makePlayer('p2', { nationalCash: 0 })],
+      rungs: { ...base, VT: { p1: 2, p2: 1 }, WY: { p1: 5, p2: 0 } }, // VT margin 1 (tightest), WY margin 5
+      reachSeq: { ...seq, VT: { p1: 1, p2: 2 }, WY: { p1: 1, p2: 0 } },
+    });
+    // Resolve an empty turn: the surprise fires on the settled board.
+    const { state: r1 } = resolveTurn(state, { p1: [], p2: [] });
+    expect(r1.rungs['VT']['p1']).toBe(1); // leader knocked 2 → 1
+    expect(r1.rungs['WY']['p1']).toBe(5); // untouched (not the tightest)
+    // Deterministic: same inputs → same output.
+    const { state: r2 } = resolveTurn(state, { p1: [], p2: [] });
+    expect(r2.rungs['VT']['p1']).toBe(1);
+  });
+
+  it('does nothing before turn 3 or without the modifier', () => {
+    const base = Object.fromEntries(ALL_STATES.map((s) => [s.id, { p1: 0, p2: 0 }]));
+    const seq = Object.fromEntries(ALL_STATES.map((s) => [s.id, { p1: 0, p2: 0 }]));
+    const early = makeState({
+      turn: 2,
+      modifiers: { octoberSurprise: true },
+      rungs: { ...base, VT: { p1: 2, p2: 1 } },
+      reachSeq: { ...seq, VT: { p1: 1, p2: 2 } },
+    });
+    expect(resolveTurn(early, { p1: [], p2: [] }).state.rungs['VT']['p1']).toBe(2);
+    const noMod = makeState({
+      turn: 5,
+      rungs: { ...base, VT: { p1: 2, p2: 1 } },
+      reachSeq: { ...seq, VT: { p1: 1, p2: 2 } },
+    });
+    expect(resolveTurn(noMod, { p1: [], p2: [] }).state.rungs['VT']['p1']).toBe(2);
+  });
+});

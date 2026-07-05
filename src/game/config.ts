@@ -15,7 +15,7 @@
  *   national rung price:  rungCost per rung
  */
 
-import type { NationalGroup, StateGroup } from './types';
+import type { NationalGroup, StateGroup, GameModifiers } from './types';
 
 // ── Economy constants ─────────────────────────────────────────────────────────
 
@@ -172,20 +172,33 @@ export function rungCostFor(
   baseCampaignCost: number,
   rungIndex: number, // 1-based index of the rung being purchased
   affinityDiscount: number, // 0–<1
+  modifiers?: GameModifiers,
 ): number {
   const isBoss = BOSS_RUNG_IDS.has(stateId) && rungIndex === maxRungsFor(stateId, 0);
   const multiplier = isBoss ? BOSS_RUNG_MULTIPLIER : 1.0;
+  // Modifier cost multiplier: megastates and the rest scale independently
+  // (Megastate Fire Sale / Grassroots). Absent modifiers → ×1 (unchanged).
+  const modMult = MEGASTATE_IDS.has(stateId)
+    ? (modifiers?.megastateCostMult ?? 1)
+    : (modifiers?.nonMegastateCostMult ?? 1);
   // Round to whole $1k units so discounts (e.g. ×0.85) never leak floating-point
   // dust into wallet/nationalCash balances (the 249999.999999997 bug).
-  return Math.max(10, Math.round(baseCampaignCost * multiplier * (1 - affinityDiscount)));
+  return Math.max(10, Math.round(baseCampaignCost * multiplier * modMult * (1 - affinityDiscount)));
 }
 
 // ── Election probability ──────────────────────────────────────────────────────
 
-export function electionProbability(turn: number, hungColleges = 0): number {
+export function electionProbability(
+  turn: number,
+  hungColleges = 0,
+  startTurn = ELECTION_START_TURN,
+): number {
   void hungColleges;
-  if (turn < 10) return 0;
-  if (turn <= 13) return 0.20;
-  if (turn <= 18) return 0.33;
+  if (turn < startTurn) return 0;
+  // Snap Election shifts the whole ramp earlier by (ELECTION_START_TURN - startTurn),
+  // preserving the 0.20 → 0.33 → 0.66 escalation relative to the opening turn.
+  const t = turn + (ELECTION_START_TURN - startTurn);
+  if (t <= 13) return 0.20;
+  if (t <= 18) return 0.33;
   return 0.66;
 }

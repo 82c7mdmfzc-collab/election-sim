@@ -21,7 +21,7 @@ import {
 } from './engine';
 import { ALL_STATES } from './statesData';
 import { STATE_GROUPS_BY_STATE, NATIONAL_GROUP_MAP } from './config';
-import type { PlayerState } from './types';
+import type { PlayerState, GameModifiers } from './types';
 
 /** Working-cash snapshot applied during allocation (already nets out pending spend). */
 export interface WorkingCash {
@@ -63,8 +63,9 @@ export function computeAffordability(args: {
   startRung: number;     // settled levels at start of turn
   pendingRungs: number;  // levels already queued for this target this turn
   secured: boolean;
+  modifiers?: GameModifiers;
 }): Affordability {
-  const { kind, targetId, player, workingCash, startRung, pendingRungs, secured } = args;
+  const { kind, targetId, player, workingCash, startRung, pendingRungs, secured, modifiers } = args;
   const proxy: PlayerState = {
     ...player,
     nationalCash: workingCash.nationalCash,
@@ -77,13 +78,13 @@ export function computeAffordability(args: {
     if (!usState) return AFFORDABILITY_UNAVAILABLE;
     const maxRungs = usState.maxRungs;
     const discount = bestAffinityForState(proxy, targetId);
-    const nextCost = calcStateCost(targetId, usState.baseCampaignCost, climbed, 1, discount);
+    const nextCost = calcStateCost(targetId, usState.baseCampaignCost, climbed, 1, discount, modifiers);
     const usable = (STATE_GROUPS_BY_STATE[targetId] ?? []).reduce(
       (a, g) => a + (workingCash.groupWallets[g] ?? 0), 0,
     );
     const available = usable + workingCash.nationalCash;
     const atMax = climbed >= maxRungs;
-    const capReached = !atMax && pendingRungs >= maxBuyableThisTurn(startRung, maxRungs);
+    const capReached = !atMax && pendingRungs >= maxBuyableThisTurn(startRung, maxRungs, modifiers);
     const canPay = computeWalletSplit(proxy, targetId, nextCost) !== null;
     return {
       nextCost, available, atMax, capReached, secured,
@@ -98,7 +99,7 @@ export function computeAffordability(args: {
   const nextCost = calcNationalCost(targetId, climbed, 1, proxy);
   const available = workingCash.nationalCash;
   const atMax = climbed >= maxRungs;
-  const capReached = !atMax && pendingRungs >= maxBuyableThisTurn(startRung, maxRungs);
+  const capReached = !atMax && pendingRungs >= maxBuyableThisTurn(startRung, maxRungs, modifiers);
   const canPay = nextCost <= workingCash.nationalCash;
   return {
     nextCost, available, atMax, capReached, secured,

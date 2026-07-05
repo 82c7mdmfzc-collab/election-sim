@@ -21,6 +21,7 @@ import {
   type CandidateDef,
 } from '../game/candidates';
 import { playerColorHex } from '../game/playerColors';
+import { isCrazyModeAvailable } from '../game/modifiers';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
@@ -163,6 +164,9 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
 
   // ── Create-flow state ──────────────────────────────────────────────────────
   const [playerCount, setPlayerCount]       = useState(2);
+  const [crazyMode, setCrazyMode]           = useState(false);
+  // Availability captured once (Date.now() is banned in the render body).
+  const [crazyAvailable]                    = useState(() => isCrazyModeAvailable(Date.now()));
   const [myCandidate, setMyCandidate]       = useState<CandidateDef | null>(null);
   const [botDifficulty, setBotDifficulty]   = useState<BotDifficulty>('medium');
   const [turnTimeLimit, setTurnTimeLimit]   = useState<number | null>(null);
@@ -252,6 +256,7 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
       playerCount,
       hostPlayerId: hostId,
       players: [hostPlayer],
+      crazyMode: crazyMode && crazyAvailable,
     };
 
     let data: LobbyRow;
@@ -592,6 +597,18 @@ export function MultiplayerMenu({ onBack, onOpenAccount }: Props) {
                 </button>
               ))}
             </div>
+            {crazyAvailable && (
+              <button
+                type="button"
+                className={`crazy-toggle${crazyMode ? ' is-on' : ''}`}
+                onClick={() => { AudioManager.play('click'); setCrazyMode((v) => !v); }}
+                aria-pressed={crazyMode}
+              >
+                <span className="crazy-toggle__icon" aria-hidden>🎲</span>
+                <span className="crazy-toggle__label">Crazy Mode</span>
+                <span className="crazy-toggle__sub">{crazyMode ? '2 wild modifiers ON' : '2 wild modifiers'}</span>
+              </button>
+            )}
           </div>
         </div>
 

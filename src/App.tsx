@@ -4,6 +4,8 @@ import { CandidateSelect } from './components/CandidateSelect';
 import { MultiplayerMenu } from './components/MultiplayerMenu';
 import { GameShell } from './components/GameShell';
 import { VersusScreen } from './components/VersusScreen';
+import { ModifierRoll } from './components/ModifierRoll';
+import { ActiveModifierChip } from './components/ActiveModifierChip';
 import { ElectionTallyView } from './components/ElectionTallyView';
 import { VictoryPodium } from './components/VictoryPodium';
 import { Tutorial } from './components/Tutorial';
@@ -265,6 +267,7 @@ function App() {
   useGameRewards();
   const phase = useGameStore((s) => s.phase);
   const versusPending = useGameStore((s) => s.versusPending);
+  const modifierRevealPending = useGameStore((s) => s.modifierRevealPending);
   const viewingGame = useGameStore((s) => s.viewingGame);
   const initProfile = useProfile((s) => s.init);
   const ready = useProfile((s) => s.ready);
@@ -441,10 +444,13 @@ function App() {
     screen = <VictoryPodium />;
     screenKey = 'gameover';
   } else if (viewingGame && phase !== 'SETUP' && phase !== 'MENU') {
-    // Show the matchup intro once at the start of a game, before the board.
+    // Start-of-game intros, in order: matchup → modifier roll → board.
     if (versusPending) {
       screen = <VersusScreen />;
       screenKey = 'versus';
+    } else if (modifierRevealPending) {
+      screen = <ModifierRoll />;
+      screenKey = 'modroll';
     } else {
       screen = <GameShell />;
       screenKey = 'game';
@@ -586,6 +592,7 @@ function App() {
   return (
     <>
       <ScreenTransition screenKey={screenKey}>{screen}</ScreenTransition>
+      <ActiveModifierChip />
       {account}
       {settings}
     </>
