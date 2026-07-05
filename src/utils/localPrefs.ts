@@ -62,6 +62,9 @@ export interface LocalPrefs {
   /** Device-local mirror of the account's equipped profile banner ('' = none). Set
    *  by set_equipped_banner on the server; cached here for instant local render. */
   equippedBanner: string;
+  /** Device-local mirror of the account's avatar preset id ('' = initials). Set by
+   *  set_avatar on the server; cached here so the Home card renders instantly. */
+  avatar: string;
   /** Referral code captured from a ?ref= invite link, pending set_referrer after sign-in. */
   pendingReferralCode: string | null;
   /** Whether the live first-campaign coach has been dismissed on this device. */
@@ -105,6 +108,7 @@ const DEFAULTS: LocalPrefs = {
   selectedShareFrame: 'midnight', // DEFAULT_SHARE_FRAME_ID
   selectedMapTheme: 'classic', // DEFAULT_MAP_THEME_ID
   equippedBanner: '', // none
+  avatar: '', // DEFAULT_AVATAR_ID — initials fallback
   pendingReferralCode: null,
   firstRunCoachDismissed: false,
   firstGameplayTipsSeen: false,
@@ -160,6 +164,8 @@ export const getSelectedMapTheme = () => getPrefs().selectedMapTheme;
 export const setSelectedMapTheme = (selectedMapTheme: string) => setPrefs({ selectedMapTheme });
 export const getEquippedBanner = () => getPrefs().equippedBanner;
 export const setEquippedBannerLocal = (equippedBanner: string) => setPrefs({ equippedBanner });
+export const getAvatarLocal = () => getPrefs().avatar;
+export const setAvatarLocal = (avatar: string) => setPrefs({ avatar });
 export const getPendingReferralCode = () => getPrefs().pendingReferralCode;
 export const setPendingReferralCode = (pendingReferralCode: string) => setPrefs({ pendingReferralCode });
 export const clearPendingReferralCode = () => setPrefs({ pendingReferralCode: null });

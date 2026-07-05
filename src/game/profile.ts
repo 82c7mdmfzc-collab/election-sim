@@ -50,6 +50,8 @@ export interface Profile {
   selectedBorder: string;
   /** Equipped profile-banner cosmetic id ('' = none). Server-owned (others see it). */
   equippedBanner: string;
+  /** Chosen avatar preset id ('' = initials monogram). Server-owned; see game/avatars.ts. */
+  avatar: string;
   stats: ProfileStats;
   achievementCounters: AchievementCounters;
   claimedAchievements: string[];
@@ -70,6 +72,7 @@ export const DEFAULT_PROFILE: Profile = {
   unlockedCharacters: [],
   selectedBorder: 'classic',
   equippedBanner: '',
+  avatar: '',
   stats: { ...DEFAULT_STATS },
   achievementCounters: normalizeAchievementCounters(null),
   claimedAchievements: [],
@@ -88,6 +91,7 @@ interface ProfileRow {
   candidate_mastery?: unknown;
   display_name?: string | null;
   equipped_banner?: string | null;
+  avatar?: string | null;
 }
 
 function rowToProfile(row: ProfileRow, claimedAchievements: string[] = []): Profile {
@@ -104,6 +108,7 @@ function rowToProfile(row: ProfileRow, claimedAchievements: string[] = []): Prof
     unlockedCharacters,
     selectedBorder: 'classic', // no DB column yet — border is a cosmetic default
     equippedBanner: row.equipped_banner ?? '',
+    avatar: row.avatar ?? '',
     stats: { ...DEFAULT_STATS, ...(row.stats ?? {}) },
     achievementCounters: counters,
     claimedAchievements,
@@ -123,7 +128,7 @@ export async function fetchRemoteAccount(userId: string): Promise<RemoteAccount 
   if (!isSupabaseConfigured) return null;
   const { data, error } = await supabase
     .from('profiles')
-    .select('campaign_funds, unlocked_characters, stats, achievement_counters, daily_streak, candidate_mastery, display_name, equipped_banner')
+    .select('campaign_funds, unlocked_characters, stats, achievement_counters, daily_streak, candidate_mastery, display_name, equipped_banner, avatar')
     .eq('id', userId)
     .maybeSingle();
 
@@ -592,6 +597,19 @@ export async function setEquippedBannerRemote(bannerId: string): Promise<Profile
   const { data, error } = await supabase.rpc('set_equipped_banner', { p_banner: bannerId });
   if (error) {
     console.warn('setEquippedBannerRemote failed:', error.message);
+    return null;
+  }
+  return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;
+}
+
+/** Set (or clear, with '') the account's avatar preset. Free presets, so no ownership
+ *  check — the server only validates the caller. Returns updated profile or null.
+ *  See supabase/cosmetics.sql. */
+export async function setAvatarRemote(avatarId: string): Promise<Profile | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('set_avatar', { p_avatar: avatarId });
+  if (error) {
+    console.warn('setAvatarRemote failed:', error.message);
     return null;
   }
   return data ? rowToProfile(data as ProfileRow, await fetchClaimedAchievements()) : null;

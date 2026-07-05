@@ -38,7 +38,24 @@ html.native .home__events {
 }
 html.native .event-card { min-height: 46px; padding: 0.3rem 0.6rem; }
 html.native .event-card__sub { display: none; }
-html.native .home__events .next-challenge { max-width: 300px; max-height: 8dvh; overflow: hidden; }
+/* Claim/next-challenge card: was capped at 8dvh which sliced the title ("Recruiter")
+   in half. Let it show its label + title fully and clamp only the description line,
+   matching the compact one-line treatment of the sibling event cards. */
+html.native .home__events .next-challenge {
+  max-width: 300px;
+  min-height: 46px;
+  padding: 0.3rem 0.6rem;
+  gap: 0.05rem;
+  justify-content: center;
+  overflow: hidden;
+}
+html.native .home__events .next-challenge em {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.66rem;
+}
 html.native .home__link { margin: 0; white-space: nowrap; }
 html.native .play-mode {
   min-height: 100dvh;
@@ -419,20 +436,21 @@ html.native .auth-tabs__tab.is-active { background: var(--brand); color: #fff6ea
 html.native .shop__body { min-height: 0; overflow: hidden; }
 html.native .shop__body > .shop__sub { display: none; }
 html.native .shop__pane { display: none; min-height: 0; height: 100%; overflow: hidden; }
-html.native .shop__pane.is-active { display: flex; flex-direction: column; gap: 0.45rem; }
+/* Every pane is a vertical scroller: content stacks top-to-bottom and the pane
+   itself owns the scroll, so nothing gets clipped on a short landscape screen. */
+html.native .shop__pane.is-active {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
 html.native .shop__section { margin: 0; font-size: 1rem; }
 html.native .shop__sub { margin: 0; font-size: 0.72rem; }
-html.native .shop__vm-preview {
-  margin: 0;
-  padding: 0.52rem 0.65rem;
-}
-html.native .shop__vm-preview p {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 0.72rem;
-}
+/* The equipped-message preview box is redundant on native — the list already
+   badges the equipped card — and it ate a third of the viewport. Hide it here. */
+html.native .shop__vm-preview { display: none; }
 html.native .shop__vm-filters {
   margin: 0;
   gap: 0.32rem;
@@ -442,25 +460,41 @@ html.native .shop__vm-filter {
   padding: 0.25rem 0.52rem;
   font-size: 0.68rem;
 }
+/* Vertical lists (not horizontal rails): cards stack in a centered column and the
+   parent pane owns the scroll. These grids carry `.shop-rail` (a horizontal snap
+   primitive) in markup, so we explicitly neutralize its overflow/snap/edge-mask and
+   force flex:0 0 auto — otherwise the rail's overflow-y:hidden would re-clip a list
+   the flex column tried to shrink. Full-width with an iPad-friendly max. */
 html.native .shop__grid,
 html.native .funds-grid,
 html.native .shop__vm-list {
-  min-height: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
-  gap: 0.6rem;
-  padding: 0.35rem 1rem 0.45rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.3rem 1rem 0.9rem;
   margin: 0;
   border-width: 0;
-  border-image: none; /* kill the `fill` center-slice frame that paints over the rail */
+  border-image: none; /* kill the `fill` center-slice frame that paints over the list */
+  overflow: visible;
+  scroll-snap-type: none;
+  mask-image: none;
+  -webkit-mask-image: none;
 }
 html.native .shop-card,
 html.native .funds-card,
 html.native .vm-card {
-  scroll-snap-align: center;
-  flex: 0 0 clamp(230px, 76vw, 320px);
-  width: clamp(230px, 76vw, 320px);
-  max-height: 100%;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 460px;
+  max-height: none;
+}
+html.native .vm-card__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 html.native .shop-card { padding: 0.75rem; gap: 0.45rem; }
 html.native .funds-card {
@@ -502,8 +536,8 @@ html.native .funds-card__coin-fallback { width: 120px; height: 120px; margin-top
     grid-template-columns: 86px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 30px;
     align-items: center;
-    flex-basis: clamp(230px, 42vw, 300px);
-    width: clamp(230px, 42vw, 300px);
+    width: 100%;
+    max-width: 420px;
     min-height: 112px;
     padding: 0.48rem 0.56rem;
     gap: 0.3rem 0.46rem;
@@ -567,13 +601,6 @@ html.native .funds-card__coin-fallback { width: 120px; height: 120px; margin-top
   }
   html.native .shop__purchase-msg { padding: 0.34rem 0.65rem; }
 }
-/* Cosmetics and Earn stack multiple sections, so unlike the single-row rails they
-   need to scroll vertically rather than clip inside the fixed-height pane. */
-html.native .shop__pane--cosmetics.is-active,
-html.native .shop__pane--earn.is-active {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
 html.native .invite {
   margin: 0;
   padding: 0.65rem;
@@ -599,8 +626,16 @@ html.native .help-overlay__panel.auth-gate {
   gap: 0.45rem;
   padding: 0.85rem;
 }
+html.native .help-overlay__panel.avatar-picker__panel {
+  width: min(680px, 94vw);
+  max-height: calc(100dvh - 1.3rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding: 0.85rem;
+}
 html.native .auth-pane { display: none; min-height: 0; overflow: hidden; }
 html.native .auth-pane.is-active { display: block; }
+/* The profile pane gains a tappable avatar header — let it scroll if the stats +
+   leaderboard row overflow a short landscape panel. */
+html.native .auth-pane--profile.is-active { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 html.native .auth-gate__legal { display: none; }
 html.native .auth-gate__stats { margin-bottom: 0; }
 html.native .auth-pane--progress.is-active { overflow-y: auto; }

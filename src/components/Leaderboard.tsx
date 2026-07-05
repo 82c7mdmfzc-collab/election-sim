@@ -11,6 +11,8 @@ import { useEffect, useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
 import { Spinner } from './Spinner';
 import { ProfileBanner } from './ProfileBanner';
+import { Avatar } from './Avatar';
+import { avatarImageUrl } from '../game/avatars';
 import { MedalIcon } from './icons';
 import { BackButton } from './BackButton';
 import {
@@ -135,8 +137,18 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
               <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
               <span className="lb-row__rank"><RankBadge rank={r.rank} /></span>
               <span className="lb-row__name">
-                {r.name}
-                {r.isMe && <em className="lb-row__you"> · You</em>}
+                <Avatar
+                  src={avatarImageUrl(r.avatar)}
+                  initials={r.name.slice(0, 2).toUpperCase()}
+                  name={r.name}
+                  borderId={null}
+                  wrapperClassName="lb-row__av"
+                  className="lb-row__av-token"
+                />
+                <span className="lb-row__name-text">
+                  {r.name}
+                  {r.isMe && <em className="lb-row__you"> · You</em>}
+                </span>
               </span>
               <span className="lb-row__value">{r.value.toLocaleString()} <small>{meta.unit}</small></span>
             </div>

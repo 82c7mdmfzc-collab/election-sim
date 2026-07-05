@@ -9,6 +9,7 @@
 
 import { useProfile, selectFunds, selectIsSignedIn } from '../hooks/useProfile';
 import { seasonHeaderProgress } from '../game/season';
+import { avatarImageUrl } from '../game/avatars';
 import { AudioManager } from '../utils/audioManager';
 import { Avatar } from './Avatar';
 import { ProfileBanner } from './ProfileBanner';
@@ -18,6 +19,7 @@ export function HomePlayerCard({ onOpen }: { onOpen: () => void }) {
   const displayName = useProfile((s) => s.displayName);
   const funds = useProfile(selectFunds);
   const bannerId = useProfile((s) => s.profile.equippedBanner);
+  const avatarId = useProfile((s) => s.profile.avatar);
   const season = useProfile((s) => s.season);
 
   const name = signedIn ? (displayName ?? 'Player') : 'Guest';
@@ -36,7 +38,7 @@ export function HomePlayerCard({ onOpen }: { onOpen: () => void }) {
     >
       {bannerId && <ProfileBanner bannerId={bannerId} variant="chip" className="player-card__banner" />}
       <Avatar
-        src=""
+        src={signedIn ? avatarImageUrl(avatarId) : ''}
         initials={name.slice(0, 2).toUpperCase()}
         name={name}
         wrapperClassName="player-card__avatar"

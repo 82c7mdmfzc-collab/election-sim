@@ -17,6 +17,9 @@ import { UsernameClaim } from './UsernameClaim';
 import { SignInButtons } from './SignInButtons';
 import { ProgressPanel } from './ProgressPanel';
 import { AccountDeletionSection } from './AccountDeletionSection';
+import { Avatar } from './Avatar';
+import { AvatarPicker } from './AvatarPicker';
+import { avatarImageUrl } from '../game/avatars';
 import { fetchLeaderboardRemote } from '../game/leaderboard';
 import { openExternal, PRIVACY_URL, TERMS_URL } from '../utils/openExternal';
 
@@ -33,6 +36,7 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
   const signOut = useProfile((s) => s.signOut);
   const [tab, setTab] = useState<'profile' | 'progress' | 'danger'>('profile');
   const [rank, setRank] = useState<number | null>(null);
+  const [pickAvatar, setPickAvatar] = useState(false);
 
   // Pull the player's all-time wins rank for the profile tab (small top-N fetch;
   // we only use the `me` field). Silent on failure — the rank line just hides.
@@ -57,6 +61,7 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
   const counters = profile.achievementCounters;
 
   return (
+    <>
     <div className="help-overlay" role="dialog" aria-modal="true" onClick={close}>
       <div className="help-overlay__panel auth-gate" onClick={(e) => e.stopPropagation()}>
         <div className="howto__head">
@@ -96,7 +101,24 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
             </div>
 
             <div className={`auth-pane auth-pane--profile${tab === 'profile' ? ' is-active' : ''}`}>
-              <div className="auth-gate__username">@{displayName}</div>
+              <div className="auth-gate__identity">
+                <button
+                  type="button"
+                  className="auth-gate__avatar-btn pressable"
+                  onClick={() => { AudioManager.play('click'); setPickAvatar(true); }}
+                  aria-label="Change profile picture"
+                >
+                  <Avatar
+                    src={avatarImageUrl(profile.avatar)}
+                    initials={(displayName ?? 'P').slice(0, 2).toUpperCase()}
+                    name={displayName ?? 'Player'}
+                    wrapperClassName="auth-gate__avatar"
+                    className="auth-gate__avatar-token"
+                  />
+                  <span className="auth-gate__avatar-edit" aria-hidden>Edit</span>
+                </button>
+                <div className="auth-gate__username">@{displayName}</div>
+              </div>
 
               <div className="auth-gate__funds">
                 <span className="auth-gate__funds-amt">{profile.campaignFunds.toLocaleString()}</span>
@@ -165,6 +187,8 @@ export function AuthGate({ onClose, onViewLeaderboard }: AuthGateProps) {
         </p>
       </div>
     </div>
+    {pickAvatar && <AvatarPicker onClose={() => setPickAvatar(false)} />}
+    </>
   );
 }
 

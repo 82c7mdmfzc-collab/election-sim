@@ -16,6 +16,7 @@ import { blockPlayer, isPlayerBlocked, unblockPlayer } from '../utils/localPrefs
 import { isNativeRuntime } from '../utils/platform';
 import { Avatar } from './Avatar';
 import { ProfileBanner } from './ProfileBanner';
+import { avatarImageUrl } from '../game/avatars';
 
 interface Props {
   playerId: string;
@@ -78,7 +79,7 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
         <div className="profile-modal__head">
           <div className="profile-modal__portrait">
             <Avatar
-              src={blocked ? '' : (cand?.portraitUrl ?? '')}
+              src={blocked ? '' : (isOwn && avatarImageUrl(profile.avatar)) || (cand?.portraitUrl ?? '')}
               initials={displayName.slice(0, 2).toUpperCase()}
               name={displayName}
               className="cand-token"

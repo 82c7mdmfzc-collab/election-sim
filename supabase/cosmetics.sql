@@ -91,3 +91,32 @@ end; $$;
 
 revoke execute on function public.set_equipped_banner(text) from public, anon;
 grant  execute on function public.set_equipped_banner(text) to authenticated;
+
+-- ── Avatar preset ─────────────────────────────────────────────────────────────
+-- Chosen profile picture ('' = initials monogram). Free presets (flags / US states /
+-- patterns; see src/game/avatars.ts), so — unlike banners — there is no ownership
+-- gate. Server-owned like equipped_banner because OTHER players see it (leaderboard,
+-- multiplayer, profile modal). Validated to the known id shape so a client can't
+-- stash arbitrary text that everyone else would then render.
+alter table public.profiles add column if not exists avatar text not null default '';
+
+create or replace function public.set_avatar(p_avatar text)
+returns public.profiles language plpgsql security definer set search_path = public as $$
+declare prof public.profiles; v_avatar text;
+begin
+  v_avatar := coalesce(p_avatar, '');
+  if v_avatar <> '' and v_avatar !~ '^(flag|state|pattern)-[a-z0-9]{1,16}$' then
+    raise exception 'set_avatar: invalid avatar id %', p_avatar;
+  end if;
+
+  update public.profiles
+    set avatar     = v_avatar,
+        updated_at = now()
+    where id = auth.uid()
+    returning * into prof;
+  if prof.id is null then raise exception 'set_avatar: no profile'; end if;
+  return prof;
+end; $$;
+
+revoke execute on function public.set_avatar(text) from public, anon;
+grant  execute on function public.set_avatar(text) to authenticated;

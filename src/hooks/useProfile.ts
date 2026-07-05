@@ -30,6 +30,7 @@ import {
   claimFreeCharacterRemote,
   unlockCosmeticRemote,
   setEquippedBannerRemote,
+  setAvatarRemote,
   getSeasonStatusRemote,
   unlockSeasonPassRemote,
   claimSeasonTierRemote,
@@ -63,6 +64,7 @@ import {
   getPendingCompletion,
   setPendingCompletion,
   setEquippedBannerLocal,
+  setAvatarLocal,
 } from '../utils/localPrefs';
 import { clearSession } from '../utils/sessionStore';
 import { onGameFinishedNotifications } from '../utils/notifications';
@@ -156,6 +158,8 @@ interface ProfileStore {
   claimSeasonObjective(objectiveId: string): Promise<SeasonActionResult>;
   /** Equip (or clear with '') an owned profile banner; server validates ownership. */
   equipBanner(bannerId: string): Promise<boolean>;
+  /** Set (or clear, with '') the account avatar preset. Server-owned; see game/avatars.ts. */
+  equipAvatar(avatarId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
   sendEmailCode(email: string, signUp: boolean): Promise<{ error?: string }>;
   verifyEmailCode(email: string, code: string): Promise<{ error?: string }>;
@@ -576,6 +580,25 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     // Roll back the optimistic change on failure.
     set({ profile: { ...get().profile, equippedBanner: profile.equippedBanner } });
     setEquippedBannerLocal(profile.equippedBanner);
+    return false;
+  },
+
+  async equipAvatar(avatarId) {
+    const { profile, userId } = get();
+    if (!userId) return false;
+    if (profile.avatar === avatarId) return true;
+    // Optimistic: reflect immediately, then reconcile with the server row.
+    set({ profile: { ...profile, avatar: avatarId } });
+    setAvatarLocal(avatarId);
+    const updated = await setAvatarRemote(avatarId);
+    if (updated) {
+      set({ profile: updated });
+      setAvatarLocal(updated.avatar);
+      return true;
+    }
+    // Roll back the optimistic change on failure.
+    set({ profile: { ...get().profile, avatar: profile.avatar } });
+    setAvatarLocal(profile.avatar);
     return false;
   },
 
