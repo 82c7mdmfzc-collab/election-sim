@@ -45,6 +45,8 @@ interface ShopProps {
   onBack: () => void;
   /** Open the sign-in modal — invoked when a guest tries to buy or unlock. */
   onSignIn?: () => void;
+  /** Navigate to the Campaign Trail season screen (cross-promo from cosmetics). */
+  onOpenSeason?: () => void;
 }
 
 type ShopTab = 'funds' | 'recruit' | 'earn' | 'messages' | 'cosmetics';
@@ -297,7 +299,7 @@ function RewardedAdCard() {
   );
 }
 
-export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
+export function Shop({ source = 'menu', onBack, onSignIn, onOpenSeason }: ShopProps) {
   const funds = useProfile((s) => s.profile.campaignFunds);
   const unlocked = useProfile((s) => s.profile.unlockedCharacters);
   const mastery = useProfile((s) => s.profile.candidateMastery);
@@ -900,6 +902,16 @@ export function Shop({ source = 'menu', onBack, onSignIn }: ShopProps) {
         </section>
 
         <section className={`shop__pane shop__pane--cosmetics${tab === 'cosmetics' ? ' is-active' : ''}`}>
+          {onOpenSeason && (
+            <button
+              type="button"
+              className="season-crosspromo"
+              onClick={() => { AudioManager.play('click'); onOpenSeason(); }}
+            >
+              <span className="season-crosspromo__title">Campaign Trail — Season 1</span>
+              <span className="season-crosspromo__sub">Earn exclusive banners, a map theme &amp; more →</span>
+            </button>
+          )}
           <h2 className="shop__section">Result Card Frames</h2>
           <p className="shop__sub">Pick the look of your end-game share card. Purely cosmetic — no gameplay effect.</p>
           {cosmeticMsg && <div className="shop__purchase-msg">{cosmeticMsg}</div>}

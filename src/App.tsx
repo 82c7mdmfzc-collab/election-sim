@@ -9,6 +9,8 @@ import { VictoryPodium } from './components/VictoryPodium';
 import { Tutorial } from './components/Tutorial';
 import { AuthGate } from './components/AuthGate';
 import { Shop } from './components/Shop';
+import { SeasonPass } from './components/SeasonPass';
+import { claimableCount } from './game/season';
 import { BotSetup } from './components/BotSetup';
 import { DailyChallenge } from './components/DailyChallenge';
 import { Landing } from './components/Landing';
@@ -24,7 +26,7 @@ import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
 import { useAndroidBack } from './hooks/useAndroidBack';
-import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon } from './components/icons';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon, SeasonIcon } from './components/icons';
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
 import { AudioManager } from './utils/audioManager';
 import { applyAppearancePrefs } from './utils/appearance';
@@ -38,7 +40,7 @@ import {
 } from './utils/analytics';
 import type { ComponentType, ReactNode } from 'react';
 
-type AppMode = 'mode-select' | 'play' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard';
+type AppMode = 'mode-select' | 'play' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard' | 'season';
 type TutorialSource = 'menu' | 'onboarding';
 type ShopSource = 'menu' | 'locked_candidate' | 'account';
 
@@ -61,6 +63,7 @@ function dailyBadge(): string | undefined {
 
 const MODES: ModeDef[] = [
   { mode: 'play',        label: 'Play',       Icon: PlayIcon,     chip: 'orange', primary: true },
+  { mode: 'season',      label: 'Season',     Icon: SeasonIcon,   chip: 'orange' },
   { mode: 'leaderboard', label: 'Ranks',      Icon: RankingsIcon, chip: 'blue' },
   { mode: 'shop',        label: 'Store',      Icon: CartIcon,     chip: 'blue' },
 ];
@@ -86,6 +89,8 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCamp
   const funds = useProfile(selectFunds);
   const signedIn = useProfile(selectIsSignedIn);
   const gamesFinished = useProfile((s) => s.profile.achievementCounters.gamesFinished);
+  const season = useProfile((s) => s.season);
+  const seasonClaimable = season ? claimableCount(season) : 0;
   const native = isNativeRuntime();
   const [progressOpen, setProgressOpen] = useState(false);
   // A persisted in-progress game is offered as an explicit Resume on Home, rather
@@ -148,7 +153,9 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCamp
 
       <div className="home__modes">
         {MODES.map(({ mode, label, Icon, chip, primary, badge }) => {
-          const b = native && signedIn && mode === 'play' ? undefined : (mode === 'play' ? dailyBadge() : badge);
+          let b = native && signedIn && mode === 'play' ? undefined : (mode === 'play' ? dailyBadge() : badge);
+          if (mode === 'season' && signedIn && seasonClaimable > 0) b = `${seasonClaimable}`;
+          else if (mode === 'season' && signedIn && season?.season && !season.progress.premium) b = 'New';
           return (
             <button
               key={mode}
@@ -499,6 +506,7 @@ function App() {
         source={shopSource}
         onBack={() => setAppMode('mode-select')}
         onSignIn={() => openAccount('shop_gate')}
+        onOpenSeason={() => setAppMode('season')}
       />
     );
     screenKey = 'shop';
@@ -547,6 +555,18 @@ function App() {
       />
     );
     screenKey = 'leaderboard';
+  } else if (appMode === 'season') {
+    screen = signedIn ? (
+      <SeasonPass onBack={() => setAppMode('mode-select')} />
+    ) : (
+      <GuestGate
+        title="Campaign Trail"
+        message="Sign in to earn Season XP, claim rewards, and unlock the Campaign Trail."
+        onBack={() => setAppMode('mode-select')}
+        onSignIn={() => openAccount('other')}
+      />
+    );
+    screenKey = 'season';
   } else {
     screen = (
       <ModeSelect

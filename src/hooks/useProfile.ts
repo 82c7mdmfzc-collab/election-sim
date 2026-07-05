@@ -30,6 +30,11 @@ import {
   claimFreeCharacterRemote,
   unlockCosmeticRemote,
   setEquippedBannerRemote,
+  getSeasonStatusRemote,
+  unlockSeasonPassRemote,
+  claimSeasonTierRemote,
+  claimSeasonObjectiveRemote,
+  type SeasonActionResult,
   trainCandidateMasteryRemote,
   deleteAccountRemote,
   claimLoginBonusRemote,
@@ -45,6 +50,7 @@ import {
   normalizeAchievementCounters,
 } from '../game/achievements';
 import { CANDIDATE_MAP } from '../game/candidates';
+import type { SeasonStatus } from '../game/season';
 import {
   applyCandidateMasteryResult,
   type CandidateMasteryAward,
@@ -100,6 +106,8 @@ export interface ProgressRewardBreakdown extends RewardBreakdown {
   /** Achievement ids that became complete from this result. Claiming their coins is separate. */
   newlyCompletedAchievements: string[];
   masteryAward: CandidateMasteryAward;
+  /** Season XP granted by this game (0 if no active season). */
+  seasonXp: number;
 }
 
 interface ProfileStore {
@@ -136,6 +144,16 @@ interface ProfileStore {
   trainCandidate(characterId: string): Promise<boolean>;
   /** Server-validated cosmetic unlock (account-only; server owns the price). */
   unlockCosmetic(cosmeticId: string): Promise<CosmeticUnlockResult>;
+  /** Active season status (catalog + my progress + claims). Null until fetched / no season. */
+  season: SeasonStatus | null;
+  /** Re-fetch the season status from the server. */
+  refreshSeason(): Promise<void>;
+  /** Spend 4,000 funds to unlock the premium track. */
+  unlockSeasonPass(): Promise<SeasonActionResult>;
+  /** Claim a tier reward on a track (mastery tomes require a candidate). */
+  claimSeasonTier(tier: number, track: 'free' | 'premium', candidate?: string | null): Promise<SeasonActionResult>;
+  /** Claim a Roster Objective once its distinct-candidate threshold is met. */
+  claimSeasonObjective(objectiveId: string): Promise<SeasonActionResult>;
   /** Equip (or clear with '') an owned profile banner; server validates ownership. */
   equipBanner(bannerId: string): Promise<boolean>;
   isUnlocked(characterId: string): boolean;
@@ -225,6 +243,7 @@ const EMPTY_REWARD: ProgressRewardBreakdown = {
   dailyStreakDay: 0,
   newlyCompletedAchievements: [],
   masteryAward: { candidateId: null, xpGained: 0, previousLevel: 1, newLevel: 1, leveledUp: false },
+  seasonXp: 0,
   total: 0,
 };
 
@@ -237,6 +256,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   accountChecked: false,
   lastReward: null,
   adRewardStatus: null,
+  season: null,
 
   async init() {
     if (initialized) return;
@@ -272,7 +292,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       // onAuthChange (INITIAL_SESSION, from that same storage) hydrates them in. A
       // genuinely signed-out user has no token and falls through to guest as before.
       if (!get().ready && !hasPersistedSession()) {
-        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, accountChecked: true, adRewardStatus: null });
+        set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, accountChecked: true, adRewardStatus: null, season: null });
       }
     }
   },
@@ -327,6 +347,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       dailyStreakDay: 0,
       newlyCompletedAchievements,
       masteryAward: optimisticMastery.award,
+      seasonXp: 0,
       total: breakdown.total,
     };
 
@@ -376,6 +397,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
         dailyStreakDay: completion.dailyStreakDay,
         newlyCompletedAchievements: completion.newlyCompletedAchievements,
         masteryAward: completion.masteryAward,
+        seasonXp: completion.seasonXp,
         total: completion.gameReward + completion.dailyStreakReward,
       };
       set({
@@ -390,6 +412,8 @@ export const useProfile = create<ProfileStore>((set, get) => ({
         },
         lastReward: serverBreakdown,
       });
+      // Season XP was granted server-side; refresh the track so the screen + badge update.
+      if (completion.seasonXp > 0 || get().season) void get().refreshSeason();
       return { breakdown: serverBreakdown, claimed: true };
     }
     // Server unreachable after retries: queue this finish so the next launch replays
@@ -555,6 +579,43 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     return false;
   },
 
+  async refreshSeason() {
+    if (!get().userId) { set({ season: null }); return; }
+    const status = await getSeasonStatusRemote();
+    if (status) set({ season: status });
+  },
+
+  async unlockSeasonPass() {
+    if (!get().userId) return { ok: false, message: 'Sign in to unlock the pass.' };
+    const result = await unlockSeasonPassRemote();
+    if (result.ok && result.status) {
+      set({ season: result.status });
+      // Premium purchase debited funds — reconcile the balance.
+      void get().refresh();
+    }
+    return result;
+  },
+
+  async claimSeasonTier(tier, track, candidate) {
+    if (!get().userId) return { ok: false, message: 'Sign in to claim rewards.' };
+    const result = await claimSeasonTierRemote(tier, track, candidate);
+    if (result.ok && result.status) {
+      set({ season: result.status });
+      void get().refresh(); // funds / cosmetic / mastery may have changed
+    }
+    return result;
+  },
+
+  async claimSeasonObjective(objectiveId) {
+    if (!get().userId) return { ok: false, message: 'Sign in to claim rewards.' };
+    const result = await claimSeasonObjectiveRemote(objectiveId);
+    if (result.ok && result.status) {
+      set({ season: result.status });
+      void get().refresh();
+    }
+    return result;
+  },
+
   isUnlocked(characterId) {
     return get().profile.unlockedCharacters.includes(characterId);
   },
@@ -593,7 +654,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       await authSignOut();
     } finally {
       clearSession();
-      set({ userId: null, guest: true, displayName: null, profile: freshProfile(), adRewardStatus: null });
+      set({ userId: null, guest: true, displayName: null, profile: freshProfile(), adRewardStatus: null, season: null });
     }
   },
 
@@ -606,7 +667,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
       await authSignOut();
     } finally {
       clearSession();
-      set({ userId: null, guest: true, displayName: null, profile: freshProfile(), adRewardStatus: null });
+      set({ userId: null, guest: true, displayName: null, profile: freshProfile(), adRewardStatus: null, season: null });
     }
     return true;
   },
@@ -681,7 +742,7 @@ async function hydrateForUser(
   set: (p: Partial<ProfileStore>) => void,
 ): Promise<void> {
   if (!user) {
-    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, accountChecked: true, adRewardStatus: null });
+    set({ userId: null, guest: true, displayName: null, profile: freshProfile(), ready: true, accountChecked: true, adRewardStatus: null, season: null });
     return;
   }
   // Mark signed-in and ready up front so the UI boots even if the account fetch
@@ -709,6 +770,9 @@ async function hydrateForUser(
     profile: account?.profile ?? freshProfile(),
     accountChecked: true,
   });
+
+  // Load the season track for the home-tile badge + season screen (fire-and-forget).
+  void useProfile.getState().refreshSeason();
 
   // Replay a reward that failed to sync at a previous game's end (offline). Safe
   // and idempotent server-side; a no-op when nothing is queued for this account.
