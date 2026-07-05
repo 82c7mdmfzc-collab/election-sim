@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { NATIONAL_GROUPS, STATE_GROUPS, NATIONAL_BONUS_MIN_RUNGS } from '../game/config';
 import { CANDIDATE_MAP, groupImageUrl } from '../game/candidates';
+import { calcNationalCost } from '../game/engine';
 import {
   useActivePlayer,
   useGameStore,
@@ -20,6 +21,7 @@ import type { NationalGroup } from '../game/types';
 import { isPlayerBlocked } from '../utils/localPrefs';
 import { RungTrack } from './RungTrack';
 import { PlayerProfileModal } from './PlayerProfileModal';
+import { LockIcon } from './icons';
 import { notifyOnce } from '../utils/toast';
 import { friendlyAllocError } from '../game/allocErrors';
 
@@ -69,6 +71,13 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
     return r.ok;
   }
 
+  const securedName = securedBy
+    ? players.find((p) => p.id === securedBy)?.name ?? null
+    : null;
+  const nextNatCost = canBuy && activePlayer
+    ? calcNationalCost(group.id, (natRungs[activePlayer.id] ?? 0) + pending, 1, activePlayer)
+    : undefined;
+
   return (
     <div className="nat-ladder">
       <div className="nat-ladder__head">
@@ -92,8 +101,11 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         activePlayerId={activePlayer?.id ?? null}
         colors={colors}
         securedBy={securedBy}
+        securedName={securedName}
         onBuyNext={canBuy ? tryBuy : undefined}
         onRetractLast={canBuy && pending > 0 ? () => retractLastAllocation('national', group.id) : undefined}
+        nextCost={nextNatCost != null ? Math.round(nextNatCost) : undefined}
+        discount={activePlayer ? (activePlayer.affinities[group.id] ?? 0) : 0}
         unlockAt={securedBy ? undefined : NATIONAL_BONUS_MIN_RUNGS}
         unlockLabel={`earn $${myPayout}k/turn`}
       />
@@ -115,7 +127,7 @@ function NationalLadder({ group, onPlayerClick }: { group: NationalGroup; onPlay
         ) : (
           <span className="nat-ladder__leader nat-ladder__leader--none">Unclaimed</span>
         )}
-        {securedBy && <span className="nat-ladder__locked">🔒</span>}
+        {securedBy && <span className="nat-ladder__locked"><LockIcon size={14} /></span>}
       </div>
 
       {!iEarn && !securedBy && activePlayer && (

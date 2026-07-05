@@ -73,6 +73,7 @@ export function RoundResolution() {
     if (phase !== 'RESOLUTION' || done) return;
     if (grouped.length === 0) { dismiss(); return; }
     if (visibleCount >= grouped.length) {
+      AudioManager.play('round_end'); // the recap has finished revealing every move
       const t = window.setTimeout(dismiss, 900);
       return () => clearTimeout(t);
     }

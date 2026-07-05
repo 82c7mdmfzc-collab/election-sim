@@ -691,6 +691,8 @@
 
 /* Coalition-unlock progress pip floated at a state's centroid (see StateProgressPip). */
 .state-pip { pointer-events: none; }
+/* Invisible enlarged tap target for tiny states (see SMALL_STATES). */
+.state-taparea { fill: transparent; cursor: pointer; pointer-events: auto; }
 .state-pip__bg { fill: rgba(8, 14, 28, 0.72); stroke: rgba(255, 255, 255, 0.35); stroke-width: 0.3; }
 .state-pip__fill { fill: var(--gold); }
 .state-pip__done circle { fill: var(--gold); stroke: rgba(8, 14, 28, 0.85); stroke-width: 0.6; }
@@ -827,16 +829,18 @@
 .rung-track__pips { display: flex; gap: 3px; }
 .rung-track--sm .rung-track__pips { gap: 2px; }
 
+/* Pips are a display-only meter (buying is the stepper below). Empty = a hollow
+   sunken slot; next = the same slot ringed in the player's color to show where
+   the next Build lands. */
 .rung-pip {
   flex: 1;
-  height: 16px;
+  height: 14px;
   border: 1px solid var(--panel-2);
   border-radius: 3px;
-  background: var(--panel-2);
+  background: var(--panel-3);
   padding: 0;
-  cursor: default;
 }
-.rung-track--sm .rung-pip { height: 12px; }
+.rung-track--sm .rung-pip { height: 11px; }
 
 .rung-pip--settled {
   background: var(--rt-color);
@@ -846,26 +850,15 @@
 .rung-pip--pending {
   background: transparent;
   border: 1px dashed var(--rt-color);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rt-color) 30%, transparent);
   animation: pip-pulse 0.9s ease-in-out infinite;
 }
+/* Next-to-fill slot: a solid ring in the player color (no color-mix — iOS 15). */
 .rung-pip--next {
   background: var(--panel-3);
   border: 1px solid var(--rt-color);
-  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--rt-color);
 }
-@media (hover: hover) and (pointer: fine) { .rung-pip--next:hover { background: color-mix(in srgb, var(--rt-color) 30%, var(--panel-3)); } }
 .rung-pip--secured { box-shadow: inset 0 0 0 2px rgba(250, 204, 21, 0.8); }
-/* Topmost pending pip is click-to-retract (rung-by-rung undo). */
-.rung-pip--retract { cursor: pointer; }
-@media (hover: hover) and (pointer: fine) {
-  .rung-pip--retract:hover {
-    border-style: solid;
-    border-color: var(--danger-red);
-    box-shadow: inset 0 0 0 1px var(--danger-red);
-    animation: none;
-  }
-}
 
 @keyframes pip-pulse {
   0%, 100% { opacity: 0.5; }
@@ -875,6 +868,56 @@
   0% { transform: scaleY(0.4); opacity: 0.4; }
   100% { transform: scaleY(1); opacity: 1; }
 }
+
+/* ── Buy stepper — the one purchase verb (shared by state + national ladders) ─── */
+.rung-buy {
+  display: flex; align-items: stretch; gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.rung-buy__undo {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+  flex: 0 0 auto; min-width: 84px; min-height: 44px; padding: 0 var(--sp-3);
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-xs);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--text);
+  background: linear-gradient(180deg, rgba(31, 58, 99, 0.92), rgba(18, 36, 64, 0.96));
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.rung-buy__undo:active { transform: scale(0.96); }
+.rung-buy__undo:disabled { opacity: 0.4; cursor: default; }
+@media (hover: hover) and (pointer: fine) { .rung-buy__undo:not(:disabled):hover { border-color: var(--danger-red); color: var(--danger-red); } }
+
+.rung-buy__build {
+  flex: 1 1 auto; min-height: 48px; gap: 0.4rem;
+  padding: 0 var(--sp-3); font-size: var(--fs-md);
+}
+.rung-buy__label { letter-spacing: 0.05em; }
+.rung-buy__cost {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.28); font-size: var(--fs-sm); font-weight: 700;
+}
+.rung-buy__disc { color: #7dffb0; font-size: var(--fs-2xs); }
+.rung-buy__pen { color: #ffd27d; font-size: var(--fs-2xs); }
+
+/* Status chip shown instead of the stepper when the track is called or maxed. */
+.rung-buy--status {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  min-height: 44px; margin-top: var(--sp-2);
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  border-radius: var(--r-md); border: 1px solid var(--border);
+}
+.rung-buy--called { color: var(--gold); background: rgba(240, 184, 80, 0.12); border-color: rgba(240, 184, 80, 0.4); }
+.rung-buy--max { color: var(--green); background: rgba(76, 203, 107, 0.12); border-color: rgba(76, 203, 107, 0.35); }
+
+/* Compact on the small (national) ladders. */
+.rung-track--sm .rung-buy { gap: var(--sp-1); margin-top: var(--sp-1); }
+.rung-track--sm .rung-buy__undo { min-width: 64px; min-height: 40px; }
+.rung-track--sm .rung-buy__build { min-height: 40px; font-size: var(--fs-sm); }
+.rung-track--sm .rung-buy--status { min-height: 38px; }
 
 .rung-track--clash .rung-pip { animation: clash-shake 0.4s steps(2) 3; }
 @keyframes clash-shake {
