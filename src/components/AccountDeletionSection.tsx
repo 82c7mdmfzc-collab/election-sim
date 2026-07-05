@@ -12,6 +12,9 @@ export function AccountDeletionSection({ onDeleted, className = '' }: AccountDel
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteErr, setDeleteErr] = useState('');
+  const [confirmText, setConfirmText] = useState('');
+
+  const canDelete = confirmText.trim().toUpperCase() === 'DELETE';
 
   async function handleDelete() {
     setDeleting(true);
@@ -30,6 +33,7 @@ export function AccountDeletionSection({ onDeleted, className = '' }: AccountDel
     AudioManager.play('quit');
     setConfirmDelete(false);
     setDeleteErr('');
+    setConfirmText('');
   }
 
   return (
@@ -49,11 +53,26 @@ export function AccountDeletionSection({ onDeleted, className = '' }: AccountDel
             unlocks, stats, and username. This cannot be undone.
           </p>
           {deleteErr && <p className="auth-gate__delete-err">{deleteErr}</p>}
+          <div className="auth-gate__row">
+            <input
+              type="text"
+              className="auth-gate__input"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              aria-label="Type DELETE to confirm account deletion"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={deleting}
+            />
+          </div>
           <div className="auth-gate__delete-actions">
             <button
               type="button"
               className="auth-gate__delete-confirm"
-              disabled={deleting}
+              disabled={deleting || !canDelete}
               onClick={handleDelete}
             >
               {deleting ? 'Deleting...' : 'Delete forever'}
