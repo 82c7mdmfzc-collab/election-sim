@@ -1723,13 +1723,9 @@ html.native .shop__cosmetics {
   border-radius: var(--r-pill); padding: 0.12rem 0.5rem;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
-/* Short-landscape phones: wrap the 5 tiles into 2 columns so nothing scrolls. */
+/* Short-landscape phones (mobile web): tighten Home so nothing scrolls. */
 @media (orientation: landscape) and (max-height: 520px) {
-  .home__modes {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
-    width: min(640px, 94vw);
-  }
-  .menu-btn--primary { grid-column: 1 / -1; }
+  .home { gap: 0.8rem; }
 }
 
 /* Daily Challenge: streak chip + empty-state hint. */
@@ -1933,38 +1929,6 @@ html.native .menu-btn__label {
   font-size: 1.05rem;
   text-transform: none;
   letter-spacing: 0.01em;
-}
-
-html.native .home__progress-native {
-  width: min(420px, 92vw);
-}
-
-html.native .home__progress-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 44px;
-  padding: 0.55rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--r-md);
-  background: rgba(21, 40, 74, 0.72);
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-html.native .home__progress-panel {
-  display: grid;
-  gap: 0.45rem;
-  margin-top: 0.45rem;
-}
-
-html.native .home__progress-panel .progress-panel--compact,
-html.native .home__progress-panel .next-challenge {
-  width: 100%;
-  margin: 0;
 }
 
 /* Landing — fewer marketing layers */

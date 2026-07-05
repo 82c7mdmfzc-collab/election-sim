@@ -1,11 +1,12 @@
 /* ══ Native no-scroll major screens ════════════════════════════════════════ */
+/* Home — landscape lobby grid: identity left, actions right, events bottom. */
 html.native .home {
   display: grid;
-  grid-template-columns: minmax(260px, 0.9fr) minmax(300px, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(230px, 0.8fr) minmax(320px, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   align-items: center;
   justify-items: center;
-  gap: 0.8rem 1rem;
+  gap: 0.6rem 1rem;
   padding:
     calc(0.65rem + env(safe-area-inset-top))
     calc(1rem + env(safe-area-inset-right))
@@ -14,24 +15,31 @@ html.native .home {
 }
 html.native .home__coin { top: calc(0.65rem + env(safe-area-inset-top)); right: calc(1rem + env(safe-area-inset-right)); }
 html.native .home-audio { top: calc(0.65rem + env(safe-area-inset-top)); left: calc(1rem + env(safe-area-inset-left)); }
-html.native .home__crest { grid-column: 1; grid-row: 1 / 3; }
-html.native .home__crest-img { width: min(110px, 17dvh); }
-html.native .brand__logo { width: min(310px, 38vw); }
-html.native .brand__tagline { font-size: 0.68rem; }
-html.native .home__modes {
-  grid-column: 2; grid-row: 2;
-  width: min(520px, 48vw);
-  display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 1fr));
-  gap: 0.55rem;
-}
+html.native .home__identity { grid-column: 1; grid-row: 1; gap: 0.4rem; max-width: 100%; }
+html.native .home__identity .brand { max-width: 100%; }
+html.native .home__crest { max-width: 100%; }
+html.native .home .brand__logo { width: min(190px, 26vw); }
+html.native .home .brand__tagline { font-size: 0.62rem; }
+html.native .player-card { width: min(300px, 34vw); padding: 0.5rem 0.65rem; gap: 0.55rem; }
+html.native .player-card__avatar { width: clamp(38px, 10dvh, 48px); height: clamp(38px, 10dvh, 48px); }
+html.native .player-card__name { font-size: clamp(0.95rem, 3.6dvh, 1.15rem); }
+html.native .home__actions { grid-column: 2; grid-row: 1; width: min(520px, 48vw); gap: 0.55rem; }
+html.native .home__hero { min-height: clamp(56px, 16dvh, 78px); font-size: clamp(1.15rem, 4.6dvh, 1.4rem); }
+html.native .menu-tile { min-height: clamp(50px, 14dvh, 68px); padding: 0.35rem; gap: 0.2rem; }
+html.native .menu-tile__chip { width: 30px; height: 30px; }
+html.native .menu-tile__label { font-size: clamp(0.72rem, 2.8dvh, 0.85rem); }
 html.native .menu-btn { min-height: clamp(54px, 15dvh, 78px); padding: 0.55rem 0.75rem; }
 html.native .menu-btn__chip { width: 38px; height: 38px; }
 html.native .menu-btn__label { font-size: clamp(1rem, 4.1dvh, 1.28rem); }
-html.native .home__progress { grid-column: 1; grid-row: 3; width: min(360px, 42vw); margin: 0; }
-html.native .home__progress .progress-panel--compact,
-html.native .home__progress .next-challenge { max-height: 22dvh; overflow: hidden; }
-html.native .home__link { grid-column: 2; grid-row: 3; margin: 0; }
+html.native .home__events {
+  grid-column: 1 / -1; grid-row: 2;
+  flex-wrap: nowrap; align-items: center;
+  width: 100%; max-width: 920px;
+}
+html.native .event-card { min-height: 46px; padding: 0.3rem 0.6rem; }
+html.native .event-card__sub { display: none; }
+html.native .home__events .next-challenge { max-width: 300px; max-height: 8dvh; overflow: hidden; }
+html.native .home__link { margin: 0; white-space: nowrap; }
 html.native .play-mode {
   min-height: 100dvh;
   padding-top: calc(1rem + env(safe-area-inset-top));

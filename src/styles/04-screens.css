@@ -1361,7 +1361,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 
 /* ── Account chip (menu) ───────────────────────────────────────────────────── */
 /* ── Funds / account pill (top-right of the menu) ───────────────────────────── */
-.home__coin {
+/* `.home > …` beats the `.home > *` position:relative rule that would otherwise
+   pull this pill back into flow. */
+.home > .home__coin {
   position: absolute;
   top: calc(1rem + env(safe-area-inset-top));
   right: calc(1rem + env(safe-area-inset-right));

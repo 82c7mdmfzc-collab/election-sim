@@ -38,6 +38,7 @@ import {
 import { track } from '../utils/analytics';
 import { InviteFriend } from './InviteFriend';
 import { CandidateStatsModal } from './CandidateStatsModal';
+import { BackButton } from './BackButton';
 import { Portrait } from './Portrait';
 
 interface ShopProps {
@@ -694,8 +695,8 @@ export function Shop({ source = 'menu', onBack, onSignIn, onOpenSeason }: ShopPr
   return (
     <div className="shop native-screen">
       <div className="shop__header">
-        <button type="button" className="mp-back native-only" onClick={onBack}>← Back</button>
-        <h1 className="shop__title">Campaign Store</h1>
+        <BackButton onClick={onBack} silent className="native-only" />
+        <h1 className="shop__title">Store</h1>
         <span className="shop__balance">
           <span className="coin-inline" aria-hidden />
           {funds.toLocaleString()} Campaign Funds
@@ -1016,8 +1017,8 @@ export function Shop({ source = 'menu', onBack, onSignIn, onOpenSeason }: ShopPr
         </section>
       </div>
 
-      <div className="setup__foot" style={{ marginTop: '1.5rem' }}>
-        <button type="button" className="mp-back" onClick={onBack}>← Back to Menu</button>
+      <div className="setup__foot shop__foot">
+        <BackButton onClick={onBack} label="Back to Menu" silent />
       </div>
 
       {renderStatsModal()}

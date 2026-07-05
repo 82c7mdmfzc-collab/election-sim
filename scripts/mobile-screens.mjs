@@ -209,14 +209,14 @@ async function auditSession(browser, viewport) {
       await wait(380);
       await capture(page, viewport.name, 'setup-bot');
 
-      if (await page.$('.setup--bot .mp-back')) {
-        await page.click('.setup--bot .mp-back');
+      if (await page.$('.setup--bot .btn-back, .setup--bot .mp-back')) {
+        await page.click('.setup--bot .btn-back, .setup--bot .mp-back');
         await page.waitForSelector('.home', { timeout: 4_000 }).catch(() => {});
         await wait(360);
         await capture(page, viewport.name, 'home');
 
         // How to Play (Tutorial) from the home link
-        if (await clickByText(page, '.home__link', 'how to play')) {
+        if (await clickByText(page, '.home__link', 'campaign guide')) {
           await page.waitForSelector('.tutorial', { timeout: 4_000 }).catch(() => {});
           await wait(360);
           if (await page.$('.tutorial')) await capture(page, viewport.name, 'tutorial');
@@ -254,7 +254,7 @@ async function auditSession(browser, viewport) {
         }
 
         // Shop gate (guest)
-        if (await clickByText(page, '.menu-btn', 'Shop')) {
+        if (await clickByText(page, '.menu-tile, .menu-btn', 'Store')) {
           await wait(450);
           await capture(page, viewport.name, 'shop-gate');
         }

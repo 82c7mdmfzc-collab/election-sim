@@ -23,6 +23,7 @@ import { getDailyStatusRemote } from '../game/profile';
 import { getDailyLeaderboardRemote } from '../game/profile';
 import type { DailyLeaderboardResult } from '../game/dailyRankings';
 import { AudioManager } from '../utils/audioManager';
+import { BackButton } from './BackButton';
 import { track } from '../utils/analytics';
 import {
   dailyDateKey,
@@ -224,9 +225,7 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
         <button type="button" className="setup__start" onClick={start}>
           {playedToday ? 'Play Again →' : 'Start Challenge →'}
         </button>
-        <button type="button" className="mp-back" onClick={onBack} style={{ marginTop: '0.5rem' }}>
-          ← Back
-        </button>
+        <BackButton onClick={onBack} silent className="daily__back" />
       </div>
 
       {renderStatsModal()}

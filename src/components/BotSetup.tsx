@@ -21,6 +21,7 @@ import { playerColorHex } from '../game/playerColors';
 import { useGameStore } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
+import { BackButton } from './BackButton';
 import type { BotDifficulty } from '../game/types';
 import { Portrait } from './Portrait';
 import { MasteryBadge } from './MasteryMeter';
@@ -208,9 +209,7 @@ export function BotSetup({ onBack }: BotSetupProps) {
         <button type="button" className="setup__start" onClick={start}>
           Start Campaign →
         </button>
-        <button type="button" className="mp-back" onClick={onBack} style={{ marginTop: '0.5rem' }}>
-          ← Back
-        </button>
+        <BackButton onClick={onBack} silent className="setup__back" />
       </div>
 
       {renderStatsModal()}

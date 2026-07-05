@@ -12,6 +12,7 @@ import { AudioManager } from '../utils/audioManager';
 import { Spinner } from './Spinner';
 import { ProfileBanner } from './ProfileBanner';
 import { MedalIcon } from './icons';
+import { BackButton } from './BackButton';
 import {
   fetchLeaderboardRemote,
   BOARD_META,
@@ -84,7 +85,8 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
   return (
     <div className="setup native-screen leaderboard">
       <div className="setup__header">
-        <h1 className="setup__title">Leaderboard</h1>
+        <h1 className="setup__title">Ranks</h1>
+        <p className="setup__sub">Global leaderboard</p>
       </div>
 
       <div className="lb-tabs" role="tablist" aria-label="Leaderboard boards">
@@ -159,9 +161,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
       )}
 
       <div className="setup__foot">
-        <button type="button" className="mp-back" onClick={() => { AudioManager.play('quit'); onBack(); }}>
-          ← Back
-        </button>
+        <BackButton onClick={onBack} />
       </div>
     </div>
   );
