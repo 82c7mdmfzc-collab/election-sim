@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import { TUTORIAL_STEPS } from '../game/tutorial';
+import { CloseIcon } from './icons';
 import { markTutorialSeen } from '../utils/localPrefs';
 import { AudioManager } from '../utils/audioManager';
 import { track } from '../utils/analytics';
@@ -60,7 +61,7 @@ export function Tutorial({ source, onFinish, onSkip }: TutorialProps) {
     <div className="tutorial">
       <div className="tutorial__panel">
         <button type="button" className="tutorial__skip" onClick={skip}>
-          Skip ✕
+          Skip <CloseIcon size={14} />
         </button>
 
         <div key={step.id} className="tutorial__art" aria-hidden>{step.art}</div>

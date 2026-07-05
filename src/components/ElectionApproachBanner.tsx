@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../game/store';
+import { BallotIcon } from './icons';
 import { AudioManager } from '../utils/audioManager';
 
 const AUTO_DISMISS_MS = 6000;
@@ -57,7 +58,7 @@ export function ElectionApproachBanner() {
       />
       <div className="election-approach__card">
         <div className="election-approach__glow" aria-hidden />
-        <div className="election-approach__icon" aria-hidden>🗳️</div>
+        <div className="election-approach__icon" aria-hidden><BallotIcon size={30} /></div>
         <div className="election-approach__kicker">
           Election After This Round
         </div>

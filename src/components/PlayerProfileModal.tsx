@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { CANDIDATE_MAP } from '../game/candidates';
+import { CloseIcon } from './icons';
 import { useGameStore, usePlayerColors } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { blockPlayer, isPlayerBlocked, unblockPlayer } from '../utils/localPrefs';
@@ -100,7 +101,7 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
             onClick={onClose}
             aria-label="Close"
           >
-            ×
+            <CloseIcon size={18} />
           </button>
         </div>
 

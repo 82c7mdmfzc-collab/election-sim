@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { useGameStore } from '../game/store';
 import { MODIFIER_MAP } from '../game/modifiers';
 import { AudioManager } from '../utils/audioManager';
+import { DiceIcon } from './icons';
 
 export function ActiveModifierChip() {
   const ids = useGameStore((s) => s.activeModifierIds);
@@ -32,7 +33,7 @@ export function ActiveModifierChip() {
         onClick={() => { AudioManager.play('click'); setOpen((v) => !v); }}
         aria-label="Active modifiers"
       >
-        <span className="modchip__icon" aria-hidden>🎲</span>
+        <span className="modchip__icon" aria-hidden><DiceIcon size={16} /></span>
         <span className="modchip__count">{active.length === 1 ? MODIFIER_MAP[active[0]]?.name ?? 'Modifier' : `${active.length} Modifiers`}</span>
       </button>
       {open && (

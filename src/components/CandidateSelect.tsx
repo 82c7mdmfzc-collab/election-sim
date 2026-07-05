@@ -15,6 +15,7 @@ import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { BackButton } from './BackButton';
 import { CandidateStatsModal } from './CandidateStatsModal';
+import { LockIcon } from './icons';
 import { Portrait } from './Portrait';
 import { MasteryBadge } from './MasteryMeter';
 
@@ -186,7 +187,7 @@ export function CandidateSelect({ onBack, onOpenShop }: CandidateSelectProps) {
                 <div className="shop-card__foot">
                   <MasteryBadge level={normalizeCandidateMasteryEntry(mastery[c.id], c).level} className="shop-card__level" />
                   {locked
-                    ? <span className="shop-card__price">🔒 Unlock in Shop</span>
+                    ? <span className="shop-card__price"><LockIcon size={13} /> Unlock in Shop</span>
                     : isAssigned
                       ? <div className="shop-card__owned">Player {seat + 1}</div>
                       : null}

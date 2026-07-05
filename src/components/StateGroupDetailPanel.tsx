@@ -11,6 +11,7 @@ import { groupDominanceProgress } from '../game/engine';
 import { groupImageUrl } from '../game/candidates';
 import { ALL_STATES } from '../game/statesData';
 import { useGameStore, usePlayerColors, useActivePlayer } from '../game/store';
+import { TrophyIcon } from './icons';
 import type { StateGroup } from '../game/types';
 
 interface Props {
@@ -111,7 +112,7 @@ export function StateGroupDetailPanel({ group, onClose }: Props) {
                   />
                   {/* threshold marker — 50% of total EV */}
                   <div className="sg-progress__threshold" style={{ left: '50%' }} />
-                  {isDom && <span className="sg-progress__crown" aria-label="dominant">👑</span>}
+                  {isDom && <span className="sg-progress__crown" aria-label="dominant"><TrophyIcon size={14} /></span>}
                 </div>
                 <span className="sg-progress__ev">{ev}<span className="sg-progress__ev-total">/{totalEV}</span></span>
               </div>

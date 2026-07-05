@@ -96,7 +96,7 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   const playedToday = status.lastPlayedDate === dateKey;
   const wonToday = status.lastWonDate === dateKey;
   const statusText = playedToday
-    ? `Today: ${wonToday ? 'Won 🏆' : 'Played'} · ${status.lastEv} EV`
+    ? `Today: ${wonToday ? 'Won' : 'Played'} · ${status.lastEv} EV`
     : 'New challenge — set the bar';
 
   function renderStatsModal() {
