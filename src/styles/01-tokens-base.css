@@ -54,8 +54,41 @@
   /* Radius scale */
   --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
 
+  /* Spacing scale — 4px rhythm. Use these for padding/gap/margin in any rule
+     you touch; don't invent new fractional rems. */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+
+  /* Type scale */
+  --fs-2xs: 0.68rem; --fs-xs: 0.75rem; --fs-sm: 0.85rem; --fs-md: 1rem;
+  --fs-lg: 1.2rem; --fs-xl: 1.5rem;
+  --fs-display: clamp(1.6rem, 5dvh, 2.2rem);
+
+  /* Motion — one rhythm app-wide. Exits should run ~65% of the paired enter. */
+  --dur-fast: 120ms; --dur-med: 200ms; --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-pop: cubic-bezier(0.2, 0.9, 0.3, 1.25);
+
+  /* Z ladder — named anchors for overlay layers, matching the audited stack
+     as shipped. New surfaces use a tier (± a small calc offset); the 0-5
+     literals inside components are local stacking and stay literal.
+       board-float  chrome floating over the map (shell top/reset, map toasts)
+       popover      pinned state-card backdrop (card itself at +10)
+       hud          native fixed HUD: ribbon/corners/docks/turn button (45-55)
+       panel        web slide-up panel, tally view, connection banner
+       sheet        native game sheets + full-screen results (70-72)
+       banner       round resolution / handoff / election alert (75-85)
+       interstitial versus, help, tutorial, modifier roll (200-210)
+       toast        app toasts
+       modal        confirm (base), group detail (+100), profile (+200)
+       onboard      first-run overlays above everything interactive
+       gate         orientation gate — beats all */
+  --z-board-float: 25; --z-popover: 40; --z-hud: 45; --z-panel: 60;
+  --z-sheet: 70; --z-banner: 75; --z-interstitial: 200; --z-toast: 220;
+  --z-modal: 300; --z-onboard: 1200; --z-gate: 9999;
+
   /* Display font — bold condensed, uppercase, matches the campaign-poster feel */
-  --font-display: 'Saira Condensed', 'Outfit', system-ui, sans-serif;
+  --font-display: 'Saira Condensed', system-ui, sans-serif;
 
   font-family: 'Inter', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;

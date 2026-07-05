@@ -52,7 +52,7 @@
   border: 1px solid var(--border);
   font-size: 1.1rem;
   cursor: pointer;
-  z-index: 30;
+  z-index: calc(var(--z-board-float) + 5);
   box-shadow: var(--shadow-sm);
 }
 @media (hover: hover) and (pointer: fine) { .shell__reset:hover { color: var(--text); border-color: var(--gold); } }
@@ -62,7 +62,7 @@
 .shell__panel {
   position: fixed;
   left: 0; right: 0; bottom: 0;
-  z-index: 60;
+  z-index: var(--z-panel);
   max-height: 82dvh;
   display: flex; flex-direction: column; min-height: 0; min-width: 0;
   background:
@@ -91,7 +91,7 @@
   display: block;
   position: fixed; inset: 0;
   background: rgba(4, 9, 20, 0.6);
-  z-index: 55;
+  z-index: calc(var(--z-panel) - 5);
   animation: fade-in 0.2s ease;
 }
 
@@ -101,7 +101,7 @@
   position: fixed;
   right: calc(0.85rem + env(safe-area-inset-right));
   bottom: calc(5rem + env(safe-area-inset-bottom));
-  z-index: 40;
+  z-index: calc(var(--z-board-float) + 15);
   min-height: 48px;
   padding: 0 1.3rem;
   border-radius: var(--r-md);
@@ -141,7 +141,7 @@
 .shell__top {
   position: sticky;
   top: 0;
-  z-index: 25;
+  z-index: var(--z-board-float);
 }
 
 .header-hud {
@@ -207,7 +207,7 @@
 
 /* ══ First-gameplay welcome tips (one-time overlay) ════════════════════════ */
 .first-tips {
-  position: fixed; inset: 0; z-index: 1200;
+  position: fixed; inset: 0; z-index: var(--z-onboard);
   display: flex; align-items: center; justify-content: center;
   padding: 1.2rem;
 }
@@ -472,7 +472,7 @@
 
 /* ── Election-approaching heads-up overlay ──────────────────────────────────── */
 .election-approach {
-  position: fixed; inset: 0; z-index: 85;
+  position: fixed; inset: 0; z-index: calc(var(--z-banner) + 10);
   display: flex; align-items: center; justify-content: center;
   padding: 1.25rem;
   animation: ea-fade 0.25s ease-out;
@@ -705,11 +705,11 @@
 
 /* ══ State hover / action card ═════════════════════════════════════════════ */
 
-.popover-backdrop { position: fixed; inset: 0; z-index: 40; }
+.popover-backdrop { position: fixed; inset: 0; z-index: var(--z-popover); }
 
 .state-card {
   position: fixed;
-  z-index: 50;
+  z-index: calc(var(--z-popover) + 10);
   background: var(--panel);
   border: 1px solid var(--border);
   border-left: 5px solid var(--brand);
@@ -1233,7 +1233,7 @@
   position: fixed;
   left: 0.75rem;
   bottom: 4.5rem;
-  z-index: 35;
+  z-index: calc(var(--z-board-float) + 10);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1264,7 +1264,7 @@
   left: 50%;
   transform: translateX(-50%);
   top: calc(0.75rem + env(safe-area-inset-top));
-  z-index: 220;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -1322,7 +1322,7 @@
 /* ══ Handoff curtain ═══════════════════════════════════════════════════════ */
 
 .handoff {
-  position: fixed; inset: 0; z-index: 80;
+  position: fixed; inset: 0; z-index: calc(var(--z-banner) + 5);
   background: rgba(4, 6, 14, 0.98);
   display: flex; align-items: center; justify-content: center;
   animation: curtain-in 0.2s ease-out;
@@ -1361,7 +1361,7 @@
 .round-resolution {
   position: fixed;
   inset: 0;
-  z-index: 75;
+  z-index: var(--z-banner);
   background: rgba(11, 17, 32, 0.93);
   backdrop-filter: blur(6px);
   display: flex;

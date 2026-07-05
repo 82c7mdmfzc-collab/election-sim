@@ -145,7 +145,7 @@
 
 /* ── Versus matchup intro ───────────────────────────────────────────────────── */
 .versus {
-  position: fixed; inset: 0; z-index: 200; cursor: pointer; overflow: hidden;
+  position: fixed; inset: 0; z-index: var(--z-interstitial); cursor: pointer; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   padding: max(3vh, 1rem) clamp(1rem, 4vw, 3rem);
   background: radial-gradient(125% 85% at 50% 16%, #15284a 0%, #0b1426 56%, #070b16 100%);

@@ -222,7 +222,7 @@ html.native .setup__start {
   font-size: 0.98rem;
 }
 
-html.native .mp-back {
+html.native .mp-back, html.native .btn-back {
   min-height: 40px;
   margin: 0;
   padding: 0 0.8rem;
@@ -259,3 +259,72 @@ html.native .shop-rail::-webkit-scrollbar {
   display: none;
 }
 
+
+/* ══ Shared overlay + control primitives (Phase 1 foundation) ═══════════════
+   Structural shells for ui/Modal.tsx and ui/Sheet.tsx. They carry layout,
+   layering, and enter motion only — the visual skin comes from the adopting
+   surface's own class (e.g. .confirm-dialog, .native-game-sheet), which loads
+   later in the cascade and wins where they overlap. */
+
+.ui-modal {
+  position: fixed; inset: 0; z-index: var(--z-modal);
+  display: flex; align-items: center; justify-content: center;
+  padding:
+    calc(var(--sp-4) + env(safe-area-inset-top))
+    calc(var(--sp-4) + env(safe-area-inset-right))
+    calc(var(--sp-4) + env(safe-area-inset-bottom))
+    calc(var(--sp-4) + env(safe-area-inset-left));
+  background: rgba(4, 9, 20, 0.55);
+  animation: ui-fade-in var(--dur-med) var(--ease-out);
+}
+.ui-modal__panel {
+  max-width: 100%; max-height: 100%; overflow: auto;
+  animation: ui-pop-in var(--dur-med) var(--ease-pop);
+}
+
+.ui-sheet__backdrop {
+  position: fixed; inset: 0; z-index: var(--z-sheet);
+  background: rgba(4, 9, 20, 0.45);
+  animation: ui-fade-in var(--dur-med) var(--ease-out);
+}
+/* NB: base sheets fade only — skins own any translate (several center with
+   transform, which a transform animation here would fight). */
+.ui-sheet {
+  position: fixed; z-index: calc(var(--z-sheet) + 1);
+  display: flex; flex-direction: column; overflow: hidden;
+  animation: ui-fade-in var(--dur-med) var(--ease-out);
+}
+.ui-sheet--bottom { left: 0; right: 0; bottom: 0; }
+.ui-sheet--right { top: 0; right: 0; bottom: 0; }
+.ui-sheet__header {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-2); padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ui-sheet__title {
+  margin: 0; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--fs-lg); letter-spacing: 0.03em; text-transform: uppercase;
+}
+
+@keyframes ui-fade-in { from { opacity: 0; } }
+@keyframes ui-pop-in { from { opacity: 0; transform: scale(0.94); } }
+
+/* Round icon button at the 44px touch minimum. */
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: linear-gradient(180deg, rgba(31, 58, 99, 0.92), rgba(18, 36, 64, 0.96));
+  color: var(--text); cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.btn-icon:active { transform: scale(0.92); }
+.btn-icon:disabled { opacity: 0.5; cursor: default; }
+@media (hover: hover) and (pointer: fine) { .btn-icon:hover { border-color: var(--gold); } }
+
+/* Press feedback for tappable tiles/cards without their own :active state. */
+.pressable { transition: transform var(--dur-fast) var(--ease-out); }
+.pressable:active { transform: scale(0.96); }
+
+/* Inline SVG icons inside text pills/labels sit on the text baseline. */
+.menu-btn__badge svg, .daily__chip svg, .streak-strip__head svg { vertical-align: -2px; }

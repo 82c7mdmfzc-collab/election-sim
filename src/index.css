@@ -1,4 +1,45 @@
 /* Minimal global reset. All component styling lives in App.css. */
+
+/* ── Self-hosted fonts (latin subsets) ─────────────────────────────────────
+   Served from /fonts so the native app renders its type offline / before any
+   network. Inter is a single variable file covering 400-700; Saira Condensed
+   is static per weight. Glyphs outside latin fall through to system-ui. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/inter-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Saira Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/saira-condensed-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Saira Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/saira-condensed-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Saira Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/saira-condensed-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Saira Condensed';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/saira-condensed-800.woff2') format('woff2');
+}
+
 :root {
   color-scheme: dark;
   font-synthesis: none;
