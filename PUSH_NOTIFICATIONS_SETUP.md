@@ -28,9 +28,14 @@ stores nothing useful — so nothing breaks until you complete these manual step
    - `APNS_KEY_ID` — the .p8 Key ID
    - `APPLE_TEAM_ID` — Apple Team ID
    - `APNS_PRIVATE_KEY` — the full `.p8` contents (PKCS#8 PEM; `\n` escaping tolerated)
-4. Rebuild + upload the iOS app (`scripts/ios-upload.sh` runs `ios-prepare-gen.sh`,
-   which adds the `aps-environment` entitlement — `production` for the App Store
-   archive, `development` for local dev builds).
+4. In the Apple Developer portal, regenerate the **Elector App Store Distribution**
+   provisioning profile so it includes the new Push capability.
+5. Rebuild + upload with the push entitlement enabled:
+   `ELECTOR_PUSH_ENTITLEMENT=1 scripts/ios-upload.sh`. The entitlement is **opt-in**
+   (`ELECTOR_PUSH_ENTITLEMENT=1`) — off by default, because signing an archive that
+   carries `aps-environment` against a profile WITHOUT the Push capability fails.
+   `ios-upload.sh` sets `APS_ENVIRONMENT=production` for the App Store archive;
+   local dev builds default to `development`.
 
 ## 2. Firebase (FCM, Android)
 

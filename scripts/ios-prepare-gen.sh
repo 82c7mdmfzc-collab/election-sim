@@ -90,18 +90,25 @@ plutil -extract "com\\.apple\\.developer\\.applesignin.0" raw -o - "$entitlement
 echo "Patched entitlements: Sign in with Apple (Default)."
 
 # Push Notifications entitlement (aps-environment) for the elector-push plugin's
-# APNs registration. Defaults to 'development'; ios-upload.sh exports
+# APNs registration. OPT-IN via ELECTOR_PUSH_ENTITLEMENT=1 — it is OFF by default
+# because a manual/distribution provisioning profile that lacks the Push capability
+# will FAIL to sign an archive carrying this entitlement. Enable it only AFTER
+# turning on Push Notifications for App ID com.playelector.app (so the profile
+# includes aps-environment). Value defaults to 'development'; ios-upload.sh exports
 # APS_ENVIRONMENT=production for the App Store archive so it ships prod device
-# tokens (matching the elector-push Swift #if DEBUG environment: debug=sandbox,
-# release=prod). The App ID com.playelector.app must have Push Notifications
-# enabled so automatic signing finds a matching provisioning profile. (Only alert
-# pushes are sent, so no UIBackgroundModes/remote-notification is needed.)
-aps_env="${APS_ENVIRONMENT:-development}"
-$pb -c "Delete :aps-environment" "$entitlements" >/dev/null 2>&1 || true
-$pb -c "Add :aps-environment string $aps_env" "$entitlements"
-plutil -lint "$entitlements" >/dev/null
-plutil -extract "aps-environment" raw -o - "$entitlements" | grep -qx "$aps_env"
-echo "Patched entitlements: Push Notifications (aps-environment=$aps_env)."
+# tokens (matching the elector-push Swift #if DEBUG: debug=sandbox, release=prod).
+# Only alert pushes are sent, so no UIBackgroundModes/remote-notification is needed.
+if [ "${ELECTOR_PUSH_ENTITLEMENT:-0}" = "1" ]; then
+  aps_env="${APS_ENVIRONMENT:-development}"
+  $pb -c "Delete :aps-environment" "$entitlements" >/dev/null 2>&1 || true
+  $pb -c "Add :aps-environment string $aps_env" "$entitlements"
+  plutil -lint "$entitlements" >/dev/null
+  plutil -extract "aps-environment" raw -o - "$entitlements" | grep -qx "$aps_env"
+  echo "Patched entitlements: Push Notifications (aps-environment=$aps_env)."
+else
+  $pb -c "Delete :aps-environment" "$entitlements" >/dev/null 2>&1 || true
+  echo "Skipped push entitlement (set ELECTOR_PUSH_ENTITLEMENT=1 once Push is enabled on the App ID)."
+fi
 
 # (3) stage the privacy manifest next to the app target.
 cp "$repo_root/src-tauri/PrivacyInfo.xcprivacy" "$target_dir/PrivacyInfo.xcprivacy"
