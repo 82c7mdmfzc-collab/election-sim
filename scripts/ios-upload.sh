@@ -133,8 +133,14 @@ echo "[ios-upload] Build number: $current_build → $next_build"
 # from the generated project as 1.0.0) — sync it from tauri.conf.json here, or App
 # Store Connect rejects the upload once a marketing version is approved / its train
 # is closed (error 90062 / 90186).
-plutil -replace CFBundleShortVersionString -string "$current_version" "$info_plist"
-echo "[ios-upload] Marketing version in Info.plist → $current_version"
+#
+# tauri.conf.json's version MUST be full semver (X.Y.Z) or tauri-build fails
+# ("version must be a semver string"), but the App Store conventionally shows the
+# 2-part marketing version, so strip a single trailing ".0" for the display value
+# (1.1.0 → 1.1, 1.2.3 stays 1.2.3). Override with ELECTOR_IOS_SHORT_VERSION.
+short_version="${ELECTOR_IOS_SHORT_VERSION:-$(printf '%s' "$current_version" | sed -E 's/\.0$//')}"
+plutil -replace CFBundleShortVersionString -string "$short_version" "$info_plist"
+echo "[ios-upload] Marketing version in Info.plist → $short_version (semver $current_version)"
 
 # Commit and push the version bump so origin/main stays in sync
 git -C "$repo_root" add "$tauri_conf" "$pkg_json"
