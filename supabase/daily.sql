@@ -129,6 +129,7 @@ begin
       s.user_id,
       coalesce(p.display_name, 'Candidate') as name,
       coalesce(p.equipped_banner, '') as banner,
+      coalesce(p.avatar, '') as avatar,
       s.won,
       s.ev,
       s.turns,
@@ -148,6 +149,7 @@ begin
                'rank', rnk,
                'name', name,
                'banner', banner,
+               'avatar', avatar,
                'won', won,
                'ev', ev,
                'turns', turns,
@@ -162,6 +164,7 @@ begin
          (select jsonb_build_object(
             'rank', rnk,
             'name', 'You',
+            'avatar', avatar,
             'won', won,
             'ev', ev,
             'turns', turns,

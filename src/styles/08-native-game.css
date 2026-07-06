@@ -1696,17 +1696,25 @@ html.native .setup--daily .shop-card {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.7rem;
   margin-bottom: 0.5rem;
 }
-/* The element also carries `shop-rail`, which the native rules turn into a single
-   horizontal strip — wrong for cosmetics' two stacked sections. Force a normal
-   vertical grid that scrolls with the pane instead of squishing the cards. */
 html.native .shop__cosmetics {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  flex: none;
-  overflow: visible;
-  padding: 0;
-  -webkit-mask-image: none;
-  mask-image: none;
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 112px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.15rem 0.75rem 0.4rem;
+  scroll-snap-type: x mandatory;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+html.native .shop__cosmetics::-webkit-scrollbar { display: none; }
+html.native .cosmetic-card {
+  flex: 0 0 clamp(190px, 30vw, 250px);
+  width: clamp(190px, 30vw, 250px);
+  scroll-snap-align: center;
 }
 .cosmetic-card {
   text-align: left; cursor: pointer; padding: 0.75rem 0.9rem;
@@ -2058,8 +2066,11 @@ html.native .shop__tabs {
   background: rgba(10, 22, 42, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.08);
   overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
   scrollbar-width: none;
 }
+html.native .shop__tabs::-webkit-scrollbar { display: none; }
 
 html.native .shop__tab {
   flex: 1 0 auto;
@@ -2086,6 +2097,167 @@ html.native .funds-card__badge {
 
 html.native .shop__sub {
   font-size: 0.8rem;
+}
+
+/* Landscape setup screens: keep wide control groups reachable sideways instead
+   of wrapping them into the candidate rail. */
+html.native .setup--bot .setup__header,
+html.native .setup--candidate-select .setup__header {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%);
+}
+html.native .setup--bot .setup__header::-webkit-scrollbar,
+html.native .setup--candidate-select .setup__header::-webkit-scrollbar {
+  display: none;
+}
+html.native .setup--bot .setup__title,
+html.native .setup--candidate-select .setup__title,
+html.native .setup--bot .setup__count,
+html.native .setup--candidate-select .setup__count {
+  flex: 0 0 auto;
+}
+html.native .setup__count {
+  max-width: min(560px, 78vw);
+  flex-wrap: nowrap;
+}
+html.native .setup__count-btn {
+  flex: 0 0 auto;
+}
+
+/* Ranks: compact landscape tab rail, then the rows do the reading work. */
+html.native .leaderboard {
+  gap: 0.3rem;
+}
+html.native .leaderboard .setup__header {
+  min-height: 34px;
+  justify-content: flex-start;
+}
+html.native .lb-tabs {
+  width: min(620px, 88vw);
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 0.28rem;
+  margin: 0 auto;
+  padding: 0.2rem;
+  border: 1px solid rgba(240, 184, 80, 0.16);
+  border-radius: var(--r-pill);
+  background: rgba(10, 22, 42, 0.56);
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+html.native .lb-tabs::-webkit-scrollbar { display: none; }
+html.native .lb-tab {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.76rem;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+html.native .lb-tab.is-active {
+  background: rgba(245, 144, 34, 0.22);
+  border-color: transparent;
+}
+html.native .lb-sub {
+  margin: 0;
+  font-size: 0.74rem;
+}
+html.native .lb-list {
+  max-width: min(640px, 74vw);
+  gap: 0.32rem;
+}
+html.native .lb-row {
+  min-height: 46px;
+  padding: 0.42rem 0.65rem;
+}
+html.native .lb-row__av {
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Profile picture: compact native picker, no full-screen-feeling crop. */
+html.native .help-overlay__panel.avatar-picker__panel {
+  width: min(620px, 92vw);
+  max-height: min(78dvh, calc(100dvh - 1.2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 0.42rem;
+  padding: 0.75rem;
+  border-radius: 16px;
+}
+html.native .avatar-picker__panel .howto__head {
+  margin: 0;
+}
+html.native .avatar-picker__panel .howto__title {
+  font-size: clamp(1rem, 4.4dvh, 1.35rem);
+}
+html.native .avatar-picker__current {
+  padding: 0.42rem 0.55rem;
+  gap: 0.55rem;
+}
+html.native .avatar-picker__current-av {
+  width: 42px;
+  height: 42px;
+}
+html.native .avatar-picker__current-info strong {
+  font-size: 0.82rem;
+}
+html.native .avatar-picker__clear {
+  min-height: 30px;
+  padding: 0.18rem 0.58rem;
+}
+html.native .avatar-picker__tabs {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  padding: 0.16rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+html.native .avatar-picker__tabs::-webkit-scrollbar { display: none; }
+html.native .avatar-picker__tab {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 0.72rem;
+  font-size: 0.78rem;
+}
+html.native .avatar-picker__grid {
+  display: flex;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  scroll-snap-type: x mandatory;
+  padding: 0.18rem 0.55rem 0.45rem;
+  gap: 0.46rem;
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  scrollbar-width: none;
+}
+html.native .avatar-picker__grid::-webkit-scrollbar { display: none; }
+html.native .avatar-picker__tile {
+  flex: 0 0 76px;
+  width: 76px;
+  min-height: 88px;
+  scroll-snap-align: center;
+}
+html.native .avatar-picker__tile-av {
+  width: 42px;
+  height: 42px;
 }
 
 /* Victory — calmer celebration */

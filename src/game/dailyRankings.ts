@@ -20,6 +20,8 @@ export interface DailyLeaderboardRow {
   coalitions: number;
   /** Equipped profile-banner cosmetic id ('' = none). See components/ProfileBanner. */
   banner: string;
+  /** Chosen avatar preset id ('' = initials). See game/avatars.ts. */
+  avatar: string;
   isMe: boolean;
 }
 
@@ -60,6 +62,7 @@ function parseDailyRow(v: unknown): DailyLeaderboardRow | null {
     securedStates: num(r.securedStates),
     coalitions: num(r.coalitions),
     banner: typeof r.banner === 'string' ? r.banner : '',
+    avatar: typeof r.avatar === 'string' ? r.avatar : '',
     isMe: r.isMe === true,
   };
 }

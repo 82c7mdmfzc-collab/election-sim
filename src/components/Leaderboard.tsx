@@ -41,6 +41,26 @@ function RankBadge({ rank }: { rank: number }) {
 }
 const DAILY_META = { label: 'Today', sub: 'Daily Race ranking', unit: 'EV' };
 
+function LeaderboardName({ name, avatar, isMe }: { name: string; avatar: string; isMe: boolean }) {
+  const showYou = isMe && name.trim().toLowerCase() !== 'you';
+  return (
+    <span className="lb-row__name">
+      <Avatar
+        src={avatarImageUrl(avatar)}
+        initials={name.slice(0, 2).toUpperCase()}
+        name={name}
+        borderId={null}
+        wrapperClassName="lb-row__av"
+        className="lb-row__av-token"
+      />
+      <span className="lb-row__name-text">
+        {name}
+        {showYou && <em className="lb-row__you"> · You</em>}
+      </span>
+    </span>
+  );
+}
+
 export function Leaderboard({ onBack }: { onBack: () => void }) {
   const [board, setBoard] = useState<Board>('daily_today');
   const [data, setData] = useState<LeaderboardResult | null>(null);
@@ -121,10 +141,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
               <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}${r.banner ? ' lb-row--bannered' : ''}`}>
                 <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
                 <span className="lb-row__rank"><RankBadge rank={r.rank} /></span>
-                <span className="lb-row__name">
-                  {r.name}
-                  {r.isMe && <em className="lb-row__you"> · You</em>}
-                </span>
+                <LeaderboardName name={r.name} avatar={r.avatar} isMe={r.isMe} />
                 <span className="lb-row__value">{r.ev.toLocaleString()} <small>{meta.unit}</small> <small>· T{r.turns}</small></span>
               </div>
             ))
@@ -136,20 +153,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
             <div key={`${r.rank}-${r.name}`} className={`lb-row${r.isMe ? ' lb-row--me' : ''}${r.banner ? ' lb-row--bannered' : ''}`}>
               <ProfileBanner bannerId={r.banner} variant="chip" className="lb-row__banner" />
               <span className="lb-row__rank"><RankBadge rank={r.rank} /></span>
-              <span className="lb-row__name">
-                <Avatar
-                  src={avatarImageUrl(r.avatar)}
-                  initials={r.name.slice(0, 2).toUpperCase()}
-                  name={r.name}
-                  borderId={null}
-                  wrapperClassName="lb-row__av"
-                  className="lb-row__av-token"
-                />
-                <span className="lb-row__name-text">
-                  {r.name}
-                  {r.isMe && <em className="lb-row__you"> · You</em>}
-                </span>
-              </span>
+              <LeaderboardName name={r.name} avatar={r.avatar} isMe={r.isMe} />
               <span className="lb-row__value">{r.value.toLocaleString()} <small>{meta.unit}</small></span>
             </div>
           ))
@@ -159,7 +163,7 @@ export function Leaderboard({ onBack }: { onBack: () => void }) {
       {board === 'daily_today' && dailyData?.me && !meInTop && (
         <div className="lb-row lb-row--me lb-row--pinned">
           <span className="lb-row__rank">#{dailyData.me.rank}</span>
-          <span className="lb-row__name">You</span>
+          <LeaderboardName name={dailyData.me.name} avatar={dailyData.me.avatar} isMe={dailyData.me.isMe} />
           <span className="lb-row__value">{dailyData.me.ev.toLocaleString()} <small>{meta.unit}</small> <small>· T{dailyData.me.turns}</small></span>
         </div>
       )}

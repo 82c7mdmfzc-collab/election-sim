@@ -437,15 +437,17 @@ html.native .auth-tabs__tab.is-active { background: var(--brand); color: #fff6ea
 html.native .shop__body { min-height: 0; overflow: hidden; }
 html.native .shop__body > .shop__sub { display: none; }
 html.native .shop__pane { display: none; min-height: 0; height: 100%; overflow: hidden; }
-/* Every pane is a vertical scroller: content stacks top-to-bottom and the pane
-   itself owns the scroll, so nothing gets clipped on a short landscape screen. */
 html.native .shop__pane.is-active {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+html.native .shop__pane--cosmetics.is-active,
+html.native .shop__pane--earn.is-active {
   overflow-y: auto;
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
 }
 html.native .shop__section { margin: 0; font-size: 1rem; }
 html.native .shop__sub { margin: 0; font-size: 0.72rem; }
@@ -461,36 +463,60 @@ html.native .shop__vm-filter {
   padding: 0.25rem 0.52rem;
   font-size: 0.68rem;
 }
-/* Vertical lists (not horizontal rails): cards stack in a centered column and the
-   parent pane owns the scroll. These grids carry `.shop-rail` (a horizontal snap
-   primitive) in markup, so we explicitly neutralize its overflow/snap/edge-mask and
-   force flex:0 0 auto — otherwise the rail's overflow-y:hidden would re-clip a list
-   the flex column tried to shrink. Full-width with an iPad-friendly max. */
+html.native .shop__vm-filters,
+html.native .shop-rail,
+html.native .lb-tabs,
+html.native .avatar-picker__tabs,
+html.native .avatar-picker__grid,
+html.native .setup__count {
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+html.native .shop__vm-filters::-webkit-scrollbar,
+html.native .shop-rail::-webkit-scrollbar,
+html.native .lb-tabs::-webkit-scrollbar,
+html.native .avatar-picker__tabs::-webkit-scrollbar,
+html.native .avatar-picker__grid::-webkit-scrollbar,
+html.native .setup__count::-webkit-scrollbar {
+  display: none;
+}
+/* Native landscape favors sideways rails: a single category scrolls horizontally,
+   while multi-section panes such as Cosmetics own vertical scroll around those rails. */
 html.native .shop__grid,
 html.native .funds-grid,
-html.native .shop__vm-list {
-  flex: 0 0 auto;
+html.native .shop__vm-list,
+html.native .shop__cosmetics {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  align-items: stretch;
   gap: 0.55rem;
-  padding: 0.3rem 1rem 0.9rem;
+  padding: 0.25rem 1rem 0.55rem;
   margin: 0;
   border-width: 0;
   border-image: none; /* kill the `fill` center-slice frame that paints over the list */
-  overflow: visible;
-  scroll-snap-type: none;
-  mask-image: none;
-  -webkit-mask-image: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
 }
 html.native .shop-card,
 html.native .funds-card,
 html.native .vm-card {
   flex: 0 0 auto;
-  width: 100%;
-  max-width: 460px;
+  width: clamp(260px, 44vw, 420px);
+  max-width: clamp(260px, 44vw, 420px);
   max-height: none;
+  scroll-snap-align: center;
 }
+html.native .funds-card { width: clamp(300px, 48vw, 420px); max-width: clamp(300px, 48vw, 420px); }
+html.native .vm-card { width: clamp(280px, 46vw, 430px); max-width: clamp(280px, 46vw, 430px); }
 html.native .vm-card__text {
   display: -webkit-box;
   -webkit-line-clamp: 4;
@@ -537,8 +563,8 @@ html.native .funds-card__coin-fallback { width: 120px; height: 120px; margin-top
     grid-template-columns: 86px minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 30px;
     align-items: center;
-    width: 100%;
-    max-width: 420px;
+    width: clamp(300px, 58vw, 420px);
+    max-width: clamp(300px, 58vw, 420px);
     min-height: 112px;
     padding: 0.48rem 0.56rem;
     gap: 0.3rem 0.46rem;
@@ -754,4 +780,3 @@ html.native .victory-stats { gap: 0.45rem; font-size: 0.66rem; }
    row (the two share buttons fall onto their own row → clearer hierarchy). */
 html.native .victory-cta { margin: 0; gap: 0.4rem 0.45rem; display: grid; grid-template-columns: 1fr 1fr; }
 html.native .victory-cta button { min-width: 0; min-height: 44px; padding: 0.55rem 0.7rem; font-size: 0.82rem; white-space: nowrap; }
-

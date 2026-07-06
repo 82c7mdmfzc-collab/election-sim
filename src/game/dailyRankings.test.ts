@@ -27,10 +27,11 @@ describe('dailyRankings', () => {
 
   it('parses leaderboard payloads defensively', () => {
     const parsed = parseDailyLeaderboardResult({
-      top: [{ rank: 1, name: 'Ada', won: true, ev: 330, turns: 12, securedStates: 9, coalitions: 4, isMe: true }],
-      me: { rank: 1, name: 'Ada', won: true, ev: 330, turns: 12, securedStates: 9, coalitions: 4, isMe: true },
+      top: [{ rank: 1, name: 'Ada', won: true, ev: 330, turns: 12, securedStates: 9, coalitions: 4, banner: 'banner_stars', avatar: 'flag-us', isMe: true }],
+      me: { rank: 1, name: 'Ada', won: true, ev: 330, turns: 12, securedStates: 9, coalitions: 4, avatar: 'flag-us', isMe: true },
     });
     expect(parsed.rows[0].name).toBe('Ada');
+    expect(parsed.rows[0].avatar).toBe('flag-us');
     expect(parsed.me?.isMe).toBe(true);
   });
 });
