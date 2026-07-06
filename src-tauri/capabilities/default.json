@@ -40,6 +40,7 @@
     "elector-siwa:default",
     "elector-admob:default",
     "elector-review:default",
+    "elector-push:default",
     "iap:default",
     "notification:default"
 

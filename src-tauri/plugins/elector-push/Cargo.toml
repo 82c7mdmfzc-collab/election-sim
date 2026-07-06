@@ -1,0 +1,14 @@
+[package]
+name = "tauri-plugin-elector-push"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+links = "tauri-plugin-elector-push"
+
+[dependencies]
+tauri = { version = "2.11.2" }
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+
+[build-dependencies]
+tauri-plugin = { version = "2.6.2", features = ["build"] }

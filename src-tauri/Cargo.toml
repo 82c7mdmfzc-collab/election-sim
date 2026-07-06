@@ -34,6 +34,9 @@ tauri-plugin-elector-siwa = { path = "plugins/elector-siwa" }
 # In-app "rate this app" review prompt (SKStoreReviewController / AppStore on iOS,
 # Play In-App Review on Android). Desktop resolves "unsupported".
 tauri-plugin-elector-review = { path = "plugins/elector-review" }
+# Remote-push device-token registration (APNs on iOS via a delegate swizzle, FCM
+# on Android). The token is stored in device_tokens; edge functions send pushes.
+tauri-plugin-elector-push = { path = "plugins/elector-push" }
 # In-app purchases (StoreKit 2 on iOS). Returns the signed-transaction JWS that the
 # fulfill-purchase edge function verifies. Requires the iOS 15 deployment target.
 tauri-plugin-iap = "0.9"

@@ -14,6 +14,7 @@ pub fn run() {
         .plugin(tauri_plugin_elector_siwa::init())
         .plugin(tauri_plugin_elector_admob::init())
         .plugin(tauri_plugin_elector_review::init())
+        .plugin(tauri_plugin_elector_push::init())
         .plugin(tauri_plugin_iap::init())
         // Local notifications build on every platform (unlike haptics), so this
         // init() is unconditional and its capability lives in default.json.

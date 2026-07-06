@@ -106,6 +106,26 @@
         <span class="msg" id="save-msg"></span>
       </div>
     </section>
+
+    <!-- Custom push notification -->
+    <section class="card hidden" id="push-card">
+      <h2>Send push notification</h2>
+      <p class="sub" style="margin: -.4rem 0 1rem;">Broadcasts to every install's lock screen — APNs (iOS) + FCM (Android). Delivered even when the app is closed.</p>
+      <label for="push-title">Title</label>
+      <input id="push-title" type="text" maxlength="120" placeholder="Season 2 is live!" />
+      <label for="push-body">Message</label>
+      <textarea id="push-body" maxlength="300" placeholder="New candidates just dropped in the Store — go build your roster."></textarea>
+      <label for="push-platform">Target</label>
+      <select id="push-platform">
+        <option value="all">All platforms</option>
+        <option value="ios">iOS only</option>
+        <option value="android">Android only</option>
+      </select>
+      <div class="actions">
+        <button id="push-send">Send push</button>
+        <span class="msg" id="push-msg"></span>
+      </div>
+    </section>
   </main>
 
   <script type="module">
@@ -158,6 +178,7 @@
       const { data: u } = await supabase.auth.getUser();
       $('whoami').textContent = 'Signed in as ' + (u.user?.email || '') + '  ·  uid: ' + (u.user?.id || '');
       $('editor-card').classList.remove('hidden');
+      $('push-card').classList.remove('hidden');
       await load();
     }
 
@@ -198,6 +219,24 @@
       rows = {};
       for (const r of (data || [])) rows[r.platform] = r;
       setMsg($('save-msg'), 'Saved ✓', 'ok');
+    };
+
+    $('push-send').onclick = async () => {
+      const title = $('push-title').value.trim();
+      const body = $('push-body').value.trim();
+      const platform = $('push-platform').value;
+      if (!title || !body) { setMsg($('push-msg'), 'Title and message are required.', 'err'); return; }
+      if (!confirm('Send "' + title + '" to ' + platform + ' devices now?')) return;
+      setMsg($('push-msg'), 'Sending…', '');
+      const { data, error } = await supabase.functions.invoke('admin-broadcast', {
+        body: { title, body, platform },
+      });
+      if (error) { setMsg($('push-msg'), error.message, 'err'); return; }
+      const d = (data && data.delivered) || {};
+      const cfg = (data && data.configured) || {};
+      const missing = [cfg.apns === false ? 'APNs' : null, cfg.fcm === false ? 'FCM' : null].filter(Boolean);
+      const warn = missing.length ? ' — ' + missing.join(' + ') + ' not configured yet' : '';
+      setMsg($('push-msg'), 'Sent ✓ delivered ' + (d.total || 0) + ' (iOS ' + (d.ios || 0) + ', Android ' + (d.android || 0) + ')' + warn, 'ok');
     };
   </script>
 </body>

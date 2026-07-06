@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- FCM's own service + receiver are merged in from the firebase-messaging AAR.
+         Firebase auto-initializes from the app module's google-services.json
+         (wired by scripts/android-prepare-gen.sh); no entries needed here. -->
+</manifest>

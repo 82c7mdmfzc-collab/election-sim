@@ -127,4 +127,56 @@ RUBY
   echo "Injected null-safe release signingConfig into app/build.gradle.kts."
 fi
 
+# (5) Firebase Cloud Messaging (push) for the elector-push plugin. Stage
+#     google-services.json and wire the google-services Gradle plugin into the app
+#     module — but ONLY when the config is available. Fail-soft: without it, FCM is
+#     simply inactive (the elector-push Kotlin resolves an error, the client
+#     no-ops) and normal Android builds are unaffected. The google-services plugin
+#     REQUIRES the json at build time, so the two are wired together or not at all.
+gs_src=""
+for cand in "$HOME/.android-keys/google-services.json" "$repo_root/src-tauri/google-services.json"; do
+  if [ -f "$cand" ]; then gs_src="$cand"; break; fi
+done
+if [ -n "$gs_src" ]; then
+  cp "$gs_src" "$gen/app/google-services.json"
+  echo "Staged google-services.json from $gs_src."
+  if grep -q 'ELECTOR FCM' "$app_gradle"; then
+    echo "google-services plugin already wired."
+  else
+    ruby - "$app_gradle" <<'RUBY'
+path = ARGV.fetch(0)
+g = File.read(path)
+
+# Self-contained wiring (no root build.gradle edits): a buildscript classpath for
+# the plugin, applied at the end of the module file. buildscript must precede the
+# plugins {} block, so insert it after any leading import lines.
+unless g.include?("com.google.gms:google-services")
+  bs = <<~KTS
+    // ELECTOR FCM BEGIN (injected by scripts/android-prepare-gen.sh)
+    buildscript {
+        repositories { google(); mavenCentral() }
+        dependencies { classpath("com.google.gms:google-services:4.4.2") }
+    }
+    // ELECTOR FCM END
+  KTS
+  if g =~ /\A(?:import [^\n]*\n)+/
+    g = g.sub(/\A((?:import [^\n]*\n)+)/) { "#{$1}\n#{bs}\n" }
+  else
+    g = bs + "\n" + g
+  end
+end
+
+unless g.include?('apply(plugin = "com.google.gms.google-services")')
+  g = g.rstrip + "\n\napply(plugin = \"com.google.gms.google-services\")\n"
+end
+
+File.write(path, g)
+RUBY
+    echo "Wired the google-services plugin into app/build.gradle.kts."
+  fi
+else
+  echo "NOTE: google-services.json not found (checked ~/.android-keys and src-tauri/) —"
+  echo "      Android push (FCM) stays inactive until it's added. Other builds unaffected."
+fi
+
 echo "Android gen preparation complete."

@@ -21,6 +21,7 @@ on:
     paths:
       - 'supabase/functions/resolve-turn/**'
       - 'supabase/functions/fulfill-purchase/**'
+      - 'supabase/functions/admin-broadcast/**'
       - 'supabase/functions/_shared/**'
       - 'src/game/**'
       - 'scripts/build-edge-function.mjs'
@@ -66,3 +67,9 @@ jobs:
           set -euo pipefail
           supabase functions deploy fulfill-purchase --project-ref "$PROJECT_REF"
           echo "✅ fulfill-purchase deployed"
+
+      - name: Deploy admin-broadcast
+        run: |
+          set -euo pipefail
+          supabase functions deploy admin-broadcast --project-ref "$PROJECT_REF"
+          echo "✅ admin-broadcast deployed"
