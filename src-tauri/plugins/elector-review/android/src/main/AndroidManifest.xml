@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Play In-App Review needs no manifest entries; the library's own manifest
+         is merged in via the review AAR dependency. -->
+</manifest>

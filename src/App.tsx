@@ -31,8 +31,10 @@ import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { useUpdateGate } from './utils/updateGate';
 import { UpdateRequiredScreen } from './components/UpdateGate';
 import { useAndroidBack } from './hooks/useAndroidBack';
-import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon, SeasonIcon, FlameIcon } from './components/icons';
+import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon, SeasonIcon, FlameIcon, DiscordIcon, InstagramIcon } from './components/icons';
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
+import { openExternal, SOCIAL_DISCORD_URL, SOCIAL_INSTAGRAM_URL } from './utils/openExternal';
+import { FirstWinSocialModal } from './components/FirstWinSocialModal';
 import { AudioManager } from './utils/audioManager';
 import { applyAppearancePrefs } from './utils/appearance';
 import { NextChallengeHint } from './components/ProgressPanel';
@@ -213,6 +215,26 @@ function ModeSelect({ onSelect, onTutorial, onAccount, onSettings, onOpeningCamp
         <button type="button" className="home__link" onClick={onTutorial}>
           Campaign Guide
         </button>
+        <div className="home__socials">
+          <button
+            type="button"
+            className="home__social"
+            aria-label="Join our Discord"
+            title="Join our Discord"
+            onClick={() => { AudioManager.play('click'); void openExternal(SOCIAL_DISCORD_URL); }}
+          >
+            <DiscordIcon size={18} />
+          </button>
+          <button
+            type="button"
+            className="home__social"
+            aria-label="Follow us on Instagram"
+            title="Follow us on Instagram"
+            onClick={() => { AudioManager.play('click'); void openExternal(SOCIAL_INSTAGRAM_URL); }}
+          >
+            <InstagramIcon size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -292,6 +314,8 @@ function App() {
   const userId = useProfile((s) => s.userId);
   const displayName = useProfile((s) => s.displayName);
   const accountChecked = useProfile((s) => s.accountChecked);
+  const firstWinPrompt = useProfile((s) => s.firstWinPrompt);
+  const clearFirstWinPrompt = useProfile((s) => s.clearFirstWinPrompt);
   const updateRequired = useUpdateGate((s) => s.status === 'required');
   const updateConfig = useUpdateGate((s) => s.config);
   const startOpeningCampaign = useGameStore((s) => s.startOpeningCampaign);
@@ -629,6 +653,11 @@ function App() {
       {settings}
       {dailyBonus > 0 && screenKey === 'menu' && (
         <DailyBonusChest amount={dailyBonus} onClose={() => setDailyBonus(0)} />
+      )}
+      {/* One-off Discord invite after the first win — deferred until the player
+          leaves the victory screen so it never stacks on the reward reveal. */}
+      {firstWinPrompt && !viewingGame && (
+        <FirstWinSocialModal onClose={clearFirstWinPrompt} />
       )}
     </>
   );

@@ -262,3 +262,19 @@ export const GiftIcon = (p: IconProps) => (
 export const ArrowRightIcon = (p: IconProps) => (
   <svg {...base(p)}><path d="M5 12h14M12 5l7 7-7 7" /></svg>
 );
+
+/** Discord mark (filled — brand glyph, not a stroke icon). */
+export const DiscordIcon = ({ size = 24, ...props }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M19.54 5.34A16.2 16.2 0 0 0 15.4 4.1a.06.06 0 0 0-.07.03c-.18.32-.38.73-.51 1.05a15 15 0 0 0-4.5 0c-.14-.33-.34-.73-.52-1.05a.06.06 0 0 0-.07-.03c-1.45.25-2.84.68-4.14 1.24a.06.06 0 0 0-.03.02C2.4 9.2 1.67 12.95 2.03 16.66a.07.07 0 0 0 .03.05 16.3 16.3 0 0 0 4.9 2.48.06.06 0 0 0 .07-.02c.38-.52.71-1.06.99-1.63a.06.06 0 0 0-.03-.09 10.7 10.7 0 0 1-1.53-.73.06.06 0 0 1 0-.1l.3-.24a.06.06 0 0 1 .07 0c3.2 1.46 6.67 1.46 9.84 0a.06.06 0 0 1 .06 0l.3.24a.06.06 0 0 1 0 .1c-.49.29-1 .53-1.53.73a.06.06 0 0 0-.03.09c.29.57.62 1.11.99 1.63a.06.06 0 0 0 .07.02 16.2 16.2 0 0 0 4.9-2.48.06.06 0 0 0 .03-.05c.42-4.29-.71-8.01-3.02-11.3a.05.05 0 0 0-.03-.02zM8.68 14.4c-.97 0-1.77-.9-1.77-2s.78-2 1.77-2c1 0 1.79.9 1.77 2 0 1.1-.78 2-1.77 2zm6.54 0c-.97 0-1.77-.9-1.77-2s.78-2 1.77-2c1 0 1.79.9 1.77 2 0 1.1-.77 2-1.77 2z" />
+  </svg>
+);
+
+/** Instagram camera glyph (stroke, matching the set). */
+export const InstagramIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" />
+    <circle cx="12" cy="12" r="4.2" />
+    <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+  </svg>
+);

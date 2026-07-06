@@ -65,9 +65,12 @@ import {
   setPendingCompletion,
   setEquippedBannerLocal,
   setAvatarLocal,
+  isFirstWinSocialSeen,
+  markFirstWinSocialSeen,
 } from '../utils/localPrefs';
 import { clearSession } from '../utils/sessionStore';
 import { onGameFinishedNotifications } from '../utils/notifications';
+import { maybeRequestReviewAfterUnlock } from '../utils/appReview';
 import {
   getSession,
   onAuthChange,
@@ -126,6 +129,9 @@ interface ProfileStore {
   accountChecked: boolean;
   /** The most recent award breakdown, for the victory-screen reveal. */
   lastReward: ProgressRewardBreakdown | null;
+  /** Set when the player wins for the FIRST time (server-confirmed gamesWon === 1),
+   *  driving the one-off Discord invite modal. Cleared by clearFirstWinPrompt. */
+  firstWinPrompt: boolean;
   /** Rewarded-ad quota for the signed-in account. Null until fetched. */
   adRewardStatus: AdRewardStatus | null;
 
@@ -136,6 +142,8 @@ interface ProfileStore {
   /** Re-fetch the account from the server (e.g. after an IAP fulfillment). */
   refresh(): Promise<void>;
   clearLastReward(): void;
+  /** Dismiss the one-off first-win Discord invite (also persisted in localPrefs). */
+  clearFirstWinPrompt(): void;
   claimAchievement(achievementId: string): Promise<boolean>;
   refreshAdRewardStatus(): Promise<AdRewardStatus | null>;
   claimAdReward(args: { placement: string; provider?: string | null; adUnit?: string | null }): Promise<AdRewardClaimResult>;
@@ -259,6 +267,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   ready: false,
   accountChecked: false,
   lastReward: null,
+  firstWinPrompt: false,
   adRewardStatus: null,
   season: null,
 
@@ -416,6 +425,12 @@ export const useProfile = create<ProfileStore>((set, get) => ({
         },
         lastReward: serverBreakdown,
       });
+      // One-off community invite on the player's FIRST-ever win (server-authoritative
+      // count, so it survives reinstalls/multi-device). App shows it once the victory
+      // screen is dismissed; the localPrefs flag keeps it from ever re-appearing.
+      if (result.won && completion.stats.gamesWon === 1 && !isFirstWinSocialSeen()) {
+        set({ firstWinPrompt: true });
+      }
       // Season XP was granted server-side; refresh the track so the screen + badge update.
       if (completion.seasonXp > 0 || get().season) void get().refreshSeason();
       return { breakdown: serverBreakdown, claimed: true };
@@ -461,6 +476,11 @@ export const useProfile = create<ProfileStore>((set, get) => ({
 
   clearLastReward() {
     set({ lastReward: null });
+  },
+
+  clearFirstWinPrompt() {
+    markFirstWinSocialSeen();
+    set({ firstWinPrompt: false });
   },
 
   async claimAchievement(achievementId) {
@@ -518,6 +538,8 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     const updated = await unlockCharacterRemote(characterId);
     if (updated) {
       set({ profile: updated });
+      // Happy-moment review nudge (native only; OS throttles re-prompts).
+      maybeRequestReviewAfterUnlock(updated.unlockedCharacters);
       return true;
     }
     return false;
@@ -530,6 +552,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     const updated = await claimFreeCharacterRemote(characterId);
     if (updated) {
       set({ profile: updated });
+      maybeRequestReviewAfterUnlock(updated.unlockedCharacters);
       return true;
     }
     return false;
