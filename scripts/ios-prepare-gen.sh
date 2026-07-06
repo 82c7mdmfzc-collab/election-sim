@@ -89,6 +89,20 @@ plutil -lint "$entitlements" >/dev/null
 plutil -extract "com\\.apple\\.developer\\.applesignin.0" raw -o - "$entitlements" | grep -qx "Default"
 echo "Patched entitlements: Sign in with Apple (Default)."
 
+# Push Notifications entitlement (aps-environment) for the elector-push plugin's
+# APNs registration. Defaults to 'development'; ios-upload.sh exports
+# APS_ENVIRONMENT=production for the App Store archive so it ships prod device
+# tokens (matching the elector-push Swift #if DEBUG environment: debug=sandbox,
+# release=prod). The App ID com.playelector.app must have Push Notifications
+# enabled so automatic signing finds a matching provisioning profile. (Only alert
+# pushes are sent, so no UIBackgroundModes/remote-notification is needed.)
+aps_env="${APS_ENVIRONMENT:-development}"
+$pb -c "Delete :aps-environment" "$entitlements" >/dev/null 2>&1 || true
+$pb -c "Add :aps-environment string $aps_env" "$entitlements"
+plutil -lint "$entitlements" >/dev/null
+plutil -extract "aps-environment" raw -o - "$entitlements" | grep -qx "$aps_env"
+echo "Patched entitlements: Push Notifications (aps-environment=$aps_env)."
+
 # (3) stage the privacy manifest next to the app target.
 cp "$repo_root/src-tauri/PrivacyInfo.xcprivacy" "$target_dir/PrivacyInfo.xcprivacy"
 if grep -q "PrivacyInfo.xcprivacy" "$pbxproj"; then

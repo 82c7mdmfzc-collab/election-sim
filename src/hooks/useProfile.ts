@@ -71,6 +71,7 @@ import {
 import { clearSession } from '../utils/sessionStore';
 import { onGameFinishedNotifications } from '../utils/notifications';
 import { maybeRequestReviewAfterUnlock } from '../utils/appReview';
+import { unregisterPush } from '../utils/pushRegistration';
 import {
   getSession,
   onAuthChange,
@@ -696,6 +697,9 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     // Always clear local state, even if the network sign-out throws — otherwise a
     // failed call would leave the user stuck "signed in". Also drop any online-lobby
     // session so a stale lobby binding doesn't linger into the next account.
+    // Drop this device's push token first — the delete needs the still-valid
+    // session (device_tokens RLS is owner-only). Best-effort; never blocks sign-out.
+    await unregisterPush();
     try {
       await authSignOut();
     } finally {

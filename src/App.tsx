@@ -35,6 +35,7 @@ import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, S
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
 import { openExternal, SOCIAL_DISCORD_URL, SOCIAL_INSTAGRAM_URL } from './utils/openExternal';
 import { FirstWinSocialModal } from './components/FirstWinSocialModal';
+import { registerForPush } from './utils/pushRegistration';
 import { AudioManager } from './utils/audioManager';
 import { applyAppearancePrefs } from './utils/appearance';
 import { NextChallengeHint } from './components/ProgressPanel';
@@ -323,6 +324,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [dailyBonus, setDailyBonus] = useState(0);
   const loginBonusClaimed = useRef(false);
+  const pushRegistered = useRef(false);
   // Session-only: a signed-out visitor sees the landing on every fresh load, but
   // can choose to continue as a guest for the rest of this session.
   const [guestContinued, setGuestContinued] = useState(false);
@@ -351,6 +353,15 @@ function App() {
         track('funds_earned', { amount, source: 'login_bonus', claimed: true, game_mode: 'menu' });
       }
     });
+  }, [signedIn, userId]);
+
+  // Register this device for remote push once per signed-in session (native only;
+  // no-op on web). Idempotent server-side upsert, so re-running on every launch is
+  // safe. The OS permission prompt is shared with the local re-engagement nudges.
+  useEffect(() => {
+    if (!signedIn || !userId || pushRegistered.current) return;
+    pushRegistered.current = true;
+    void registerForPush(userId);
   }, [signedIn, userId]);
 
   // Background music plays from app launch (subject to the per-track mute/volume

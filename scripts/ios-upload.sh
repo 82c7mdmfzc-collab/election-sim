@@ -90,7 +90,8 @@ if [ ! -f "$project/project.pbxproj" ]; then
   exit 1
 fi
 
-"$repo_root/scripts/ios-prepare-gen.sh"
+# App Store archive → production APNs entitlement (dev builds default to sandbox).
+APS_ENVIRONMENT=production "$repo_root/scripts/ios-prepare-gen.sh"
 
 # ── Sync to main ──────────────────────────────────────────────────────────────
 if [ "${ELECTOR_NO_SYNC:-0}" != "1" ]; then
