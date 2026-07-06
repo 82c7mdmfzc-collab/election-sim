@@ -13,6 +13,7 @@ create or replace function public.unlock_character(p_character text)
 returns public.profiles language plpgsql security definer set search_path = public as $$
 declare prof public.profiles; v_cost integer;
 begin
+  perform public.assert_app_supported();
   v_cost := case p_character
     -- 'joe_biden' is now a free founding candidate (no purchase path) — see is_free_candidate().
     when 'ronald_reagan' then 4500
@@ -49,6 +50,7 @@ create or replace function public.claim_free_character(p_character text)
 returns public.profiles language plpgsql security definer set search_path = public as $$
 declare prof public.profiles;
 begin
+  perform public.assert_app_supported();
   if p_character <> 'washington' then
     raise exception 'claim_free_character: % is not claimable', p_character;
   end if;

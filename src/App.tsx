@@ -27,6 +27,9 @@ import { useGameStore } from './game/store';
 import { useSessionRestore } from './hooks/useSessionRestore';
 import { useProfile, selectFunds, selectIsSignedIn } from './hooks/useProfile';
 import { useGameRewards } from './hooks/useGameRewards';
+import { useUpdateCheck } from './hooks/useUpdateCheck';
+import { useUpdateGate } from './utils/updateGate';
+import { UpdateRequiredScreen } from './components/UpdateGate';
 import { useAndroidBack } from './hooks/useAndroidBack';
 import { PlayIcon, MonitorIcon, GlobeIcon, CartIcon, TrophyIcon, RankingsIcon, SettingsIcon, SeasonIcon, FlameIcon } from './components/icons';
 import { isTutorialSeen, getDailyChallengeLocal } from './utils/localPrefs';
@@ -270,9 +273,15 @@ function GuestGate({ title, message, onBack, onSignIn }: {
   );
 }
 
+// Server-dependent surfaces that a below-minimum build must not use. Offline solo
+// (single/bot/daily), pass-and-play, tutorial, and the account modal (which owns
+// sign-in + account deletion) stay reachable — see UpdateGate for the wall logic.
+const UPDATE_GATED_MODES = new Set<AppMode>(['online', 'shop', 'leaderboard', 'season']);
+
 function App() {
   useSessionRestore();
   useGameRewards();
+  useUpdateCheck();
   const phase = useGameStore((s) => s.phase);
   const versusPending = useGameStore((s) => s.versusPending);
   const modifierRevealPending = useGameStore((s) => s.modifierRevealPending);
@@ -283,6 +292,8 @@ function App() {
   const userId = useProfile((s) => s.userId);
   const displayName = useProfile((s) => s.displayName);
   const accountChecked = useProfile((s) => s.accountChecked);
+  const updateRequired = useUpdateGate((s) => s.status === 'required');
+  const updateConfig = useUpdateGate((s) => s.config);
   const startOpeningCampaign = useGameStore((s) => s.startOpeningCampaign);
   const [showAccount, setShowAccount] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -496,6 +507,19 @@ function App() {
       </div>
     );
     screenKey = 'username';
+  } else if (updateRequired && UPDATE_GATED_MODES.has(appMode)) {
+    // Below the minimum supported version: online / store / account-adjacent
+    // surfaces are walled, but the player reached here via "Play offline", so
+    // offer a way back to the menu (solo + pass-and-play remain playable).
+    screen = (
+      <UpdateRequiredScreen
+        config={updateConfig}
+        allowOffline
+        onOffline={() => setAppMode('mode-select')}
+        offlineLabel="Back to menu"
+      />
+    );
+    screenKey = 'update-required';
   } else if (appMode === 'tutorial') {
     screen = (
       <Tutorial

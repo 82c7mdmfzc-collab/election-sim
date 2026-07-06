@@ -102,6 +102,23 @@ if [ "${ELECTOR_NO_SYNC:-0}" != "1" ]; then
   fi
 fi
 
+# ── Marketing version (semver) ─────────────────────────────────────────────────
+# The remote forced-update gate (supabase/app_config.sql) compares THIS marketing
+# semver against the server minimum — the build number below is not semantic. Set
+# ELECTOR_APP_VERSION=X.Y.Z to bump it this release; otherwise it is left as-is and
+# package.json is kept in sync so the frontend bundle bakes the same value.
+pkg_json="$repo_root/package.json"
+current_version=$(node -p "require('$tauri_conf').version")
+if [ -n "${ELECTOR_APP_VERSION:-}" ] && [ "${ELECTOR_APP_VERSION}" != "$current_version" ]; then
+  sed -i '' "s/\"version\": \"${current_version}\"/\"version\": \"${ELECTOR_APP_VERSION}\"/" "$tauri_conf"
+  current_version="${ELECTOR_APP_VERSION}"
+  echo "[ios-upload] Marketing version → $current_version"
+else
+  echo "[ios-upload] Marketing version: $current_version (set ELECTOR_APP_VERSION=X.Y.Z to bump; then set 'latest version' in the admin page)"
+fi
+# Keep package.json's version aligned with tauri.conf.json (the store-facing truth).
+node -e "const f='$pkg_json',p=require(f);if(p.version!=='$current_version'){p.version='$current_version';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n');}"
+
 # ── Bump build number ──────────────────────────────────────────────────────────
 current_build=$(node -p "require('$tauri_conf').bundle.iOS.bundleVersion")
 next_build=$((current_build + 1))
@@ -112,8 +129,8 @@ plutil -replace CFBundleVersion -string "$next_build" "$info_plist"
 echo "[ios-upload] Build number: $current_build → $next_build"
 
 # Commit and push the version bump so origin/main stays in sync
-git -C "$repo_root" add "$tauri_conf"
-git -C "$repo_root" commit -m "chore: bump iOS build number to $next_build"
+git -C "$repo_root" add "$tauri_conf" "$pkg_json"
+git -C "$repo_root" commit -m "chore: bump iOS build number to $next_build (v$current_version)"
 git -C "$repo_root" push origin main
 echo "[ios-upload] Version bump pushed to main"
 

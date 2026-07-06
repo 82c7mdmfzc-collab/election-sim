@@ -1,7 +1,19 @@
+import { readFileSync } from 'node:fs'
 import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
+// Marketing semver, sourced from the store-facing config so web + native bundles
+// bake the SAME version the App Store / Play Store ships. The forced-update gate
+// compares this against the remote minimum (src/utils/appVersion.ts). Bump
+// `version` in tauri.conf.json each release (see scripts/ios-upload.sh).
+const appVersion: string = JSON.parse(
+  readFileSync(new URL('./src-tauri/tauri.conf.json', import.meta.url), 'utf-8'),
+).version
+
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   test: {
     environment: 'node',
     exclude: [...configDefaults.exclude, '.claude/**'],

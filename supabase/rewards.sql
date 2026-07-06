@@ -170,6 +170,7 @@ declare
   v_balance      integer;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
+  perform public.assert_app_supported();
   if p_game_id is null or length(p_game_id) < 1 or length(p_game_id) > 64 then
     raise exception 'invalid game_id';
   end if;
@@ -299,6 +300,7 @@ declare
   v_season jsonb := null;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
+  perform public.assert_app_supported();
   if p_game_id is null or length(p_game_id) < 1 or length(p_game_id) > 64 then
     raise exception 'invalid game_id';
   end if;

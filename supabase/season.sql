@@ -195,6 +195,7 @@ declare
   v_premium boolean;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
+  perform public.assert_app_supported();
   select * into v_season from public._active_season();
   if v_season.id is null then raise exception 'no active season'; end if;
   if now() >= v_season.ends_at then raise exception 'season ended'; end if;
@@ -242,6 +243,7 @@ declare
   v_mastery jsonb; v_entry jsonb; v_floor integer; v_new_xp integer; v_new_level integer;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
+  perform public.assert_app_supported();
   if p_track not in ('free', 'premium') then raise exception 'invalid track %', p_track; end if;
   perform public.check_rate_limit('season_claim:' || v_uid::text, 40, 3600);
 

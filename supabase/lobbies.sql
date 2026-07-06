@@ -358,6 +358,7 @@ begin
   if v_uid is null then
     raise exception 'auth required';
   end if;
+  perform public.assert_app_supported();
 
   perform public.check_rate_limit('create_lobby:' || v_uid, 5, 3600);
 
@@ -429,6 +430,7 @@ declare
   v_count  integer;
 begin
   if v_uid is null then raise exception 'auth required'; end if;
+  perform public.assert_app_supported();
 
   perform public.check_rate_limit('join_lobby:' || v_uid, 20, 60);
 
