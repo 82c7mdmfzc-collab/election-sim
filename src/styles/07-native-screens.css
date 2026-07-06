@@ -57,6 +57,7 @@ html.native .home__events .next-challenge em {
   font-size: 0.66rem;
 }
 html.native .home__link { margin: 0; white-space: nowrap; }
+html.native .home__social { width: 30px; height: 30px; }
 html.native .play-mode {
   min-height: 100dvh;
   padding-top: calc(1rem + env(safe-area-inset-top));

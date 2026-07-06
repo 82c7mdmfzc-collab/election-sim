@@ -39,6 +39,7 @@
     },
     "elector-siwa:default",
     "elector-admob:default",
+    "elector-review:default",
     "iap:default",
     "notification:default"
 

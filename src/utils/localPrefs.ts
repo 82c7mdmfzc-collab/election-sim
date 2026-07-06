@@ -77,6 +77,13 @@ export interface LocalPrefs {
   blockedPlayers: string[];
   /** Whether we've already shown the OS notification-permission prompt once. */
   notifPermissionAsked: boolean;
+  /** Highest premium-character count at which we last asked for an App Store
+   *  review. A new unlock (count > this) triggers one native review request; the
+   *  OS itself throttles/omits re-prompts for a user who already rated. */
+  lastReviewUnlockCount: number;
+  /** Whether the one-off "join our Discord" prompt has been shown after the
+   *  player's first win. */
+  firstWinSocialSeen: boolean;
   /** Device-local Daily Challenge progress. */
   dailyChallenge: DailyChallengeLocal;
   /** Native haptic feedback on/off (no-op on web; see utils/haptics.ts). */
@@ -115,6 +122,8 @@ const DEFAULTS: LocalPrefs = {
   guidedOnboardingDone: false,
   blockedPlayers: [],
   notifPermissionAsked: false,
+  lastReviewUnlockCount: 0,
+  firstWinSocialSeen: false,
   dailyChallenge: { ...DEFAULT_DAILY_CHALLENGE },
   hapticsEnabled: true,
   reducedMotion: false,
@@ -175,6 +184,10 @@ export const isFirstGameplayTipsSeen = () => getPrefs().firstGameplayTipsSeen;
 export const markFirstGameplayTipsSeen = () => setPrefs({ firstGameplayTipsSeen: true });
 export const isGuidedOnboardingDone = () => getPrefs().guidedOnboardingDone;
 export const markGuidedOnboardingDone = () => setPrefs({ guidedOnboardingDone: true });
+export const getLastReviewUnlockCount = () => getPrefs().lastReviewUnlockCount;
+export const setLastReviewUnlockCount = (lastReviewUnlockCount: number) => setPrefs({ lastReviewUnlockCount });
+export const isFirstWinSocialSeen = () => getPrefs().firstWinSocialSeen;
+export const markFirstWinSocialSeen = () => setPrefs({ firstWinSocialSeen: true });
 
 // ── Accessibility & feel toggles (Settings screen) ────────────────────────────
 export const isHapticsEnabled = () => getPrefs().hapticsEnabled;

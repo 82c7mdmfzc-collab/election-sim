@@ -204,6 +204,20 @@
 }
 @media (hover: hover) and (pointer: fine) { .home__link:hover { color: var(--text); } }
 
+/* ── Home: community/social links ─────────────────────────────────────────── */
+.home__socials { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.home__social {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0; cursor: pointer;
+  color: var(--text); background: var(--brand-soft);
+  border: 1px solid var(--border); border-radius: var(--r-pill);
+  transition: border-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
+}
+.home__social:active { transform: scale(0.94); }
+@media (hover: hover) and (pointer: fine) {
+  .home__social:hover { border-color: var(--gold); color: var(--gold); }
+}
+
 /* ── Landing (signed-out front door) ───────────────────────────────────────── */
 .landing {
   min-height: 100dvh; display: flex; flex-direction: column;
