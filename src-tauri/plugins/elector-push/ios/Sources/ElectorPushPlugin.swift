@@ -13,7 +13,7 @@
 // (Xcode) builds use the sandbox gateway, release (TestFlight/App Store) use prod.
 
 import Foundation
-import ObjectiveC.runtime
+import ObjectiveC
 import SwiftRs
 import Tauri
 import UIKit
