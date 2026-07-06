@@ -1561,6 +1561,24 @@ html.native .native-state-summary {
 .daily__rival-hint { margin-top: 0.3rem; opacity: 0.9; }
 .daily__rival-hint strong { color: var(--brand-top); }
 .daily__status { font-size: 0.82rem; color: var(--text); font-weight: 600; }
+/* The day's predecided modifier — surfaced so players know the twist in advance. */
+.daily__modifier {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.5rem;
+  padding: 0.5rem 0.7rem; border-radius: var(--r-md);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  background: linear-gradient(120deg, rgba(124, 58, 237, 0.16), rgba(29, 58, 99, 0.4));
+}
+.daily__modifier-label {
+  font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #d7b8ff;
+}
+.daily__modifier-name { font-family: var(--font-display); font-weight: 800; font-size: 0.9rem; color: var(--text); }
+.daily__modifier-new {
+  margin-left: 0.35rem; padding: 0.05rem 0.32rem; border-radius: var(--r-pill);
+  background: rgba(124, 58, 237, 0.3); color: #e6d4ff;
+  font-size: 0.54rem; font-weight: 800; letter-spacing: 0.05em; vertical-align: middle;
+}
+.daily__modifier-desc { flex: 1 1 100%; font-size: 0.72rem; color: var(--muted); line-height: 1.3; }
 
 /* Native Daily Race uses the same character-card rail as Solo/Local/Online.
    Keep the daily matchup readable, but collapse it into a short header strip so
@@ -1630,6 +1648,47 @@ html.native .setup--daily .daily__rival-hint {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Modifier gets its own full-width strip below the chips/opponents row. */
+html.native .setup--daily .daily__modifier {
+  grid-column: 1 / -1;
+  min-width: 0;
+  align-items: center;
+  gap: 0.2rem 0.4rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--r-pill);
+}
+html.native .setup--daily .daily__modifier-label { font-size: 0.5rem; }
+html.native .setup--daily .daily__modifier-name { font-size: 0.64rem; }
+html.native .setup--daily .daily__modifier-new { font-size: 0.48rem; padding: 0.03rem 0.26rem; }
+html.native .setup--daily .daily__modifier-desc {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 0.56rem; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Restore the horizontal candidate rail for the Daily. The global
+   `html.native .shop__grid` rule (07-native-screens) flattens .shop__grid.shop-rail
+   into a vertical column for the Shop's scrolling panes; scope an exception back to
+   the Daily so its picker snaps sideways like the other setup screens intend.
+   Shop panes live in .shop__pane (not .cand-select-body), so they are untouched. */
+html.native .setup--daily .cand-select-body { height: 100%; min-height: 0; overflow: hidden; }
+html.native .setup--daily .shop__grid {
+  flex-direction: row;
+  align-items: stretch;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.25rem 0.8rem 0.35rem;
+  mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
+}
+html.native .setup--daily .shop-card {
+  flex: 0 0 auto;
+  width: clamp(210px, 32vw, 280px);
+  max-width: clamp(210px, 32vw, 280px);
+  scroll-snap-align: start;
 }
 
 /* ── Cosmetics shop pane ──────────────────────────────────────────────────── */
@@ -2569,6 +2628,14 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 
 /* ── Season pass (Campaign Trail) ──────────────────────────────────────────── */
 .season-screen { gap: 0.6rem; }
+/* The screen has more content than the native 3-row grid (header/body/foot) can
+   show at once. Wrap the XP header + objectives + tier rail in one middle scroller
+   so the pinned .setup__foot Back button is never clipped off the bottom. */
+.season-body { display: flex; flex-direction: column; gap: 0.6rem; }
+html.native .season-body {
+  min-height: 0; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
 .season-empty { text-align: center; color: var(--muted); padding: 2rem 1rem; }
 .season-countdown {
   font-family: var(--font-display); font-weight: 700; color: var(--gold);
@@ -2607,7 +2674,7 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 .season-obj-card__reward { font-size: 0.66rem; color: var(--green); font-weight: 700; }
 .season-obj-card__done { font-size: 0.72rem; font-weight: 800; color: var(--gold); text-align: center; }
 
-.season-rail-wrap { flex: 1; min-height: 0; display: flex; }
+.season-rail-wrap { flex: 0 0 auto; min-height: 0; display: flex; }
 .season-rail { display: flex; gap: 0.5rem; overflow-x: auto; padding: 0.2rem 0 0.4rem; align-items: stretch; }
 .season-tier {
   flex: 0 0 auto; width: 8.4rem; display: flex; flex-direction: column; gap: 0.4rem;

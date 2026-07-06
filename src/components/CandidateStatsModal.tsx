@@ -9,14 +9,16 @@
  * Reuses the .profile-overlay / .profile-modal shell from PlayerProfileModal.
  */
 
+import { useState } from 'react';
 import { type CandidateDef } from '../game/candidates';
 import { candidateAtMastery, normalizeCandidateMasteryEntry } from '../game/candidateMastery';
 import { useProfile } from '../hooks/useProfile';
 import { playerColorHex } from '../game/playerColors';
 import { ModifierSheet } from './ModifierSheet';
-import { MasteryPanel } from './MasteryMeter';
+import { MasteryPanel, MasteryBadge } from './MasteryMeter';
 import { PartyBadge } from './PartyBadge';
 import { Portrait } from './Portrait';
+import { ChevronDownIcon } from './icons';
 
 interface Props {
   candidate: CandidateDef;
@@ -48,6 +50,8 @@ export function CandidateStatsModal({
   const mastery = useProfile((s) => s.profile.candidateMastery);
   const leveledCandidate = candidateAtMastery(candidate, mastery);
   const level = normalizeCandidateMasteryEntry(mastery[candidate.id], candidate).level;
+  // Level/XP progression is secondary to the gameplay stats — collapsed by default.
+  const [showLevel, setShowLevel] = useState(false);
 
   return (
     <div
@@ -90,15 +94,27 @@ export function CandidateStatsModal({
         </div>
 
         <div className="profile-modal__section">
-          <MasteryPanel candidate={candidate} />
-        </div>
-
-        <div className="profile-modal__section">
           <ModifierSheet
             affinities={leveledCandidate.affinities}
             payoutModifiers={leveledCandidate.payoutModifiers}
             layout="columns"
           />
+        </div>
+
+        <div className="profile-modal__section cand-stats-modal__level">
+          <button
+            type="button"
+            className="cand-stats-modal__level-toggle"
+            onClick={() => setShowLevel((v) => !v)}
+            aria-expanded={showLevel}
+          >
+            <span className="cand-stats-modal__level-toggle-label">Level progress</span>
+            <MasteryBadge level={level} />
+            <span className={`cand-stats-modal__level-chevron${showLevel ? ' is-open' : ''}`} aria-hidden>
+              <ChevronDownIcon size={16} />
+            </span>
+          </button>
+          {showLevel && <MasteryPanel candidate={candidate} />}
         </div>
 
         <button

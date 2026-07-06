@@ -448,7 +448,9 @@ export const useGameStore = create<GameStore>()(
           // Reuse the standard solo start path (sets isDailyChallenge:false), then flag it.
           // The Daily always gets ONE deterministic modifier (same for everyone that day).
           get().startGame(chosen, cfg.turnTimeLimit, botSeats, { modifierIds: [dailyModifierId(dateKey)] });
-          set({ isDailyChallenge: true });
+          // The daily modifier is predecided and already shown on the pre-game screen,
+          // so skip the slot-machine reveal — it shouldn't feel like a random roll.
+          set({ isDailyChallenge: true, modifierRevealPending: false });
         },
 
         // ── startOpeningCampaign ────────────────────────────────────────────────
