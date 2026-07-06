@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Elector — Update Config Admin</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(1000px 700px at 50% -10%, #16305a 0%, #0b1426 55%) fixed, #0b1426;
+      color: #e8eefc; display: flex; justify-content: center; padding: 2rem 1rem 4rem;
+    }
+    main { width: 100%; max-width: 34rem; }
+    h1 { font-size: 1.35rem; letter-spacing: .02em; margin: 0 0 .25rem; }
+    p.sub { margin: 0 0 1.5rem; color: #9db0d4; font-size: .9rem; }
+    .card {
+      background: rgba(19, 33, 60, .72); border: 1px solid rgba(120, 150, 200, .18);
+      border-radius: 14px; padding: 1.25rem 1.25rem 1.4rem; margin-bottom: 1.1rem;
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+    }
+    .card h2 { font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; color: #8fa6d0; margin: 0 0 .9rem; }
+    label { display: block; font-size: .82rem; color: #b9c8e6; margin: .75rem 0 .3rem; }
+    input[type=text], input[type=email], textarea, select {
+      width: 100%; padding: .6rem .7rem; border-radius: 9px; font-size: .95rem;
+      background: #0d1930; border: 1px solid rgba(120,150,200,.28); color: #eaf1ff;
+    }
+    input:focus, textarea:focus, select:focus { outline: 2px solid #4d7ac8; border-color: transparent; }
+    textarea { min-height: 4.5rem; resize: vertical; }
+    .row { display: flex; gap: 1rem; }
+    .row > div { flex: 1; }
+    .toggle { display: flex; align-items: center; gap: .55rem; margin-top: .9rem; }
+    .toggle input { width: 1.15rem; height: 1.15rem; }
+    .toggle label { margin: 0; color: #eaf1ff; font-size: .95rem; }
+    button {
+      font: inherit; font-weight: 650; cursor: pointer; border: 0; border-radius: 10px;
+      padding: .7rem 1.1rem; color: #10203c; background: linear-gradient(180deg, #f4c665, #e0a638);
+    }
+    button.secondary { background: transparent; color: #cdd9f2; border: 1px solid rgba(120,150,200,.35); }
+    button:disabled { opacity: .5; cursor: default; }
+    .actions { display: flex; gap: .7rem; margin-top: 1.2rem; align-items: center; flex-wrap: wrap; }
+    .msg { font-size: .85rem; margin-top: .3rem; min-height: 1.1rem; }
+    .msg.err { color: #ff9b9b; } .msg.ok { color: #8fe6a4; }
+    .uid { font-family: ui-monospace, monospace; font-size: .78rem; color: #8fa6d0; word-break: break-all; }
+    .hidden { display: none; }
+    a { color: #8fb4ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Elector — Update Config</h1>
+    <p class="sub">Controls the remote forced-update gate (public.app_config). Changes take effect on the next launch/resume, or immediately when the app hits a guarded API.</p>
+
+    <!-- Connection -->
+    <section class="card" id="conn-card">
+      <h2>Connection</h2>
+      <label for="url">Supabase URL</label>
+      <input id="url" type="text" placeholder="https://YOUR-REF.supabase.co" />
+      <label for="anon">Anon key</label>
+      <input id="anon" type="text" placeholder="eyJ… (public anon key)" />
+      <div class="actions">
+        <button id="connect">Connect</button>
+        <span class="msg" id="conn-msg"></span>
+      </div>
+    </section>
+
+    <!-- Sign in -->
+    <section class="card hidden" id="auth-card">
+      <h2>Sign in (admin account)</h2>
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+      <div class="actions">
+        <button id="send-code">Send code</button>
+        <span class="msg" id="auth-msg"></span>
+      </div>
+      <div id="code-row" class="hidden">
+        <label for="code">6-digit code (from email)</label>
+        <input id="code" type="text" inputmode="numeric" placeholder="123456" />
+        <div class="actions">
+          <button id="verify">Verify &amp; sign in</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Editor -->
+    <section class="card hidden" id="editor-card">
+      <h2>Update policy</h2>
+      <p class="uid" id="whoami"></p>
+      <label for="platform">Platform</label>
+      <select id="platform"><option value="ios">ios</option><option value="android">android</option></select>
+      <div class="row">
+        <div><label for="latest">Latest version</label><input id="latest" type="text" placeholder="1.0.10" /></div>
+        <div><label for="minimum">Minimum supported version</label><input id="minimum" type="text" placeholder="1.0.0" /></div>
+      </div>
+      <div class="toggle"><input id="force" type="checkbox" /><label for="force">Force update (hard-wall EVERYTHING, incl. offline solo)</label></div>
+      <div class="toggle"><input id="soft" type="checkbox" /><label for="soft">Soft update (optional "update available" nudge)</label></div>
+      <label for="url-store">Store URL</label>
+      <input id="url-store" type="text" placeholder="https://apps.apple.com/app/elector/id6782414544" />
+      <label for="message">Update message</label>
+      <textarea id="message" placeholder="Shown on the Update Required screen (optional)."></textarea>
+      <div class="actions">
+        <button id="reload" class="secondary">Reload</button>
+        <button id="save">Save changes</button>
+        <span class="msg" id="save-msg"></span>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const $ = (id) => document.getElementById(id);
+    const LS = 'elector.admin.conn';
+    let supabase = null;
+    let rows = {}; // platform -> config row
+
+    // Restore saved connection details.
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS) || '{}');
+      $('url').value = saved.url || 'https://rwavsfyjjqfwefabcfvv.supabase.co';
+      $('anon').value = saved.anon || '';
+    } catch { $('url').value = 'https://rwavsfyjjqfwefabcfvv.supabase.co'; }
+
+    function setMsg(el, text, kind) { el.textContent = text; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+    $('connect').onclick = async () => {
+      const url = $('url').value.trim();
+      const anon = $('anon').value.trim();
+      if (!url || !anon) { setMsg($('conn-msg'), 'URL and anon key required.', 'err'); return; }
+      localStorage.setItem(LS, JSON.stringify({ url, anon }));
+      supabase = createClient(url, anon, { auth: { persistSession: true, autoRefreshToken: true } });
+      const { data } = await supabase.auth.getSession();
+      setMsg($('conn-msg'), 'Connected.', 'ok');
+      $('auth-card').classList.remove('hidden');
+      if (data.session) await onSignedIn();
+    };
+
+    $('send-code').onclick = async () => {
+      const email = $('email').value.trim();
+      if (!email) { setMsg($('auth-msg'), 'Enter your email.', 'err'); return; }
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+      if (error) { setMsg($('auth-msg'), error.message, 'err'); return; }
+      setMsg($('auth-msg'), 'Check your email for a 6-digit code.', 'ok');
+      $('code-row').classList.remove('hidden');
+    };
+
+    $('verify').onclick = async () => {
+      const email = $('email').value.trim();
+      const token = $('code').value.trim();
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+      if (error) { setMsg($('auth-msg'), error.message, 'err'); return; }
+      await onSignedIn();
+    };
+
+    async function onSignedIn() {
+      const { data: u } = await supabase.auth.getUser();
+      $('whoami').textContent = 'Signed in as ' + (u.user?.email || '') + '  ·  uid: ' + (u.user?.id || '');
+      $('editor-card').classList.remove('hidden');
+      await load();
+    }
+
+    async function load() {
+      const { data, error } = await supabase.rpc('admin_get_app_config');
+      if (error) { setMsg($('save-msg'), error.message, 'err'); return; }
+      rows = {};
+      for (const r of (data || [])) rows[r.platform] = r;
+      fillForm($('platform').value);
+      setMsg($('save-msg'), 'Loaded.', 'ok');
+    }
+
+    function fillForm(platform) {
+      const r = rows[platform] || {};
+      $('latest').value = r.latest_version || '';
+      $('minimum').value = r.minimum_version || '';
+      $('force').checked = !!r.force_update;
+      $('soft').checked = !!r.soft_update;
+      $('url-store').value = r.update_url || '';
+      $('message').value = r.message || '';
+    }
+
+    $('platform').onchange = () => fillForm($('platform').value);
+    $('reload').onclick = load;
+
+    $('save').onclick = async () => {
+      setMsg($('save-msg'), 'Saving…', '');
+      const { data, error } = await supabase.rpc('admin_set_app_config', {
+        p_platform: $('platform').value,
+        p_latest: $('latest').value.trim(),
+        p_minimum: $('minimum').value.trim(),
+        p_force: $('force').checked,
+        p_soft: $('soft').checked,
+        p_message: $('message').value,
+        p_update_url: $('url-store').value.trim() || null,
+      });
+      if (error) { setMsg($('save-msg'), error.message, 'err'); return; }
+      rows = {};
+      for (const r of (data || [])) rows[r.platform] = r;
+      setMsg($('save-msg'), 'Saved ✓', 'ok');
+    };
+  </script>
+</body>
+</html>

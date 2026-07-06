@@ -33,7 +33,11 @@ jobs:
           if [ -z "${SUPABASE_DB_URL:-}" ]; then
             echo "::error::SUPABASE_DB_URL secret is not set"; exit 1
           fi
-          # profiles first: the economy/auth RPCs hang off profiles.
+          # app_config FIRST: it defines assert_app_supported(), which the guarded
+          # write RPCs in profiles/lobbies/season/rewards reference — plpgsql body
+          # validation resolves that call at CREATE, so the function must exist first.
+          # It has no other dependencies (only auth.users).
+          # profiles next: the economy/auth RPCs hang off profiles.
           # lobbies uses the profile unlock catalog; rewards creates game_rewards;
           # leaderboard reads profiles + game_rewards so it MUST come after rewards;
           # cosmetics/iap/ads/daily credit or extend profiles; referrals MUST come
@@ -42,7 +46,7 @@ jobs:
           # complete_game_result reads under a to_regclass guard. The
           # security-hardening-patch.sql file is a local/manual include runner, so
           # this workflow applies the canonical SQL files directly.
-          for f in profiles lobbies season rewards leaderboard cosmetics iap ads daily referrals moderation notifications; do
+          for f in app_config profiles lobbies season rewards leaderboard cosmetics iap ads daily referrals moderation notifications; do
             echo "── applying supabase/$f.sql ──"
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction -f "supabase/$f.sql"
           done

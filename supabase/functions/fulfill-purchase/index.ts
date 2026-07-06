@@ -20,6 +20,7 @@
 // ════════════════════════════════════════════════════════════════════════════
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { SignJWT, importPKCS8, decodeJwt } from 'jsr:@panva/jose@6';
+import { guardVersion } from '../_shared/version.ts';
 
 const ALLOWED_ORIGINS = new Set<string>([
   'tauri://localhost',
@@ -197,6 +198,10 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData.user) return json({ error: 'invalid auth' }, 401, cors);
     const uid = userData.user.id;
+
+    // Forced-update gate: refuse out-of-date builds before verifying the receipt.
+    const outdated = await guardVersion(req, cors);
+    if (outdated) return outdated;
 
     const { platform, sku, receipt } = (await req.json().catch(() => ({}))) as {
       platform?: string;

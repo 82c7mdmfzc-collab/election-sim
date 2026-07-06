@@ -1,5 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { LobbyGameState, WaitingPlayer, WaitingLobbyState } from '../game/types';
+import { APP_VERSION } from './appVersion';
+import { platformKind } from './platform';
+import { setUpdateRequiredFromServer } from './updateGate';
 
 export type { WaitingPlayer, WaitingLobbyState };
 
@@ -10,11 +13,41 @@ const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? ''
 // so that engine tests (which import the store) don't fail without env vars set.
 export const isSupabaseConfigured = !!(url && key);
 
+// Forced-update interceptor: every Supabase request carries the app version +
+// platform (below), so the server can refuse an out-of-date build. The edge
+// functions answer with HTTP 426; guarded RPCs raise an UPDATE_REQUIRED error
+// (surfaced by PostgREST as a 4xx whose JSON body carries the message). Either
+// way we flip the update gate to 'required' so the UI blocks online/store/account.
+async function gatedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const res = await fetch(input, init);
+  if (res.status === 426) {
+    setUpdateRequiredFromServer();
+  } else if (!res.ok) {
+    try {
+      if ((await res.clone().text()).includes('UPDATE_REQUIRED')) {
+        setUpdateRequiredFromServer();
+      }
+    } catch {
+      /* body unreadable — nothing to inspect */
+    }
+  }
+  return res;
+}
+
 export const supabase = createClient(
   url || 'http://placeholder.supabase.co',
   key || 'placeholder',
   {
     realtime: { params: { eventsPerSecond: 10 } },
+    global: {
+      // Reaches REST/RPC (PostgREST exposes them via request.headers) AND edge
+      // functions. platformKind() is 'web' off-device, where the server fails open.
+      headers: {
+        'x-app-version': APP_VERSION,
+        'x-platform': platformKind(),
+      },
+      fetch: gatedFetch,
+    },
     // Durable sessions are what make online play reliable: a stable auth.uid()
     // across refreshes/devices keeps the lobby_participants binding valid. We also
     // parse the OAuth callback fragment on load (detectSessionInUrl) and refresh

@@ -31,6 +31,7 @@ import {
 import type { LobbyGameState, WaitingLobbyState } from './_engine/types.ts';
 import { rollHitsChance, rollModifierIds, applyRolledModifiers, isCrazyModeAvailable } from './_engine/modifiers.ts';
 import { pushToLobby } from '../_shared/apns.ts';
+import { guardVersion } from '../_shared/version.ts';
 
 // Restrict cross-origin callers to our own surfaces (defense-in-depth; the JWT
 // is still validated below). Tauri mobile/desktop webviews use the tauri origins.
@@ -94,6 +95,10 @@ Deno.serve(async (req: Request) => {
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData.user) return json({ error: 'invalid auth' }, 401, cors);
     const uid = userData.user.id;
+
+    // Forced-update gate: refuse out-of-date builds before touching game state.
+    const outdated = await guardVersion(req, cors);
+    if (outdated) return outdated;
 
     const { lobbyId, force, action, playerId, intents, turnTimeLimitSec } =
       (await req.json().catch(() => ({}))) as {
