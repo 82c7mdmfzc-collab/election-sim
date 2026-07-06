@@ -422,6 +422,28 @@
   margin-top: 0.45rem; text-align: center; font-size: 0.76rem; color: var(--muted);
 }
 
+/* Collapsible level/XP progression — secondary to the gameplay stats, so it sits
+   below them behind a toggle, collapsed by default. */
+.cand-stats-modal__level-toggle {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%;
+  padding: 0.4rem 0.55rem; border-radius: var(--r-sm);
+  border: 1px solid var(--border); background: rgba(255, 255, 255, 0.03);
+  color: var(--text); cursor: pointer;
+}
+.cand-stats-modal__level-toggle-label {
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted);
+}
+.cand-stats-modal__level-chevron {
+  margin-left: auto; display: inline-flex; color: var(--muted);
+  transition: transform 0.18s ease;
+}
+.cand-stats-modal__level-chevron.is-open { transform: rotate(180deg); }
+.cand-stats-modal__level .mastery-panel { margin-top: 0.55rem; }
+@media (hover: hover) and (pointer: fine) {
+  .cand-stats-modal__level-toggle:hover { border-color: var(--gold); }
+}
+
 .profile-stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;

@@ -141,6 +141,7 @@ export function SeasonPass({ onBack }: { onBack: () => void }) {
         {nowMs > 0 && <span className="season-countdown">{seasonCountdown(cat.endsAt, nowMs)}</span>}
       </div>
 
+      <div className="season-body">
       {/* XP header */}
       <div className="season-header">
         <div className="season-header__row">
@@ -218,6 +219,7 @@ export function SeasonPass({ onBack }: { onBack: () => void }) {
             );
           })}
         </div>
+      </div>
       </div>
 
       <div className="setup__foot">

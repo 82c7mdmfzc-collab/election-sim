@@ -32,6 +32,7 @@ import {
   getDailyRival,
 } from '../game/dailyChallenge';
 import { normalizeCandidateMasteryEntry } from '../game/candidateMastery';
+import { dailyModifierId, MODIFIER_MAP } from '../game/modifiers';
 import { getDailyChallengeLocal, type DailyChallengeLocal } from '../utils/localPrefs';
 import { Portrait } from './Portrait';
 import { MasteryBadge } from './MasteryMeter';
@@ -78,6 +79,9 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
   // Today's fixed rival is barred from the player's roster (Part 4 rule). It can
   // be any candidate — including ones the player hasn't unlocked.
   const rival = useMemo(() => getDailyRival(dateKey), [dateKey]);
+  // The day's predecided modifier (deterministic, same for everyone) — shown here so
+  // players can plan around it. It's applied in startDailyChallenge, not rolled.
+  const dailyMod = useMemo(() => MODIFIER_MAP[dailyModifierId(dateKey)] ?? null, [dateKey]);
   const ownedCandidates = useMemo(
     () => CANDIDATES.filter((c) => isCandidateAvailable(c, unlocked) && c.id !== rival.id),
     [unlocked, rival.id],
@@ -145,6 +149,16 @@ export function DailyChallenge({ onBack }: DailyChallengeProps) {
             <span className="daily__chip">{difficultyLabel(config.difficulty)}</span>
             <span className="daily__chip">{timerLabel(config.turnTimeLimit)}</span>
           </div>
+          {dailyMod && (
+            <div className="daily__modifier" title={dailyMod.description}>
+              <span className="daily__modifier-label">Today’s Twist</span>
+              <span className="daily__modifier-name">
+                {dailyMod.name}
+                {dailyMod.isNewMechanic && <span className="daily__modifier-new">NEW</span>}
+              </span>
+              <span className="daily__modifier-desc">{dailyMod.description}</span>
+            </div>
+          )}
           <div className="daily__opponents" aria-label="Today's opponents">
             {opponents.map((o) => {
               const isRival = o.id === rival.id;
