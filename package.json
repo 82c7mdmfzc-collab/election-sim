@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:mobile-native": "node scripts/check-mobile-native.mjs",
+    "supabase:auth:smtp": "node scripts/configure-supabase-auth-smtp.mjs",
     "build:edge": "node scripts/build-edge-function.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
