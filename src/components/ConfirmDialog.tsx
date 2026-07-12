@@ -7,7 +7,36 @@
  */
 
 import { AudioManager } from '../utils/audioManager';
-import { Modal } from './ui/Modal';
+import { Modal, useModalClose } from './ui/Modal';
+
+// Rendered inside Modal so useModalClose() sees the provider: buttons play
+// their sound immediately, then dismiss through the exit animation.
+function ConfirmActions({ confirmLabel, cancelLabel, onConfirm, onCancel }: {
+  confirmLabel: string;
+  cancelLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const requestClose = useModalClose();
+  return (
+    <div className="confirm-dialog__actions">
+      <button
+        type="button"
+        className="btn-ghost confirm-dialog__btn"
+        onClick={() => { AudioManager.play('quit'); requestClose(onCancel); }}
+      >
+        {cancelLabel}
+      </button>
+      <button
+        type="button"
+        className="btn-cta confirm-dialog__btn"
+        onClick={() => { AudioManager.play('confirm'); requestClose(onConfirm); }}
+      >
+        {confirmLabel}
+      </button>
+    </div>
+  );
+}
 
 export function ConfirmDialog({
   message,
@@ -30,22 +59,12 @@ export function ConfirmDialog({
       onClose={() => { AudioManager.play('quit'); onCancel(); }}
     >
       <p className="confirm-dialog__msg">{message}</p>
-      <div className="confirm-dialog__actions">
-        <button
-          type="button"
-          className="btn-ghost confirm-dialog__btn"
-          onClick={() => { AudioManager.play('quit'); onCancel(); }}
-        >
-          {cancelLabel}
-        </button>
-        <button
-          type="button"
-          className="btn-cta confirm-dialog__btn"
-          onClick={() => { AudioManager.play('confirm'); onConfirm(); }}
-        >
-          {confirmLabel}
-        </button>
-      </div>
+      <ConfirmActions
+        confirmLabel={confirmLabel}
+        cancelLabel={cancelLabel}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
     </Modal>
   );
 }

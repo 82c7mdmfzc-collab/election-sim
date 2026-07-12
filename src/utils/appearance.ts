@@ -10,6 +10,17 @@ import { isReducedMotion, isColorblindMode, getSelectedMapTheme } from './localP
 import { setColorblindPalette } from '../game/playerColors';
 import { setActiveMapTheme, activeMapThemeId, MAP_THEMES, type MapThemeId } from '../game/mapTheme';
 
+/** True when animations should be skipped: the user's Settings toggle (the
+ *  `reduce-motion` html class this module maintains) or the OS-level
+ *  prefers-reduced-motion. Exit animations check this to close immediately. */
+export function motionReduced(): boolean {
+  if (typeof document === 'undefined') return false;
+  return (
+    document.documentElement.classList.contains('reduce-motion') ||
+    (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+  );
+}
+
 export function applyAppearancePrefs(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;

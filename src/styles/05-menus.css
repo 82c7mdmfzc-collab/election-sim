@@ -1025,7 +1025,9 @@ html.native .shop {
   font-size: 0.76rem;
   font-weight: 800;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
+.shop__vm-filter:active { transform: scale(0.95); }
 .shop__vm-filter.is-active {
   border-color: var(--brand);
   color: var(--text);
@@ -1338,6 +1340,7 @@ button.shop-card {
 @media (hover: hover) and (pointer: fine) {
   button.shop-card:hover { border-color: var(--p-color); transform: translateY(-2px); }
 }
+button.shop-card:active { transform: scale(0.98); }
 .shop-card__stats-hint {
   display: block; margin-top: 0.4rem; text-align: center;
   font-size: 0.72rem; font-weight: 700; color: var(--gold); letter-spacing: 0.03em;

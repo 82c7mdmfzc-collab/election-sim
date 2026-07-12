@@ -9,8 +9,8 @@
  *   • swallows every error (haptics are a nicety, never load-bearing).
  *
  * It is intentionally decoupled from AudioManager (which calls into here) to
- * avoid an import cycle. Mute is honored at the AudioManager.play() call site,
- * which already returns early when muted.
+ * avoid an import cycle. Haptics are independent of audio mute: the only user
+ * gate is isHapticsEnabled() below, so muting sound never disables haptics.
  */
 import { isNativeRuntime } from './platform';
 import { isHapticsEnabled } from './localPrefs';

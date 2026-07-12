@@ -431,7 +431,10 @@ html.native .auth-tabs__tab {
   color: var(--muted);
   font-weight: 800;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
 }
+html.native .shop__tab:active,
+html.native .auth-tabs__tab:active { transform: scale(0.95); }
 html.native .shop__tab.is-active,
 html.native .auth-tabs__tab.is-active { background: var(--brand); color: #fff6ea; }
 html.native .shop__body { min-height: 0; overflow: hidden; }

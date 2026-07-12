@@ -14,6 +14,7 @@ import { useGameStore, usePlayerColors } from '../game/store';
 import { useProfile } from '../hooks/useProfile';
 import { blockPlayer, isPlayerBlocked, unblockPlayer } from '../utils/localPrefs';
 import { isNativeRuntime } from '../utils/platform';
+import { openExternal } from '../utils/openExternal';
 import { Avatar } from './Avatar';
 import { ProfileBanner } from './ProfileBanner';
 import { avatarImageUrl } from '../game/avatars';
@@ -182,13 +183,14 @@ export function PlayerProfileModal({ playerId, onClose }: Props) {
           <div className="profile-modal__section">
             <div className="profile-modal__section-title">Safety</div>
             <div className="profile-safety-actions" style={{ display: 'flex', gap: '8px' }}>
-              <a
+              <button
+                type="button"
                 className="tutorial__btn"
-                href={reportHref}
-                style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                style={{ flex: 1 }}
+                onClick={() => void openExternal(reportHref)}
               >
                 Report
-              </a>
+              </button>
               <button
                 type="button"
                 className="tutorial__btn"

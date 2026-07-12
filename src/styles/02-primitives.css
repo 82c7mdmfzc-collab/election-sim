@@ -309,6 +309,17 @@ html.native .shop-rail::-webkit-scrollbar {
 @keyframes ui-fade-in { from { opacity: 0; } }
 @keyframes ui-pop-in { from { opacity: 0; transform: scale(0.94); } }
 
+/* Exit motion — the `--closing` modifiers play the reverse of the enter
+   animations, then the component unmounts (useDismissable holds it mounted
+   just past --dur-fast). `forwards` keeps the final frame until unmount. */
+.ui-modal--closing { animation: ui-fade-out var(--dur-fast) var(--ease-out) forwards; pointer-events: none; }
+.ui-modal--closing .ui-modal__panel { animation: ui-pop-out var(--dur-fast) var(--ease-out) forwards; }
+.ui-sheet__backdrop--closing { animation: ui-fade-out var(--dur-fast) var(--ease-out) forwards; pointer-events: none; }
+/* NB: fade only, like the enter — skins own any translate. */
+.ui-sheet--closing { animation: ui-fade-out var(--dur-fast) var(--ease-out) forwards; pointer-events: none; }
+@keyframes ui-fade-out { to { opacity: 0; } }
+@keyframes ui-pop-out { to { opacity: 0; transform: scale(0.96); } }
+
 /* Round icon button at the 44px touch minimum. */
 .btn-icon {
   display: inline-flex; align-items: center; justify-content: center;

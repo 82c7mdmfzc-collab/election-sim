@@ -13,6 +13,7 @@ import { RewardReveal } from './RewardReveal';
 import { Avatar } from './Avatar';
 import { NextChallengeHint, ProgressPanel } from './ProgressPanel';
 import { isNativeRuntime } from '../utils/platform';
+import { haptic } from '../utils/haptics';
 import { useProfile } from '../hooks/useProfile';
 
 const CONFETTI_COLORS = [
@@ -56,16 +57,28 @@ export function VictoryPodium() {
   const unlockedCosmetics = useProfile((s) => s.profile.unlockedCharacters);
   const colors = usePlayerColors();
 
-  useEffect(() => {
-    AudioManager.stop('tick');
-    AudioManager.play('victory');
-  }, []);
-
   const [sharing, setSharing] = useState<ShareCardVariant | null>(null);
 
   const winner = electionResult?.winner
     ? players.find((p) => p.id === electionResult.winner)
     : null;
+  // "This device's" seat: the online local player, else seat 1 — the same
+  // owner heuristic the game store uses for stats/achievements.
+  const localSeatId = useGameStore((s) =>
+    s.multiplayerMode === 'online' ? s.localPlayerId : s.players[0]?.id ?? null,
+  );
+  const localWon = winner != null && winner.id === localSeatId;
+
+  useEffect(() => {
+    AudioManager.stop('tick');
+    if (localWon) {
+      AudioManager.play('victory');
+    } else {
+      // Defeat on this device: subdued sting + warning buzz, not the fanfare.
+      AudioManager.play('round_end');
+      haptic('warning');
+    }
+  }, [localWon]);
   const winnerEVs = winner ? (electionResult?.evByPlayer[winner.id] ?? 0) : 0;
   const winnerColor = winner ? (colors[winner.id]?.hex ?? '#facc15') : '#facc15';
 

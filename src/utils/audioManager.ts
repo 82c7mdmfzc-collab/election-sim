@@ -370,8 +370,20 @@ class _AudioManager {
   }
 
   play(soundId: string, loop = false): void {
-    if (this.muted) return;
     const isMusic = MUSIC_IDS.has(soundId);
+    if (!isMusic && !loop) {
+      // Collapse duplicate triggers (e.g. global click handler + an explicit
+      // play('click') on the same button) that land within a short window.
+      // Runs before the mute gates so it debounces sound + haptic as a unit.
+      const now = performance.now();
+      if (now - (this.lastPlayed.get(soundId) ?? -Infinity) < 80) return;
+      this.lastPlayed.set(soundId, now);
+      // Haptics are an independent channel: muting audio must not silence
+      // them. Gated only by isHapticsEnabled() inside haptic().
+      const hapticKind = HAPTICS[soundId];
+      if (hapticKind) haptic(hapticKind);
+    }
+    if (this.muted) return;
     if (isMusic && (this.musicMuted || this.musicVolume === 0)) return;
     if (!isMusic && (this.sfxMuted || this.sfxVolume === 0)) return;
     const src = this.sounds.get(soundId);
@@ -389,15 +401,6 @@ class _AudioManager {
       });
       this.looping.set(soundId, src);
     } else {
-      // Collapse duplicate triggers (e.g. global click handler + an explicit
-      // play('click') on the same button) that land within a short window.
-      const now = performance.now();
-      if (now - (this.lastPlayed.get(soundId) ?? -Infinity) < 80) return;
-      this.lastPlayed.set(soundId, now);
-      // Fire the matching haptic alongside the sound (no-op on web; gated by the
-      // same mute check above, so muting audio also silences haptics).
-      const hapticKind = HAPTICS[soundId];
-      if (hapticKind) haptic(hapticKind);
       // Where element.volume is read-only (iOS WKWebView), play SFX through the
       // Web Audio gain graph so the volume dial actually takes effect. Falls back
       // to a cloned element if the buffer isn't decoded yet (first play of a sound)

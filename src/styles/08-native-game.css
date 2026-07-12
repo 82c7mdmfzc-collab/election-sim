@@ -2505,7 +2505,7 @@ html.reduce-motion *::after {
   cursor: pointer;
   transition: transform 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.home > .home-settings:hover { color: var(--brand); border-color: var(--gold); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .home > .home-settings:hover { color: var(--brand); border-color: var(--gold); transform: translateY(-1px); } }
 .home > .home-settings:active { transform: scale(0.95); }
 html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left: calc(1rem + env(safe-area-inset-left)); }
 
@@ -2524,8 +2524,9 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
   border: 1px solid var(--border);
   background: var(--panel);
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease, transform var(--dur-fast) var(--ease-out);
 }
+.lb-tab:active { transform: scale(0.95); }
 .lb-tab.is-active { color: var(--text); border-color: var(--gold); background: var(--brand-soft); }
 .lb-sub { text-align: center; color: var(--faint); font-size: 0.78rem; margin-bottom: 0.6rem; }
 .lb-list {
@@ -2702,7 +2703,8 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
   cursor: pointer;
   transition: border-color 0.12s ease, transform 0.12s ease;
 }
-.auth-gate__leaderboard:hover { border-color: var(--gold); transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .auth-gate__leaderboard:hover { border-color: var(--gold); transform: translateY(-1px); } }
+.auth-gate__leaderboard:active { transform: scale(0.98); }
 .auth-gate__leaderboard-arrow { color: var(--brand); }
 
 /* ── Native: queued-allocation chip clear affordance ──────────────────────── */

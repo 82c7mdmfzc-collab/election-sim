@@ -35,7 +35,7 @@
     "deep-link:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://*", "app": true }]
+      "allow": [{ "url": "https://*", "app": true }, { "url": "mailto:*" }]
     },
     "elector-siwa:default",
     "elector-admob:default",

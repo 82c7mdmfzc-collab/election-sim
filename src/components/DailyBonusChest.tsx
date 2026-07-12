@@ -8,16 +8,31 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Modal } from './ui/Modal';
+import { Modal, useModalClose } from './ui/Modal';
 import { GiftIcon } from './icons';
 import { AudioManager } from '../utils/audioManager';
+import { haptic } from '../utils/haptics';
 import { isReducedMotion } from '../utils/localPrefs';
+
+// Rendered inside Modal so useModalClose() sees the provider: the collect tap
+// clicks immediately, then dismisses through the modal's exit animation.
+function CollectButton() {
+  const requestClose = useModalClose();
+  return (
+    <button type="button" className="btn-cta daily-chest__collect" onClick={() => { AudioManager.play('click'); requestClose(); }}>
+      Collect
+    </button>
+  );
+}
 
 export function DailyBonusChest({ amount, onClose }: { amount: number; onClose: () => void }) {
   const reduced = isReducedMotion();
   const [opened, setOpened] = useState(reduced);
   const [shown, setShown] = useState(reduced ? amount : 0);
   const raf = useRef<number | undefined>(undefined);
+
+  // The chest appears without a user tap — announce it with a light tap.
+  useEffect(() => { haptic('light'); }, []);
 
   // Count the amount up once the chest is opened.
   useEffect(() => {
@@ -30,6 +45,7 @@ export function DailyBonusChest({ amount, onClose }: { amount: number; onClose: 
       const eased = 1 - Math.pow(1 - t, 3);
       setShown(Math.round(eased * amount));
       if (t < 1) raf.current = requestAnimationFrame(tick);
+      else haptic('success'); // count-up landed on the full amount
     };
     raf.current = requestAnimationFrame(tick);
     return () => { if (raf.current) cancelAnimationFrame(raf.current); };
@@ -67,9 +83,7 @@ export function DailyBonusChest({ amount, onClose }: { amount: number; onClose: 
             +{shown.toLocaleString()}
           </div>
           <div className="daily-chest__label">Campaign Funds</div>
-          <button type="button" className="btn-cta daily-chest__collect" onClick={() => { AudioManager.play('click'); onClose(); }}>
-            Collect
-          </button>
+          <CollectButton />
         </>
       ) : (
         <div className="daily-chest__hint">Tap the chest to open</div>

@@ -13,6 +13,7 @@
  * No-op on iOS / web / desktop: nothing installs and history is never touched.
  */
 import { platformKind } from './platform';
+import { haptic } from './haptics';
 
 type BackHandler = () => void;
 
@@ -38,6 +39,9 @@ function install() {
     armed = false;
     const top = handlers[handlers.length - 1];
     if (!top) return;
+    // Gesture/hardware back has no on-screen button to give feedback, so
+    // acknowledge the dismissal with a light tap.
+    haptic('light');
     // Re-arm BEFORE dismissing: if the handler is a no-op (e.g. an online game
     // deliberately swallowing back) or more layers remain underneath, the next
     // back press must still reach us instead of backgrounding the app. When the

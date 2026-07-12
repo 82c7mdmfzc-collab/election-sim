@@ -22,6 +22,7 @@ import { ALL_STATES } from '../game/statesData';
 import { STATE_GROUPS_BY_STATE, minRungsForDominance } from '../game/config';
 import { NEUTRAL_RGB, lerp, rgbStr, type ResolvedColor } from '../game/colors';
 import { mapThemeNeutral } from '../game/mapTheme';
+import { haptic } from '../utils/haptics';
 import {
   useGameStore,
   usePendingRungs,
@@ -616,6 +617,9 @@ export function ElectionMap({ tallyActiveStateId, tallyRevealedIds, highlightedS
   const handleLeave = useCallback(() => { setHover(null); }, []);
 
   const handleSelect = useCallback((id: StateId, x: number, y: number) => {
+    // SVG paths bypass the global button click/haptic handler, so the most
+    // frequent gesture in the game gets its tactile tick here.
+    haptic('selection');
     setHover(null);
     setPinned({ stateId: id, x, y });
   }, []);

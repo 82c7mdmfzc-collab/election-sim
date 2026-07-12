@@ -10,9 +10,9 @@ import { useEffect, useState } from 'react';
 import { useProfile, selectFunds, selectIsSignedIn } from '../hooks/useProfile';
 import { CloseIcon } from './icons';
 import { useAndroidBack } from '../hooks/useAndroidBack';
+import { useDismissable } from '../hooks/useDismissable';
 import { AudioManager } from '../utils/audioManager';
 import { isNativeRuntime } from '../utils/platform';
-import { haptic } from '../utils/haptics';
 import { applyAppearancePrefs } from '../utils/appearance';
 import {
   isHapticsEnabled, setHapticsEnabled,
@@ -60,21 +60,22 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
   const [motion, setMotion] = useState(() => isReducedMotion());
   const [cb, setCb] = useState(() => isColorblindMode());
   const [signingOut, setSigningOut] = useState(false);
+  const { closing, requestClose } = useDismissable(onClose);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       e.stopPropagation();
       AudioManager.play('quit');
-      onClose();
+      requestClose();
     }
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [requestClose]);
 
   function close() {
     AudioManager.play('quit');
-    onClose();
+    requestClose();
   }
 
   // Android hardware back closes the panel, same as the ✕ button.
@@ -91,20 +92,22 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
 
   function handleSignIn() {
     AudioManager.play('click');
-    onClose();
-    onOpenAccount?.();
+    requestClose(() => { onClose(); onOpenAccount?.(); });
   }
 
   function toggleHaptics(next: boolean) {
     setHaptics(next);
     setHapticsEnabled(next);
-    if (next) haptic('selection'); // a tick confirms it's back on
+    // Fires after the pref flip: ticks (sound + haptic) when re-enabled,
+    // sound-only when just disabled — confirming the new state either way.
+    AudioManager.play('click');
   }
 
   function toggleMotion(next: boolean) {
     setMotion(next);
     setReducedMotion(next);
     applyAppearancePrefs();
+    AudioManager.play('click');
   }
 
   function toggleColorblind(next: boolean) {
@@ -115,7 +118,7 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
   }
 
   return (
-    <div className="help-overlay" role="dialog" aria-modal="true" onClick={close}>
+    <div className={`help-overlay${closing ? ' help-overlay--closing' : ''}`} role="dialog" aria-modal="true" onClick={close}>
       <div className="help-overlay__panel settings-panel" onClick={(e) => e.stopPropagation()}>
         <div className="howto__head">
           <h2 className="howto__title">Settings</h2>

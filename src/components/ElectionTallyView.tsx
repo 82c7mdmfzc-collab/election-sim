@@ -4,6 +4,7 @@ import { ALL_STATES } from '../game/statesData';
 import { ElectionMap } from './ElectionMap';
 import type { StateId } from '../game/types';
 import { buildFinalTallySnapshot, buildTallyHighlights, tallyHighlightLabel, type TallyHighlight } from '../game/endgameHighlights';
+import { haptic } from '../utils/haptics';
 
 const SLOT_HIGHLIGHT_MS = 520;
 const SLOT_DECISIVE_MS = 900;
@@ -62,6 +63,9 @@ function useElectionTallySequence() {
   }
 
   function revealFinalTotals() {
+    // The election is called: single choke point for both the natural timeline
+    // and the Skip button (skip is hidden once isDone, so this fires once).
+    haptic('medium');
     const snapshot = buildFinalTallySnapshot(ALL_STATES, electionResult);
     setRevealedIds(snapshot.revealedIds);
     setAccumEVs(Object.fromEntries(players.map((p) => [p.id, snapshot.evTotals[p.id] ?? 0])));

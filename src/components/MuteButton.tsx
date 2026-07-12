@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { AudioManager } from '../utils/audioManager';
+import { haptic } from '../utils/haptics';
 import {
   isMuted, setMuted,
   isSfxMuted, setSfxMuted, getSfxVolume, setSfxVolumeLevel,
@@ -20,6 +21,7 @@ export function SfxVolumeBar() {
 
   function onSlider(e: React.ChangeEvent<HTMLInputElement>) {
     const v = Number(e.target.value);
+    haptic('selection'); // iOS-style tick per 5% step while dragging
     setVolumeState(v);
     setSfxVolumeLevel(v);
     AudioManager.setSfxVolume(v / 100);
@@ -73,6 +75,7 @@ export function MusicVolumeBar() {
 
   function onSlider(e: React.ChangeEvent<HTMLInputElement>) {
     const v = Number(e.target.value);
+    haptic('selection'); // iOS-style tick per 5% step while dragging
     setVolumeState(v);
     setMusicVolumeLevel(v);
     AudioManager.setMusicVolume(v / 100);

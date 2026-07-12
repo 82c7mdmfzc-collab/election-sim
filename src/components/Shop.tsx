@@ -18,6 +18,7 @@ import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
 import { useProfile } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
+import { haptic } from '../utils/haptics';
 import { FUNDS_BUNDLES, displayFundsPrice, getFundsPrices, iapPlatform, nativeIapAvailable, purchase, recoverAndroidPurchases, type PurchaseResult } from '../utils/iap';
 import { getSelectedVictoryMessage, setSelectedVictoryMessage, getSelectedShareFrame, setSelectedShareFrame, getSelectedMapTheme, setSelectedMapTheme } from '../utils/localPrefs';
 import { cosmeticsByCategory, purchasableCosmetics, isCosmeticAvailable, type CosmeticDef } from '../game/cosmetics';
@@ -160,6 +161,7 @@ function RewardedAdCard() {
     } else {
       setLastReward(null);
       setMessage(result.message);
+      haptic('error');
       track('rewarded_ad_claim_failed', {
         placement: 'shop',
         reason_category: 'claim_error',
@@ -214,6 +216,7 @@ function RewardedAdCard() {
       if (!result.completed) {
         setPhase('idle');
         setMessage(result.error ?? 'Ad closed before the reward.');
+        haptic('error');
         track('rewarded_ad_cancelled', {
           placement: 'shop',
           provider: result.provider ?? 'bridge',
@@ -609,6 +612,7 @@ export function Shop({ source = 'menu', onBack, onSignIn, onOpenSeason }: ShopPr
       });
     } else if (result.status === 'error') {
       setPurchaseMsg(result.message);
+      haptic('error');
       track('checkout_result', {
         product_id: sku,
         product_type: 'funds',

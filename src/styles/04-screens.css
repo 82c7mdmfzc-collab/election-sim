@@ -266,6 +266,7 @@ html.native .setup__roster .cand-card.is-disabled {
   transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
 }
 @media (hover: hover) and (pointer: fine) { .cand-card:hover { transform: translateY(-2px); border-color: var(--p-color); } }
+.cand-card:active { transform: scale(0.98); }
 .cand-card.is-assigned { border-color: var(--p-color); box-shadow: 0 0 0 1px var(--p-color); }
 .cand-card.is-locked { opacity: 0.6; }
 @media (hover: hover) and (pointer: fine) { .cand-card.is-locked:hover { opacity: 0.85; border-color: var(--gold); } }
@@ -430,7 +431,8 @@ input[type="text"], input[type="email"], input[type="number"],
 input[type="tel"], input[type="search"], input[type="password"], textarea {
   background: var(--panel-2); color: var(--text);
   border: 1px solid var(--border); border-radius: 10px;
-  padding: 0.55rem 0.85rem; font-size: 0.9rem; outline: none;
+  /* 16px minimum: anything smaller triggers iOS Safari's zoom-on-focus. */
+  padding: 0.55rem 0.85rem; font-size: 16px; outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 input:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.22); }
@@ -813,7 +815,8 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   cursor: pointer; opacity: 0.85;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.tally-skip-btn:hover { opacity: 1; transform: translateY(-1px); }
+@media (hover: hover) and (pointer: fine) { .tally-skip-btn:hover { opacity: 1; transform: translateY(-1px); } }
+.tally-skip-btn:active { opacity: 1; transform: scale(0.97); }
 
 .tally-stage {
   position: relative; display: flex; align-items: stretch;
@@ -1257,6 +1260,9 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
   background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
   animation: tip-fade 0.18s ease; padding: 1.5rem;
 }
+/* Exit motion (useDismissable holds the overlay mounted just past --dur-fast). */
+.help-overlay--closing { animation: help-overlay-out var(--dur-fast) var(--ease-out) forwards; pointer-events: none; }
+@keyframes help-overlay-out { to { opacity: 0; } }
 .help-overlay__panel {
   width: min(560px, 100%); max-height: 86vh; overflow-y: auto;
   background: var(--panel);
@@ -1272,8 +1278,10 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .howto__close {
   background: none; border: none; color: var(--muted);
   font-size: 1.1rem; cursor: pointer; padding: 0.25rem;
+  transition: transform var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 @media (hover: hover) and (pointer: fine) { .howto__close:hover { color: var(--text); } }
+.howto__close:active { transform: scale(0.92); }
 .howto__sections { display: flex; flex-direction: column; gap: 0.9rem; }
 .howto__section-title {
   font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em;
