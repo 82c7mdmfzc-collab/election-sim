@@ -913,21 +913,43 @@ html.native .auth-gate__input {
   html.native .victory-rewards { display: none; }
 }
 
-/* ── Native screen transitions ───────────────────────────────────────────────
-   A short enter animation on every top-level screen change so navigation feels
-   like a native push rather than a web hard-cut. ScreenTransition remounts its
-   child on screenKey change, which restarts this animation. It ends at
-   transform:none so at rest it leaves no containing block for the game's
-   fixed-position overlays. */
-.screen-transition {
-  animation: screen-enter 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
-}
+/* ── Screen transitions (ScreenTransition.tsx) ──────────────────────────────
+   Directional push/pop between nav-tier screens: forward slides the new screen
+   in from the right while the old one (held ~240ms as an inert exit layer)
+   slides out left; back reverses. Boot + game screens keep the plain enter
+   fade. At rest the stage is a plain position:relative div and the single
+   layer's animation ended at transform:none — no containing block is left for
+   the game shell's fixed-position overlays. The stage is position:fixed only
+   during the ~280ms `.is-animating` window so absolute layers can't collapse
+   (screens are 100dvh; the document never scrolls). */
+.screen-stage { position: relative; }
+.screen-stage.is-animating { position: fixed; inset: 0; overflow: hidden; }
+.screen-stage.is-animating > .screen-layer { position: absolute; inset: 0; }
+.screen-layer--exit-push, .screen-layer--exit-pop { pointer-events: none; }
+
+.screen-layer--enter-fade { animation: screen-enter 240ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+.screen-layer--enter-push { animation: screen-push-enter var(--dur-screen) var(--ease-out); }
+.screen-layer--enter-pop  { animation: screen-pop-enter  var(--dur-screen) var(--ease-out); }
+.screen-layer--exit-push  { animation: screen-push-exit var(--dur-screen-exit) var(--ease-out) forwards; }
+.screen-layer--exit-pop   { animation: screen-pop-exit  var(--dur-screen-exit) var(--ease-out) forwards; }
+
 @keyframes screen-enter {
   from { opacity: 0; transform: translateY(10px) scale(0.992); }
   to   { opacity: 1; transform: none; }
 }
+@keyframes screen-push-enter {
+  from { opacity: 0; transform: translateX(36px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes screen-push-exit  { to { opacity: 0; transform: translateX(-28px); } }
+@keyframes screen-pop-enter {
+  from { opacity: 0; transform: translateX(-36px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes screen-pop-exit   { to { opacity: 0; transform: translateX(28px); } }
+
 @media (prefers-reduced-motion: reduce) {
-  .screen-transition { animation: none; }
+  .screen-layer { animation: none !important; }
 }
 
 /* ══ Native gameplay polish: wallets, state-group progress, profiles ══════ */
