@@ -38,4 +38,11 @@ impl<R: Runtime> ElectorAdmob<R> {
             .await
             .map_err(Into::into)
     }
+
+    pub async fn show_privacy_options(&self) -> crate::Result<PrivacyOptionsResponse> {
+        self.0
+            .run_mobile_plugin_async("showPrivacyOptions", ())
+            .await
+            .map_err(Into::into)
+    }
 }

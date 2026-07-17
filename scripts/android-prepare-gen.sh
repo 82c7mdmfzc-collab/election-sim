@@ -20,6 +20,7 @@ set -eu
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 gen="$repo_root/src-tauri/gen/android"
 app_gradle="$gen/app/build.gradle.kts"
+root_gradle="$gen/build.gradle.kts"
 manifest="$gen/app/src/main/AndroidManifest.xml"
 res="$gen/app/src/main/res"
 keys_props="$HOME/.android-keys/elector-upload.properties"
@@ -46,6 +47,22 @@ else
   }
   echo "Locked MainActivity to sensorLandscape."
 fi
+
+# Google Mobile Ads 24.x publishes Kotlin 2.1 metadata. Tauri 2.11 currently
+# generates Kotlin 1.9.25, which cannot read it, so keep this regeneration-safe
+# upgrade in the preparation script instead of hand-editing gitignored gen/.
+if grep -q 'kotlin-gradle-plugin:1\.9\.25' "$root_gradle"; then
+  /usr/bin/sed -i '' 's/kotlin-gradle-plugin:1\.9\.25/kotlin-gradle-plugin:2.1.0/' "$root_gradle"
+fi
+# Also advance projects already prepared by an earlier v1.2 iteration.
+if grep -q 'kotlin-gradle-plugin:2\.3\.0' "$root_gradle"; then
+  /usr/bin/sed -i '' 's/kotlin-gradle-plugin:2\.3\.0/kotlin-gradle-plugin:2.1.0/' "$root_gradle"
+fi
+grep -q 'kotlin-gradle-plugin:2\.1\.0' "$root_gradle" || {
+  echo "Generated Android project is not using Kotlin 2.1.0; update $root_gradle." >&2
+  exit 1
+}
+echo "Kotlin Gradle plugin 2.1.0 OK."
 
 # (3) Play requires targetSdk >= 35 for new apps; the Tauri CLI template owns
 #     this value, so fail loudly if a CLI upgrade ever regresses it.

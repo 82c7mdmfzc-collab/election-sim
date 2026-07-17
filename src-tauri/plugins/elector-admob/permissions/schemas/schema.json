@@ -295,6 +295,18 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the show_privacy_options command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-show-privacy-options",
+          "markdownDescription": "Enables the show_privacy_options command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the show_privacy_options command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-show-privacy-options",
+          "markdownDescription": "Denies the show_privacy_options command without any pre-configured scope."
+        },
+        {
           "description": "Enables the show_rewarded_ad command without any pre-configured scope.",
           "type": "string",
           "const": "allow-show-rewarded-ad",

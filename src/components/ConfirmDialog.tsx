@@ -7,7 +7,8 @@
  */
 
 import { AudioManager } from '../utils/audioManager';
-import { Modal, useModalClose } from './ui/Modal';
+import { Modal } from './ui/Modal';
+import { useModalClose } from './ui/modalCloseContext';
 
 // Rendered inside Modal so useModalClose() sees the provider: buttons play
 // their sound immediately, then dismiss through the exit animation.

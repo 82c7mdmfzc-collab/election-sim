@@ -16,7 +16,7 @@ import { candidateMasteryTrainingOffer, normalizeCandidateMasteryEntry } from '.
 import { playerColorHex } from '../game/playerColors';
 import { isCandidateFreeClaimAvailable } from '../game/promos';
 import { VICTORY_MESSAGES, isVictoryMessageAvailable, type VictoryMessage } from '../game/victoryMessages';
-import { useProfile } from '../hooks/useProfile';
+import { useProfile, type AdRewardClaimResult } from '../hooks/useProfile';
 import { AudioManager } from '../utils/audioManager';
 import { haptic } from '../utils/haptics';
 import { FUNDS_BUNDLES, displayFundsPrice, getFundsPrices, iapPlatform, nativeIapAvailable, purchase, recoverAndroidPurchases, type PurchaseResult } from '../utils/iap';
@@ -101,6 +101,8 @@ function RewardedAdCard() {
   const guest = useProfile((s) => s.guest);
   const remoteStatus = useProfile((s) => s.adRewardStatus);
   const refreshAdRewardStatus = useProfile((s) => s.refreshAdRewardStatus);
+  const beginVerifiedAdReward = useProfile((s) => s.beginVerifiedAdReward);
+  const completeVerifiedAdReward = useProfile((s) => s.completeVerifiedAdReward);
   const claimAdReward = useProfile((s) => s.claimAdReward);
   const [localSnapshot, setLocalSnapshot] = useState<{ userId: string | null; status: AdRewardStatus } | null>(null);
   const [phase, setPhase] = useState<'idle' | 'watching' | 'claiming'>('idle');
@@ -132,9 +134,7 @@ function RewardedAdCard() {
     });
   }, [guest, refreshAdRewardStatus, userId]);
 
-  const claimWatchedAd = useCallback(async (provider?: string | null, adUnit?: string | null) => {
-    setPhase('claiming');
-    const result = await claimAdReward({ placement: 'shop', provider, adUnit });
+  const applyClaimResult = useCallback((result: AdRewardClaimResult, provider?: string | null) => {
     if (result.status === 'claimed') {
       if (userId) recordLocalAdReward(userId);
       setLocalSnapshot({ userId, status: result.adStatus });
@@ -158,6 +158,10 @@ function RewardedAdCard() {
     } else if (result.status === 'auth_required') {
       setLastReward(null);
       setMessage('Sign in to earn Campaign Funds from ads.');
+    } else if (result.status === 'verifying') {
+      setLastReward(null);
+      setMessage('Ad completed. Verifying your reward — your balance will update shortly.');
+      track('rewarded_ad_verifying', { placement: 'shop', provider: provider ?? 'admob' });
     } else {
       setLastReward(null);
       setMessage(result.message);
@@ -170,7 +174,13 @@ function RewardedAdCard() {
     claimStarted.current = false;
     watchedMeta.current = {};
     setPhase('idle');
-  }, [claimAdReward, userId]);
+  }, [userId]);
+
+  const claimWatchedAd = useCallback(async (provider?: string | null, adUnit?: string | null) => {
+    setPhase('claiming');
+    const result = await claimAdReward({ placement: 'shop', provider, adUnit });
+    applyClaimResult(result, provider);
+  }, [applyClaimResult, claimAdReward]);
 
   useEffect(() => {
     if (phase !== 'watching') return;
@@ -212,7 +222,21 @@ function RewardedAdCard() {
 
     if (bridgeReady) {
       setPhase('claiming');
-      const result = await showRewardedAd('shop');
+      const pending = await beginVerifiedAdReward('shop');
+      if (pending.status === 'limit') {
+        setLocalSnapshot({ userId, status: pending.adStatus });
+        setPhase('idle');
+        setMessage(`Ad limit reached. Next ad in ${formatReset(pending.adStatus.nextResetAt)}.`);
+        return;
+      }
+      if (pending.status !== 'pending') {
+        setPhase('idle');
+        setMessage(pending.status === 'auth_required'
+          ? 'Sign in to earn Campaign Funds from ads.'
+          : pending.message);
+        return;
+      }
+      const result = await showRewardedAd('shop', pending.claimToken);
       if (!result.completed) {
         setPhase('idle');
         setMessage(result.error ?? 'Ad closed before the reward.');
@@ -223,7 +247,8 @@ function RewardedAdCard() {
         });
         return;
       }
-      await claimWatchedAd(result.provider ?? 'bridge', result.adUnit ?? null);
+      const verified = await completeVerifiedAdReward(pending.claimToken);
+      applyClaimResult(verified, result.provider ?? 'admob');
       return;
     }
 

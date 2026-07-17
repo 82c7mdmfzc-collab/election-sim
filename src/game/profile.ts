@@ -421,6 +421,60 @@ export type AdRewardClaimRemote =
   | ({ status: 'claimed'; amount: number; balance: number } & AdRewardStatus)
   | ({ status: 'limit'; amount: 0; balance: number } & AdRewardStatus);
 
+export type AdRewardStartRemote =
+  | ({ status: 'pending'; claimToken: string } & AdRewardStatus)
+  | ({ status: 'limit' } & AdRewardStatus);
+
+export type VerifiedAdRewardRemote =
+  | ({ status: 'credited'; claimToken: string; amount: number; balance: number } & AdRewardStatus)
+  | ({ status: 'pending'; claimToken: string; amount: 0; balance: number } & AdRewardStatus)
+  | ({ status: 'rejected' | 'expired'; claimToken: string; amount: 0; balance: number; message: string | null } & AdRewardStatus);
+
+export async function createAdRewardClaimRemote(placement: string): Promise<AdRewardStartRemote | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('create_ad_reward_claim', { p_placement: placement });
+  if (error) {
+    console.warn('createAdRewardClaimRemote failed:', error.message);
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  const rewardStatus = parseAdRewardStatus(data);
+  if (!rewardStatus) return null;
+  if (row.status === 'limit') return { ...rewardStatus, status: 'limit' };
+  const claimToken = jsonStringOrNull(row, 'claimToken');
+  if (row.status !== 'pending' || !claimToken) return null;
+  return { ...rewardStatus, status: 'pending', claimToken };
+}
+
+export async function fetchAdRewardClaimRemote(claimToken: string): Promise<VerifiedAdRewardRemote | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await supabase.rpc('get_ad_reward_claim', { p_token: claimToken });
+  if (error) {
+    console.warn('fetchAdRewardClaimRemote failed:', error.message);
+    return null;
+  }
+  if (!data || typeof data !== 'object') return null;
+  const row = data as Record<string, unknown>;
+  const rewardStatus = parseAdRewardStatus(data);
+  const returnedToken = jsonStringOrNull(row, 'claimToken');
+  const status = row.status;
+  if (!rewardStatus || !returnedToken ||
+      (status !== 'pending' && status !== 'credited' && status !== 'rejected' && status !== 'expired')) return null;
+  const amount = jsonNumber(row, 'amount');
+  const balance = jsonNumber(row, 'balance');
+  if (status === 'credited') return { ...rewardStatus, status, claimToken: returnedToken, amount, balance };
+  if (status === 'pending') return { ...rewardStatus, status, claimToken: returnedToken, amount: 0, balance };
+  return {
+    ...rewardStatus,
+    status,
+    claimToken: returnedToken,
+    amount: 0,
+    balance,
+    message: jsonStringOrNull(row, 'message'),
+  };
+}
+
 export async function claimAdRewardRemote(args: {
   placement: string;
   provider?: string | null;

@@ -18,6 +18,32 @@ Default permissions for the Elector AdMob bridge
 <tr>
 <td>
 
+`elector-admob:allow-show-privacy-options`
+
+</td>
+<td>
+
+Enables the show_privacy_options command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`elector-admob:deny-show-privacy-options`
+
+</td>
+<td>
+
+Denies the show_privacy_options command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `elector-admob:allow-show-rewarded-ad`
 
 </td>

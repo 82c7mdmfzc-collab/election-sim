@@ -77,22 +77,37 @@ try {
 
   // Human submits its (empty) turn → it becomes the computer opponent's turn.
   await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /Hand to|Resolve Turn|Submit Turn/i.test(b.textContent ?? ''));
+    const btn = [...document.querySelectorAll('button')].find((b) => {
+      const rect = b.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && !b.disabled &&
+        /Hand to|Resolve Turn|Submit Turn|End Turn/i.test(b.textContent ?? '');
+    });
     btn?.click();
   });
 
   // Submitting with no allocations opens a confirm dialog ("End your turn
   // without campaigning?") — accept it.
-  await page.waitForSelector('.confirm-dialog, [role="alertdialog"]', { timeout: 2500 }).catch(() => null);
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /^End turn$/i.test((b.textContent ?? '').trim()));
-    btn?.click();
-  });
+  const confirm = await page.waitForSelector('.confirm-dialog .btn-cta', { visible: true, timeout: 2500 });
+  if (!confirm) throw new Error('End-turn confirmation did not open');
+  await confirm.click();
   log('human submitted; waiting for the computer opponent to play…');
 
   // Resolution only renders after EVERY active seat submits, so its appearance
   // proves the computer opponent autonomously allocated + submitted.
-  await page.waitForSelector('.round-resolution, .res-card, .resolution', { timeout: 12000 });
+  await page.waitForSelector('.round-resolution, .res-card, .resolution', { timeout: 12000 }).catch(async (error) => {
+    const diagnostics = await page.evaluate(() => ({
+      text: (document.body.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 800),
+      buttons: [...document.querySelectorAll('button')]
+        .filter((button) => button.getBoundingClientRect().width > 0)
+        .map((button) => (button.textContent ?? '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 30),
+      visibleDialogs: [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')]
+        .filter((dialog) => dialog.getBoundingClientRect().width > 0)
+        .map((dialog) => (dialog.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 240)),
+    }));
+    throw new Error(`Bot resolution timed out. UI state: ${JSON.stringify(diagnostics)}`, { cause: error });
+  });
   log('✓ resolution reached — the computer opponent took its turn');
 
   if (errors.length) {

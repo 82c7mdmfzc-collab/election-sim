@@ -10,3 +10,10 @@ pub(crate) async fn show_rewarded_ad<R: Runtime>(
 ) -> Result<ShowRewardedAdResponse> {
     app.elector_admob().show_rewarded_ad(payload).await
 }
+
+#[command]
+pub(crate) async fn show_privacy_options<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<PrivacyOptionsResponse> {
+    app.elector_admob().show_privacy_options().await
+}

@@ -24,8 +24,13 @@ export interface RewardedAdCompletion {
   error?: string;
 }
 
+export interface AdPrivacyOptionsResult {
+  completed: boolean;
+  error?: string | null;
+}
+
 interface RewardedAdBridge {
-  showRewardedAd(args: { placement: string }): Promise<boolean | RewardedAdCompletion>;
+  showRewardedAd(args: { placement: string; claimToken?: string }): Promise<boolean | RewardedAdCompletion>;
 }
 
 type LocalAdRewards = Record<string, number[]>;
@@ -116,11 +121,11 @@ export function inlineRewardedAdsEnabled(): boolean {
   return import.meta.env.DEV || import.meta.env.VITE_ENABLE_INLINE_REWARDED_ADS === 'true';
 }
 
-export async function showRewardedAd(placement = 'shop'): Promise<RewardedAdCompletion> {
+export async function showRewardedAd(placement = 'shop', claimToken?: string): Promise<RewardedAdCompletion> {
   const ads = bridge();
-  if (!ads) return showNativeRewardedAd(placement);
+  if (!ads) return showNativeRewardedAd(placement, claimToken);
   try {
-    const result = await ads.showRewardedAd({ placement });
+    const result = await ads.showRewardedAd({ placement, claimToken });
     if (typeof result === 'boolean') return { completed: result };
     return { completed: Boolean(result.completed), provider: result.provider, adUnit: result.adUnit, error: result.error };
   } catch (err) {
@@ -131,20 +136,35 @@ export async function showRewardedAd(placement = 'shop'): Promise<RewardedAdComp
   }
 }
 
-async function showNativeRewardedAd(placement: string): Promise<RewardedAdCompletion> {
+async function showNativeRewardedAd(placement: string, claimToken?: string): Promise<RewardedAdCompletion> {
   if (!nativeRewardedAdsAvailable()) {
     return { completed: false, error: 'No rewarded ad bridge is installed.' };
   }
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     return await invoke<RewardedAdCompletion>('plugin:elector-admob|show_rewarded_ad', {
-      payload: { placement },
+      payload: { placement, claimToken },
     });
   } catch (err) {
     return {
       completed: false,
       provider: 'admob',
       error: err instanceof Error ? err.message : 'The ad could not be shown.',
+    };
+  }
+}
+
+export async function showAdPrivacyOptions(): Promise<AdPrivacyOptionsResult> {
+  if (!nativeRewardedAdsAvailable()) {
+    return { completed: false, error: 'Ad privacy options are only available in the mobile app.' };
+  }
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<AdPrivacyOptionsResult>('plugin:elector-admob|show_privacy_options');
+  } catch (err) {
+    return {
+      completed: false,
+      error: err instanceof Error ? err.message : 'Ad privacy options could not be opened.',
     };
   }
 }

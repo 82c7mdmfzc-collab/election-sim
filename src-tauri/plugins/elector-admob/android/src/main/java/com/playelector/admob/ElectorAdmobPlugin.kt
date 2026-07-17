@@ -17,6 +17,9 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.google.android.gms.ads.rewarded.ServerSideVerificationOptions
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 
 // Google's public TEST rewarded unit — the fallback when tauri.conf.json carries
 // no androidRewardedAdUnitId. Dev safety net only; never ship a build without the
@@ -26,6 +29,7 @@ private const val TEST_REWARDED_AD_UNIT_ID = "ca-app-pub-3940256099942544/522435
 @InvokeArg
 class ShowRewardedAdArgs {
   var placement: String = ""
+  var claimToken: String? = null
 }
 
 // Read from `plugins.elector-admob` in tauri.conf.json. The config JSON also
@@ -41,8 +45,8 @@ class AdmobConfig {
  * `{ completed, provider, adUnit, error }`. It NEVER rejects — the JS side
  * (src/utils/rewardedAds.ts) treats resolve-with-error as a soft failure.
  *
- * Consent posture matches iOS: no ATT/UMP flow is shipped, so every request
- * asks for non-personalized ads (npa=1).
+ * Consent is refreshed through Google's UMP SDK before an ad request. Requests
+ * remain explicitly non-personalized as a conservative default.
  */
 @TauriPlugin
 class ElectorAdmobPlugin(private val activity: Activity) : Plugin(activity) {
@@ -64,21 +68,66 @@ class ElectorAdmobPlugin(private val activity: Activity) : Plugin(activity) {
 
   @Command
   fun showRewardedAd(invoke: Invoke) {
-    invoke.parseArgs(ShowRewardedAdArgs::class.java)
-    activity.runOnUiThread { loadAndShow(invoke) }
+    val args = invoke.parseArgs(ShowRewardedAdArgs::class.java)
+    activity.runOnUiThread { loadAndShow(invoke, args.claimToken) }
   }
 
-  private fun loadAndShow(invoke: Invoke) {
+  @Command
+  fun showPrivacyOptions(invoke: Invoke) {
+    activity.runOnUiThread {
+      val consent = UserMessagingPlatform.getConsentInformation(activity)
+      val parameters = ConsentRequestParameters.Builder().build()
+      consent.requestConsentInfoUpdate(
+        activity,
+        parameters,
+        {
+          UserMessagingPlatform.showPrivacyOptionsForm(activity) { formError ->
+            invoke.resolve(privacyResult(formError == null, formError?.message))
+          }
+        },
+        { requestError -> invoke.resolve(privacyResult(false, requestError.message)) },
+      )
+    }
+  }
+
+  private fun loadAndShow(invoke: Invoke, claimToken: String?) {
     if (pendingInvoke != null) {
       invoke.resolve(result(false, "An ad is already in progress."))
       return
     }
+    pendingInvoke = invoke
+    didEarnReward = false
+
+    val consent = UserMessagingPlatform.getConsentInformation(activity)
+    val parameters = ConsentRequestParameters.Builder().build()
+    consent.requestConsentInfoUpdate(
+      activity,
+      parameters,
+      {
+        UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { formError ->
+          if (formError != null && !consent.canRequestAds()) {
+            finish(false, "Ad privacy choices could not be completed: ${formError.message}")
+          } else if (consent.canRequestAds()) {
+            loadRewardedAd(claimToken)
+          } else {
+            finish(false, "Ads are unavailable until privacy choices are completed.")
+          }
+        }
+      },
+      { requestError ->
+        // UMP allows requests with the previous session's consent state when a
+        // refresh fails (for example, a temporary network outage).
+        if (consent.canRequestAds()) loadRewardedAd(claimToken)
+        else finish(false, "Ad privacy status is unavailable: ${requestError.message}")
+      },
+    )
+  }
+
+  private fun loadRewardedAd(claimToken: String?) {
     if (!started) {
       started = true
       MobileAds.initialize(activity) {}
     }
-    pendingInvoke = invoke
-    didEarnReward = false
 
     val extras = Bundle().apply { putString("npa", "1") }
     val request = AdRequest.Builder()
@@ -91,6 +140,11 @@ class ElectorAdmobPlugin(private val activity: Activity) : Plugin(activity) {
       }
 
       override fun onAdLoaded(ad: RewardedAd) {
+        if (!claimToken.isNullOrBlank()) {
+          ad.setServerSideVerificationOptions(
+            ServerSideVerificationOptions.Builder().setCustomData(claimToken).build(),
+          )
+        }
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
           override fun onAdDismissedFullScreenContent() {
             finish(didEarnReward, if (didEarnReward) null else "Ad closed before the reward.")
@@ -110,6 +164,13 @@ class ElectorAdmobPlugin(private val activity: Activity) : Plugin(activity) {
     data.put("completed", completed)
     data.put("provider", "admob")
     data.put("adUnit", activeAdUnitId)
+    if (error != null) data.put("error", error)
+    return data
+  }
+
+  private fun privacyResult(completed: Boolean, error: String?): JSObject {
+    val data = JSObject()
+    data.put("completed", completed)
     if (error != null) data.put("error", error)
     return data
   }

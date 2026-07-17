@@ -21,6 +21,7 @@ import {
 } from '../utils/localPrefs';
 import { SfxVolumeBar, MusicVolumeBar } from './MuteButton';
 import { AccountDeletionSection } from './AccountDeletionSection';
+import { nativeRewardedAdsAvailable, showAdPrivacyOptions } from '../utils/rewardedAds';
 
 function ToggleRow({ label, hint, checked, onChange }: {
   label: string;
@@ -60,6 +61,8 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
   const [motion, setMotion] = useState(() => isReducedMotion());
   const [cb, setCb] = useState(() => isColorblindMode());
   const [signingOut, setSigningOut] = useState(false);
+  const [privacyStatus, setPrivacyStatus] = useState<string | null>(null);
+  const [openingPrivacy, setOpeningPrivacy] = useState(false);
   const { closing, requestClose } = useDismissable(onClose);
 
   useEffect(() => {
@@ -115,6 +118,15 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
     setColorblindMode(next);
     applyAppearancePrefs();
     AudioManager.play('click');
+  }
+
+  async function handleAdPrivacy() {
+    AudioManager.play('click');
+    setOpeningPrivacy(true);
+    setPrivacyStatus(null);
+    const result = await showAdPrivacyOptions();
+    setOpeningPrivacy(false);
+    setPrivacyStatus(result.completed ? 'Privacy choices updated.' : (result.error ?? 'Privacy choices are not required.'));
   }
 
   return (
@@ -189,6 +201,21 @@ export function Settings({ onClose, onOpenAccount }: SettingsProps) {
             onChange={toggleColorblind}
           />
         </div>
+
+        {nativeRewardedAdsAvailable() && (
+          <div className="settings-section settings-section--privacy">
+            <div className="settings-section__title">Privacy</div>
+            <button
+              type="button"
+              className="auth-gate__signout settings-account__button"
+              disabled={openingPrivacy}
+              onClick={() => void handleAdPrivacy()}
+            >
+              {openingPrivacy ? 'Opening...' : 'Ad privacy choices'}
+            </button>
+            <span className="settings-toggle__hint" role="status">{privacyStatus}</span>
+          </div>
+        )}
       </div>
     </div>
   );

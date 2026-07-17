@@ -26,6 +26,8 @@ import {
   claimAchievementRewardRemote,
   fetchAdRewardStatusRemote,
   claimAdRewardRemote,
+  createAdRewardClaimRemote,
+  fetchAdRewardClaimRemote,
   unlockCharacterRemote,
   claimFreeCharacterRemote,
   unlockCosmeticRemote,
@@ -39,7 +41,6 @@ import {
   trainCandidateMasteryRemote,
   deleteAccountRemote,
   claimLoginBonusRemote,
-  type AdRewardClaimRemote,
   type UnlockRemoteErrorReason,
 } from '../game/profile';
 import type { AdRewardStatus } from '../utils/rewardedAds';
@@ -147,6 +148,8 @@ interface ProfileStore {
   clearFirstWinPrompt(): void;
   claimAchievement(achievementId: string): Promise<boolean>;
   refreshAdRewardStatus(): Promise<AdRewardStatus | null>;
+  beginVerifiedAdReward(placement: string): Promise<AdRewardBeginResult>;
+  completeVerifiedAdReward(claimToken: string): Promise<AdRewardClaimResult>;
   claimAdReward(args: { placement: string; provider?: string | null; adUnit?: string | null }): Promise<AdRewardClaimResult>;
   unlock(characterId: string): Promise<boolean>;
   /** Server-validated FREE claim (account-only; server owns the "free now" rule). */
@@ -185,6 +188,13 @@ let initialized = false;
 
 export type AdRewardClaimResult =
   | { status: 'claimed'; amount: number; balance: number; adStatus: AdRewardStatus }
+  | { status: 'limit'; adStatus: AdRewardStatus }
+  | { status: 'verifying'; adStatus: AdRewardStatus }
+  | { status: 'auth_required' }
+  | { status: 'error'; message: string };
+
+export type AdRewardBeginResult =
+  | { status: 'pending'; claimToken: string; adStatus: AdRewardStatus }
   | { status: 'limit'; adStatus: AdRewardStatus }
   | { status: 'auth_required' }
   | { status: 'error'; message: string };
@@ -511,6 +521,38 @@ export const useProfile = create<ProfileStore>((set, get) => ({
     return status;
   },
 
+  async beginVerifiedAdReward(placement) {
+    if (!get().userId) return { status: 'auth_required' };
+    const result = await createAdRewardClaimRemote(placement);
+    if (!result) return { status: 'error', message: 'Verified ad rewards are not configured yet.' };
+    const adStatus = adStatusFromClaim(result);
+    set({ adRewardStatus: adStatus });
+    if (result.status === 'limit') return { status: 'limit', adStatus };
+    return { status: 'pending', claimToken: result.claimToken, adStatus };
+  },
+
+  async completeVerifiedAdReward(claimToken) {
+    if (!get().userId) return { status: 'auth_required' };
+    let result = await fetchAdRewardClaimRemote(claimToken);
+    // SSV normally lands quickly, but Google can deliver asynchronously. Poll
+    // briefly, then leave the claim pending; reopening the Shop refreshes it.
+    for (let attempt = 0; result?.status === 'pending' && attempt < 8; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      result = await fetchAdRewardClaimRemote(claimToken);
+    }
+    if (!result) return { status: 'error', message: 'The ad reward could not be verified.' };
+    const adStatus = adStatusFromClaim(result);
+    set({
+      profile: { ...get().profile, campaignFunds: result.balance },
+      adRewardStatus: adStatus,
+    });
+    if (result.status === 'credited') {
+      return { status: 'claimed', amount: result.amount, balance: result.balance, adStatus };
+    }
+    if (result.status === 'pending') return { status: 'verifying', adStatus };
+    return { status: 'error', message: result.message ?? 'The ad reward was rejected.' };
+  },
+
   async claimAdReward(args) {
     if (!get().userId) return { status: 'auth_required' };
     const result = await claimAdRewardRemote(args);
@@ -723,7 +765,7 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   },
 }));
 
-function adStatusFromClaim(result: AdRewardClaimRemote): AdRewardStatus {
+function adStatusFromClaim(result: AdRewardStatus): AdRewardStatus {
   return {
     watched: result.watched,
     remaining: result.remaining,

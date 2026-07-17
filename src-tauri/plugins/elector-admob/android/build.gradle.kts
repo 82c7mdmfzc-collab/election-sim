@@ -35,10 +35,8 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    // Pinned to the last GMA major compiled against Kotlin 1.9 metadata — the
-    // Tauri Android template's kotlin-gradle-plugin is 1.9.25 and v24.x AARs
-    // (Kotlin 2.1 metadata) fail compileDebugKotlin. The rewarded-ad API used
-    // here is identical across 23/24.
-    implementation("com.google.android.gms:play-services-ads:23.6.0")
+    // Supported through 2028 and compatible with the Kotlin 2.1 toolchain used
+    // by Tauri's current Android templates.
+    implementation("com.google.android.gms:play-services-ads:24.9.0")
     implementation(project(":tauri-android"))
 }

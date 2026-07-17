@@ -146,3 +146,203 @@ grant execute on function public.get_ad_reward_status() to authenticated;
 
 revoke execute on function public.claim_ad_reward(text, text, text) from public, anon;
 grant execute on function public.claim_ad_reward(text, text, text) to authenticated;
+
+-- ── Verified rewarded-ad claims (v1.2+) ────────────────────────────────────
+-- The legacy claim_ad_reward RPC above remains temporarily available to v1.1
+-- clients. New clients create a short-lived claim token, pass it to AdMob as
+-- SSV custom_data, and wait for the signed admob-ssv Edge callback to finalize
+-- the reward. Revoke the legacy RPC after the 1.2 minimum-version gate is live.
+
+create table if not exists public.ad_reward_claims (
+  token          uuid        primary key default gen_random_uuid(),
+  user_id        uuid        not null references auth.users(id) on delete cascade,
+  placement      text        not null default 'shop',
+  status         text        not null default 'pending'
+                              check (status in ('pending', 'credited', 'rejected', 'expired')),
+  amount         integer     not null default 0,
+  provider       text        not null default 'admob',
+  ad_unit        text,
+  transaction_id text        unique,
+  rejection      text,
+  created_at     timestamptz not null default now(),
+  expires_at     timestamptz not null default now() + interval '15 minutes',
+  credited_at    timestamptz
+);
+
+create index if not exists ad_reward_claims_user_created_idx
+  on public.ad_reward_claims (user_id, created_at desc);
+
+alter table public.ad_reward_claims enable row level security;
+
+drop policy if exists ad_reward_claims_select_own on public.ad_reward_claims;
+create policy ad_reward_claims_select_own on public.ad_reward_claims
+  for select using (auth.uid() = user_id);
+
+alter table public.ad_rewards add column if not exists claim_token uuid;
+alter table public.ad_rewards add column if not exists transaction_id text;
+create unique index if not exists ad_rewards_claim_token_uidx
+  on public.ad_rewards (claim_token) where claim_token is not null;
+create unique index if not exists ad_rewards_transaction_uidx
+  on public.ad_rewards (transaction_id) where transaction_id is not null;
+
+create or replace function public.create_ad_reward_claim(p_placement text default 'shop')
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid           uuid := auth.uid();
+  c_limit         constant integer := 5;
+  c_window        constant interval := interval '12 hours';
+  v_watched       integer;
+  v_oldest_recent timestamptz;
+  v_token         uuid;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+
+  select count(*), min(created_at)
+    into v_watched, v_oldest_recent
+    from public.ad_rewards
+    where user_id = v_uid and created_at > now() - c_window;
+
+  if coalesce(v_watched, 0) >= c_limit then
+    return jsonb_build_object(
+      'status', 'limit', 'watched', v_watched, 'remaining', 0,
+      'limit', c_limit, 'windowHours', 12,
+      'nextResetAt', v_oldest_recent + c_window
+    );
+  end if;
+
+  -- Reuse a still-live pending token so repeated taps cannot manufacture a
+  -- backlog of valid callbacks for the same account.
+  select token into v_token
+    from public.ad_reward_claims
+    where user_id = v_uid and status = 'pending' and expires_at > now()
+    order by created_at desc limit 1;
+
+  if v_token is null then
+    insert into public.ad_reward_claims (user_id, placement)
+    values (v_uid, left(coalesce(nullif(btrim(p_placement), ''), 'shop'), 64))
+    returning token into v_token;
+  end if;
+
+  return jsonb_build_object(
+    'status', 'pending', 'claimToken', v_token, 'watched', coalesce(v_watched, 0),
+    'remaining', greatest(0, c_limit - coalesce(v_watched, 0)),
+    'limit', c_limit, 'windowHours', 12, 'nextResetAt', null
+  );
+end; $$;
+
+create or replace function public.get_ad_reward_claim(p_token uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_claim public.ad_reward_claims;
+  v_status jsonb;
+  v_balance integer;
+begin
+  if v_uid is null then raise exception 'auth required'; end if;
+  select * into v_claim from public.ad_reward_claims
+    where token = p_token and user_id = v_uid;
+  if v_claim.token is null then raise exception 'claim not found'; end if;
+
+  if v_claim.status = 'pending' and v_claim.expires_at <= now() then
+    update public.ad_reward_claims set status = 'expired', rejection = 'expired'
+      where token = p_token and status = 'pending'
+      returning * into v_claim;
+  end if;
+
+  select campaign_funds into v_balance from public.profiles where id = v_uid;
+  v_status := public.get_ad_reward_status();
+  return v_status || jsonb_build_object(
+    'status', v_claim.status,
+    'amount', v_claim.amount,
+    'balance', coalesce(v_balance, 0),
+    'claimToken', v_claim.token,
+    'message', v_claim.rejection
+  );
+end; $$;
+
+-- Called only by the admob-ssv Edge Function with a service-role JWT after it
+-- has verified Google's ECDSA signature. Idempotent on both token and AdMob
+-- transaction id; the payout remains server-selected (10-25 Funds).
+create or replace function public.finalize_ad_reward_ssv(
+  p_token uuid,
+  p_transaction_id text,
+  p_ad_unit text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_claim public.ad_reward_claims;
+  v_existing public.ad_reward_claims;
+  v_watched integer;
+  v_amount integer;
+  v_balance integer;
+begin
+  if auth.role() <> 'service_role' then raise exception 'service role required'; end if;
+  if nullif(btrim(coalesce(p_transaction_id, '')), '') is null then
+    raise exception 'transaction id required';
+  end if;
+
+  select * into v_existing from public.ad_reward_claims
+    where transaction_id = p_transaction_id;
+  if v_existing.token is not null then
+    return jsonb_build_object('status', v_existing.status, 'amount', v_existing.amount);
+  end if;
+
+  select * into v_claim from public.ad_reward_claims where token = p_token for update;
+  if v_claim.token is null then raise exception 'claim not found'; end if;
+  if v_claim.status = 'credited' then
+    return jsonb_build_object('status', 'credited', 'amount', v_claim.amount);
+  end if;
+  if v_claim.status <> 'pending' or v_claim.expires_at <= now() then
+    update public.ad_reward_claims
+      set status = case when status = 'pending' then 'expired' else status end,
+          rejection = coalesce(rejection, 'claim unavailable')
+      where token = p_token;
+    return jsonb_build_object('status', 'rejected', 'amount', 0);
+  end if;
+
+  select count(*) into v_watched from public.ad_rewards
+    where user_id = v_claim.user_id and created_at > now() - interval '12 hours';
+  if v_watched >= 5 then
+    update public.ad_reward_claims set status = 'rejected', rejection = 'limit'
+      where token = p_token;
+    return jsonb_build_object('status', 'rejected', 'amount', 0);
+  end if;
+
+  v_amount := 10 + floor(random() * 16)::integer;
+  insert into public.ad_rewards
+    (user_id, amount, placement, provider, ad_unit, claim_token, transaction_id)
+  values
+    (v_claim.user_id, v_amount, v_claim.placement, 'admob',
+     left(nullif(btrim(coalesce(p_ad_unit, '')), ''), 120), p_token, p_transaction_id);
+
+  update public.profiles
+    set campaign_funds = campaign_funds + v_amount, updated_at = now()
+    where id = v_claim.user_id
+    returning campaign_funds into v_balance;
+
+  update public.ad_reward_claims
+    set status = 'credited', amount = v_amount, ad_unit = p_ad_unit,
+        transaction_id = p_transaction_id, credited_at = now()
+    where token = p_token;
+
+  return jsonb_build_object('status', 'credited', 'amount', v_amount, 'balance', v_balance);
+end; $$;
+
+revoke execute on function public.create_ad_reward_claim(text) from public, anon;
+grant execute on function public.create_ad_reward_claim(text) to authenticated;
+revoke execute on function public.get_ad_reward_claim(uuid) from public, anon;
+grant execute on function public.get_ad_reward_claim(uuid) to authenticated;
+revoke execute on function public.finalize_ad_reward_ssv(uuid, text, text) from public, anon, authenticated;
+grant execute on function public.finalize_ad_reward_ssv(uuid, text, text) to service_role;

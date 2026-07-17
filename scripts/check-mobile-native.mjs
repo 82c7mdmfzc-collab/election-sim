@@ -42,10 +42,14 @@ console.log('Emoji-icon guard passed (no guarded emoji in .tsx sources).');
 const PORT = 4177;
 const URL = `http://127.0.0.1:${PORT}/`;
 const VIEWPORTS = [
+  { width: 568, height: 320, name: 'compact iPhone landscape' },
+  { width: 640, height: 360, name: 'compact Android landscape' },
   { width: 667, height: 375, name: 'small iPhone landscape' },
   { width: 852, height: 393, name: 'notched iPhone landscape' },
   { width: 932, height: 430, name: 'large iPhone landscape' },
   { width: 1024, height: 768, name: 'iPad landscape' },
+  { width: 1138, height: 712, name: 'foldable landscape' },
+  { width: 1366, height: 1024, name: 'large iPad landscape' },
 ];
 
 const PREFS = {

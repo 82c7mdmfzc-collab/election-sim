@@ -18,7 +18,11 @@ let package = Package(
     .package(name: "Tauri", path: "../.tauri/tauri-api"),
     .package(
       url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git",
-      from: "12.0.0"
+      exact: "12.14.0"
+    ),
+    .package(
+      url: "https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git",
+      exact: "3.1.0"
     ),
   ],
   targets: [
@@ -27,6 +31,10 @@ let package = Package(
       dependencies: [
         .byName(name: "Tauri"),
         .product(name: "GoogleMobileAds", package: "swift-package-manager-google-mobile-ads"),
+        .product(
+          name: "GoogleUserMessagingPlatform",
+          package: "swift-package-manager-google-user-messaging-platform"
+        ),
       ],
       path: "Sources"
     ),

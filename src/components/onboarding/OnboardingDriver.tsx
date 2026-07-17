@@ -29,7 +29,6 @@ function measure(anchor: string | null): Rect | null {
 export function OnboardingDriver() {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
-  const finished = useRef(false);
   const startedTracked = useRef(false);
 
   const step = ONBOARDING_STEPS[index];
@@ -43,8 +42,7 @@ export function OnboardingDriver() {
   }, []);
 
   function finish(reason: 'completed' | 'skipped') {
-    if (finished.current) return;
-    finished.current = true;
+    if (index >= total) return;
     markGuidedOnboardingDone();
     track('guided_onboarding_finished', { reason, last_step: step?.id ?? 'unknown', step_index: index });
     setIndex(total); // unmounts overlay (index out of range)
@@ -84,7 +82,7 @@ export function OnboardingDriver() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
-  if (!step || finished.current) return null;
+  if (!step) return null;
 
   return createPortal(
     <SpotlightOverlay

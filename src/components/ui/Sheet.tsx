@@ -17,7 +17,7 @@ import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon } from '../icons';
 import { useDismissable } from '../../hooks/useDismissable';
-import { ModalCloseContext } from './Modal';
+import { ModalCloseContext } from './modalCloseContext';
 
 export function Sheet({ side = 'bottom', onClose, label, title, className, backdropClassName, children }: {
   side?: 'bottom' | 'right';

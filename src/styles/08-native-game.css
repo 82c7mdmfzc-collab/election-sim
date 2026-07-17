@@ -2634,6 +2634,11 @@ html.native .home-settings { top: calc(0.65rem + env(safe-area-inset-top)); left
 .settings-account__delete {
   padding-top: 0.15rem;
 }
+.settings-section--privacy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 .settings-toggle {
   display: flex; align-items: center; gap: 0.75rem;
   padding: 0.55rem 0;

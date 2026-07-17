@@ -8,7 +8,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Modal, useModalClose } from './ui/Modal';
+import { Modal } from './ui/Modal';
+import { useModalClose } from './ui/modalCloseContext';
 import { GiftIcon } from './icons';
 import { AudioManager } from '../utils/audioManager';
 import { haptic } from '../utils/haptics';

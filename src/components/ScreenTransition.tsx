@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { motionReduced } from '../utils/appearance';
 
 /**
@@ -58,29 +58,26 @@ export function ScreenTransition({ screenKey, children }: {
   screenKey: string;
   children: ReactNode;
 }) {
-  // Last COMMITTED screen — written post-commit so the derived-state block
-  // below reads a stable snapshot (StrictMode/concurrent safe).
+  // Last committed screen. Navigation state is derived in a layout effect so
+  // React never reads mutable refs during render and the transition is still
+  // prepared before the browser paints the new screen.
   const last = useRef<{ key: string; node: ReactNode }>({ key: screenKey, node: children });
-  useEffect(() => { last.current = { key: screenKey, node: children }; });
-
-  const [prevKey, setPrevKey] = useState(screenKey);
   const [enterDir, setEnterDir] = useState<Dir>('fade');
   const [exiting, setExiting] = useState<Layer | null>(null);
 
-  // Derived-state-during-render (the sanctioned getDerivedStateFromProps
-  // pattern): runs synchronously on key change, before commit — zero flash.
-  // A key change mid-animation replaces the exit layer with the half-entered
-  // screen from last.current, so there is at most one exit layer, ever.
-  if (screenKey !== prevKey) {
-    const dir = resolveDir(prevKey, screenKey);
-    setPrevKey(screenKey);
-    setEnterDir(dir);
-    setExiting(
-      dir !== 'fade' && !motionReduced()
-        ? { key: last.current.key, node: last.current.node, dir }
-        : null,
-    );
-  }
+  useLayoutEffect(() => {
+    const previous = last.current;
+    if (screenKey !== previous.key) {
+      const dir = resolveDir(previous.key, screenKey);
+      setEnterDir(dir);
+      setExiting(
+        dir !== 'fade' && !motionReduced()
+          ? { key: previous.key, node: previous.node, dir }
+          : null,
+      );
+    }
+    last.current = { key: screenKey, node: children };
+  }, [children, screenKey]);
 
   useEffect(() => {
     if (!exiting) return;

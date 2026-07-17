@@ -33,7 +33,10 @@ impl<R: Runtime, T: Manager<R>> crate::ElectorAdmobExt<R> for T {
 
 pub fn init<R: Runtime>() -> TauriPlugin<R, AdmobConfig> {
     Builder::new("elector-admob")
-        .invoke_handler(tauri::generate_handler![commands::show_rewarded_ad])
+        .invoke_handler(tauri::generate_handler![
+            commands::show_rewarded_ad,
+            commands::show_privacy_options
+        ])
         .setup(|app, api| {
             #[cfg(mobile)]
             let elector_admob = mobile::init(app, api)?;

@@ -1,5 +1,37 @@
 # Elector Update Log
 
+## Version 1.2.0 — Mobile, Ads & Performance
+
+Date: 2026-07-17
+
+### Player-facing changes
+
+- Improved phone and tablet support across compact, wide, and landscape layouts.
+- Reduced startup download size by loading major game screens only when needed.
+- Improved Shop feedback while rewarded-ad credit is being verified.
+- Preserved the full solo-game smoke path and existing progression features.
+
+### Monetization and privacy
+
+- Added server-side verification for rewarded ads with single-use claim tokens and idempotent transaction handling.
+- Added Google UMP consent refresh and required-message presentation on iOS and Android before requesting ads.
+- Kept rewarded ads opt-in and non-personalized by default.
+- Added an authenticated client polling flow so rewards are only displayed after server credit.
+
+### Verification
+
+- Unit tests, lint, TypeScript and Vite production build.
+- Eight-device mobile viewport matrix from compact landscape phones through tablets.
+- Solo bot browser smoke test.
+- Rust host check and Android native rewarded-ad assembly.
+
+### Deployment notes
+
+- Apply `supabase/ads.sql` and deploy `supabase/functions/admob-ssv` before releasing.
+- Configure the AdMob SSV callback and Privacy & messaging forms for both apps.
+- Replace the Android Google test app/ad-unit IDs with the production IDs before building.
+- Release to 100% only after the production rewarded-ad test credits exactly once on both platforms.
+
 ## iOS Build 58 — Retention & Mastery Pass
 
 Date: 2026-07-02

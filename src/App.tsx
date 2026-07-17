@@ -1,26 +1,14 @@
 import './App.css';
-import { useEffect, useRef, useState } from 'react';
-import { CandidateSelect } from './components/CandidateSelect';
-import { MultiplayerMenu } from './components/MultiplayerMenu';
-import { GameShell } from './components/GameShell';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { VersusScreen } from './components/VersusScreen';
 import { ModifierRoll } from './components/ModifierRoll';
 import { ActiveModifierChip } from './components/ActiveModifierChip';
 import { ElectionTallyView } from './components/ElectionTallyView';
-import { VictoryPodium } from './components/VictoryPodium';
-import { Tutorial } from './components/Tutorial';
-import { AuthGate } from './components/AuthGate';
-import { Shop } from './components/Shop';
-import { SeasonPass } from './components/SeasonPass';
 import { claimableCount } from './game/season';
-import { BotSetup } from './components/BotSetup';
-import { DailyChallenge } from './components/DailyChallenge';
 import { Landing } from './components/Landing';
 import { BrandMark } from './components/BrandMark';
 import { UsernameClaim } from './components/UsernameClaim';
 import { HomeAudioControls } from './components/MuteButton';
-import { Leaderboard } from './components/Leaderboard';
-import { Settings } from './components/Settings';
 import { ScreenTransition } from './components/ScreenTransition';
 import { isNativeRuntime } from './utils/platform';
 import { useGameStore } from './game/store';
@@ -49,6 +37,19 @@ import {
   track,
 } from './utils/analytics';
 import type { ComponentType, ReactNode } from 'react';
+
+const CandidateSelect = lazy(() => import('./components/CandidateSelect').then((m) => ({ default: m.CandidateSelect })));
+const MultiplayerMenu = lazy(() => import('./components/MultiplayerMenu').then((m) => ({ default: m.MultiplayerMenu })));
+const GameShell = lazy(() => import('./components/GameShell').then((m) => ({ default: m.GameShell })));
+const VictoryPodium = lazy(() => import('./components/VictoryPodium').then((m) => ({ default: m.VictoryPodium })));
+const Tutorial = lazy(() => import('./components/Tutorial').then((m) => ({ default: m.Tutorial })));
+const AuthGate = lazy(() => import('./components/AuthGate').then((m) => ({ default: m.AuthGate })));
+const Shop = lazy(() => import('./components/Shop').then((m) => ({ default: m.Shop })));
+const SeasonPass = lazy(() => import('./components/SeasonPass').then((m) => ({ default: m.SeasonPass })));
+const BotSetup = lazy(() => import('./components/BotSetup').then((m) => ({ default: m.BotSetup })));
+const DailyChallenge = lazy(() => import('./components/DailyChallenge').then((m) => ({ default: m.DailyChallenge })));
+const Leaderboard = lazy(() => import('./components/Leaderboard').then((m) => ({ default: m.Leaderboard })));
+const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
 
 type AppMode = 'mode-select' | 'play' | 'single' | 'online' | 'tutorial' | 'shop' | 'bot' | 'daily' | 'leaderboard' | 'season';
 type TutorialSource = 'menu' | 'onboarding';
@@ -658,10 +659,14 @@ function App() {
 
   return (
     <>
-      <ScreenTransition screenKey={screenKey}>{screen}</ScreenTransition>
+      <ScreenTransition screenKey={screenKey}>
+        <Suspense fallback={<div className="landing landing--splash"><BrandMark /></div>}>
+          {screen}
+        </Suspense>
+      </ScreenTransition>
       <ActiveModifierChip />
-      {account}
-      {settings}
+      <Suspense fallback={null}>{account}</Suspense>
+      <Suspense fallback={null}>{settings}</Suspense>
       {dailyBonus > 0 && screenKey === 'menu' && (
         <DailyBonusChest amount={dailyBonus} onClose={() => setDailyBonus(0)} />
       )}

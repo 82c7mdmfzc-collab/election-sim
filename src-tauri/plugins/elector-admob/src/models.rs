@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct ShowRewardedAdRequest {
     pub placement: String,
+    pub claim_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -21,6 +22,22 @@ impl ShowRewardedAdResponse {
             completed: false,
             provider: Some("admob".into()),
             ad_unit: None,
+            error: Some(message.into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrivacyOptionsResponse {
+    pub completed: bool,
+    pub error: Option<String>,
+}
+
+impl PrivacyOptionsResponse {
+    pub fn unsupported(message: impl Into<String>) -> Self {
+        Self {
+            completed: false,
             error: Some(message.into()),
         }
     }

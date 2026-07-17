@@ -22,6 +22,7 @@ on:
       - 'supabase/functions/resolve-turn/**'
       - 'supabase/functions/fulfill-purchase/**'
       - 'supabase/functions/admin-broadcast/**'
+      - 'supabase/functions/admob-ssv/**'
       - 'supabase/functions/_shared/**'
       - 'src/game/**'
       - 'scripts/build-edge-function.mjs'
@@ -73,3 +74,9 @@ jobs:
           set -euo pipefail
           supabase functions deploy admin-broadcast --project-ref "$PROJECT_REF"
           echo "✅ admin-broadcast deployed"
+
+      - name: Deploy admob-ssv
+        run: |
+          set -euo pipefail
+          supabase functions deploy admob-ssv --no-verify-jwt --project-ref "$PROJECT_REF"
+          echo "✅ admob-ssv deployed"

@@ -18,7 +18,13 @@ impl<R: Runtime> ElectorAdmob<R> {
         _payload: ShowRewardedAdRequest,
     ) -> crate::Result<ShowRewardedAdResponse> {
         Ok(ShowRewardedAdResponse::unsupported(
-            "Rewarded ads are only available in the iOS app.",
+            "Rewarded ads are only available in the mobile app.",
+        ))
+    }
+
+    pub async fn show_privacy_options(&self) -> crate::Result<PrivacyOptionsResponse> {
+        Ok(PrivacyOptionsResponse::unsupported(
+            "Ad privacy options are only available in the mobile app.",
         ))
     }
 }

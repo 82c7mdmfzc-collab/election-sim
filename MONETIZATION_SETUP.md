@@ -1,6 +1,6 @@
 # Monetization, Virality & Growth Runbook
 
-Current as of 2026-06-28.
+Current as of 2026-07-17.
 
 ## Monetization Posture
 
@@ -109,6 +109,7 @@ Test: purchase in TestFlight/sandbox, confirm balance updates, reinstall/sign in
 ## Rewarded Ads
 
 - SQL: `supabase/ads.sql`
+- SSV Edge Function: `supabase/functions/admob-ssv/index.ts`
 - Client: `src/utils/rewardedAds.ts`, `src/components/Shop.tsx`
 - iOS app id: `ca-app-pub-5364561069734393~8538342864`
 - iOS rewarded ad unit: `ca-app-pub-5364561069734393/7845987969`
@@ -116,7 +117,39 @@ Test: purchase in TestFlight/sandbox, confirm balance updates, reinstall/sign in
 
 Production UI is hidden unless a native bridge is available or `VITE_ENABLE_INLINE_REWARDED_ADS=true` is intentionally set.
 
-Test: sign in → Shop → Watch ad → provider completion → balance increases by 10–25 Funds → repeat 5 times → 6th attempt is blocked until the oldest claim is 12 hours old.
+The native SDK attaches a one-time claim token to AdMob server-side verification
+(SSV). AdMob calls the Edge Function, the function verifies Google's ECDSA
+signature, and the database credits the reward exactly once by transaction ID.
+The client never credits a native reward from its local completion callback.
+
+Deploy the database and callback:
+
+```bash
+psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/ads.sql
+supabase functions deploy admob-ssv --no-verify-jwt --project-ref rwavsfyjjqfwefabcfvv
+```
+
+Set the SSV callback URL on both rewarded ad units in AdMob:
+
+```text
+https://rwavsfyjjqfwefabcfvv.supabase.co/functions/v1/admob-ssv
+```
+
+Before production release:
+
+- Replace `plugins.elector-admob.androidAppId` and
+  `androidRewardedAdUnitId` in `src-tauri/tauri.conf.json`; Google's public test
+  IDs must never ship.
+- Create and publish the applicable GDPR/US-state messages in AdMob → Privacy &
+  messaging for both iOS and Android. The app refreshes UMP consent before each
+  rewarded-ad request and fails closed when ads cannot be requested.
+- Keep Google test units on development builds and register physical test
+  devices before exercising production ad units.
+
+Test: sign in → Shop → Watch ad → provider completion → SSV request succeeds →
+balance increases by 10–25 Funds exactly once → replay the same transaction and
+confirm no second credit → repeat 5 times → 6th attempt is blocked until the
+oldest claim is 12 hours old. Run this on iOS and Android before a 100% rollout.
 
 ## Referrals
 

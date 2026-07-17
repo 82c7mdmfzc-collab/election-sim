@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-const COMMANDS: &[&str] = &["show_rewarded_ad"];
+const COMMANDS: &[&str] = &["show_rewarded_ad", "show_privacy_options"];
 
 // Google's public TEST app id — dev fallback so the Mobile Ads SDK doesn't crash
 // at app launch before the real AdMob Android app id is configured.
